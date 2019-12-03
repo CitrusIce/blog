@@ -1,7 +1,6 @@
 all: build serve
 .PHONY:initial
 initial:
-	git remote add citrusice.github.io git@github.com:CitrusIce/citrusice.github.io.git 
 	git subtree add --prefix=citrusice.github.io citrusice.github.io master
 .PHONY:serve
 serve:
@@ -9,7 +8,9 @@ serve:
 .PHONY:build
 build:
 	bundle exec jekyll build -d citrusice.github.io
-.PHONY:push
-push:
-	git push
+.PHONY:publish
+publish:
 	git subtree push --prefix=citrusice.github.io git@github.com:CitrusIce/citrusice.github.io.git master
+.PHONY:pull
+pull:
+	git subtree pull --prefix=citrusice.github.io git@github.com:CitrusIce/citrusice.github.io.git master
