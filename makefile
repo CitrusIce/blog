@@ -1,4 +1,8 @@
 all: build serve
+.PHONY:initial
+initial:
+	git remote add citrusice.github.io git@github.com:CitrusIce/citrusice.github.io.git 
+	git subtree add --prefix=citrusice.github.io citrusice.github.io master
 .PHONY:serve
 serve:
 	bundle exec jekyll serve -d citrusice.github.io
