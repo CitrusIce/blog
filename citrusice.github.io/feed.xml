@@ -1,4 +1,48 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-12-03T18:05:09+08:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>JFDSIEFWODLFJOZJLKAJDOQWJLKQJFKLFIVXZPQ{QWJXZ&lt;C}</subtitle><entry><title type="html">恶意宏文档与免杀</title><link href="http://localhost:4000/posts/malicious-macro" rel="alternate" type="text/html" title="恶意宏文档与免杀" /><published>2019-12-03T12:48:05+08:00</published><updated>2019-12-03T12:48:05+08:00</updated><id>http://localhost:4000/posts/malicious-macro</id><content type="html" xml:base="http://localhost:4000/posts/malicious-macro">&lt;p&gt;office宏，译自英文单词Macro。宏是微软公司为其OFFICE软件包设计的一个特殊功能，软件设计者为了让人们在使用软件进行工作时，避免一再地重复相同的动作而设计出来的一种工具，它利用简单的语法，把常用的动作写成宏，当在工作时，就可以直接利用事先编好的宏自动运行，去完成某项特定的任务，而不必再重复相同的动作，目的是让用户文档中的一些任务自动化。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="http://0.0.0.0:8888/feed.xml" rel="self" type="application/atom+xml" /><link href="http://0.0.0.0:8888/" rel="alternate" type="text/html" /><updated>2020-01-27T23:56:41+08:00</updated><id>http://0.0.0.0:8888/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>JFDSIEFWODLFJOZJLKAJDOQWJLKQJFKLFIVXZPQ{QWJXZ&lt;C}</subtitle><entry><title type="html">渗透测试中的rdp隧道</title><link href="http://0.0.0.0:8888/posts/rdp-tuunel" rel="alternate" type="text/html" title="渗透测试中的rdp隧道" /><published>2020-01-27T20:03:35+08:00</published><updated>2020-01-27T20:03:35+08:00</updated><id>http://0.0.0.0:8888/posts/rdp-tuunel</id><content type="html" xml:base="http://0.0.0.0:8888/posts/rdp-tuunel">&lt;p&gt;渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。&lt;/p&gt;
+
+&lt;h2 id=&quot;编译rdp2tcp&quot;&gt;编译rdp2tcp&lt;/h2&gt;
+
+&lt;p&gt;安装mingw32，kali自带&lt;/p&gt;
+
+&lt;p&gt;修改server的makefile.mingw32文件，修改cc为i686-w64-mingw32-gcc(根据实际情况修改)&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;make client
+make server-mingw32
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;得到client/rdp2tcp和server/rdp2tcp.exe&lt;/p&gt;
+
+&lt;h2 id=&quot;编译xfreerdp&quot;&gt;编译xfreerdp&lt;/h2&gt;
+
+&lt;p&gt;kali自带的不支持rdp2tcp，因此自己编译一个&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;git clone https://github.com/FreeRDP/FreeRDP.git
+cmake &lt;span class=&quot;nb&quot;&gt;.&lt;/span&gt;
+make
+make &lt;span class=&quot;nb&quot;&gt;install&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image_8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;可以看到已经有了rdp2tcp选项&lt;/p&gt;
+
+&lt;h2 id=&quot;rdp-to-tcp&quot;&gt;rdp to tcp&lt;/h2&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;/usr/local/bin/xfreerdp /v:192.168.157.139:3389 /u:yuzuu_ /rdp2tcp:/root/rdp2tcp/client/rdp2tcp
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;登录服务器，上传rdp2tcp.exe并运行&lt;/p&gt;
+
+&lt;p&gt;使用rdp2tcp/tools/rdp2tcp.py来管理tunnel&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;python rdp2tcp.py
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;测试：&lt;/p&gt;
+
+&lt;p&gt;将本地445端口的流量通过rdp tunnel转发到目标机上&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200127194853.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。</summary></entry><entry><title type="html">恶意宏文档与免杀</title><link href="http://0.0.0.0:8888/posts/malicious-macro" rel="alternate" type="text/html" title="恶意宏文档与免杀" /><published>2019-12-03T12:48:05+08:00</published><updated>2019-12-03T12:48:05+08:00</updated><id>http://0.0.0.0:8888/posts/malicious-macro</id><content type="html" xml:base="http://0.0.0.0:8888/posts/malicious-macro">&lt;p&gt;office宏，译自英文单词Macro。宏是微软公司为其OFFICE软件包设计的一个特殊功能，软件设计者为了让人们在使用软件进行工作时，避免一再地重复相同的动作而设计出来的一种工具，它利用简单的语法，把常用的动作写成宏，当在工作时，就可以直接利用事先编好的宏自动运行，去完成某项特定的任务，而不必再重复相同的动作，目的是让用户文档中的一些任务自动化。&lt;/p&gt;
 
 &lt;h1 id=&quot;生成执行cmd的宏&quot;&gt;生成执行cmd的宏&lt;/h1&gt;
 

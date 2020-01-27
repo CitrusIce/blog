@@ -28,8 +28,8 @@ url: "" # the base hostname & protocol for your site, e.g. http://example.com
 # twitter_username: jekyllrb
 
 # Build settings
-theme: texture
-# remote_theme: CitrusIce/texture
+#theme: texture
+remote_theme: CitrusIce/texture
 plugins:
   - jekyll-feed
   - jekyll-archives
