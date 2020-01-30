@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="http://0.0.0.0:8888/feed.xml" rel="self" type="application/atom+xml" /><link href="http://0.0.0.0:8888/" rel="alternate" type="text/html" /><updated>2020-01-30T18:05:32+08:00</updated><id>http://0.0.0.0:8888/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>JFDSIEFWODLFJOZJLKAJDOQWJLKQJFKLFIVXZPQ{QWJXZ&lt;C}</subtitle><entry><title type="html">使用CHM文件进行钓鱼</title><link href="http://0.0.0.0:8888/posts/chm-phishing" rel="alternate" type="text/html" title="使用CHM文件进行钓鱼" /><published>2020-01-30T17:56:19+08:00</published><updated>2020-01-30T17:56:19+08:00</updated><id>http://0.0.0.0:8888/posts/chm-phishing</id><content type="html" xml:base="http://0.0.0.0:8888/posts/chm-phishing">&lt;p&gt;进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="http://0.0.0.0:8888/feed.xml" rel="self" type="application/atom+xml" /><link href="http://0.0.0.0:8888/" rel="alternate" type="text/html" /><updated>2020-01-30T18:12:55+08:00</updated><id>http://0.0.0.0:8888/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>JFDSIEFWODLFJOZJLKAJDOQWJLKQJFKLFIVXZPQ{QWJXZ&lt;C}</subtitle><entry><title type="html">使用CHM文件进行钓鱼</title><link href="http://0.0.0.0:8888/posts/chm-phishing" rel="alternate" type="text/html" title="使用CHM文件进行钓鱼" /><published>2020-01-30T17:56:19+08:00</published><updated>2020-01-30T17:56:19+08:00</updated><id>http://0.0.0.0:8888/posts/chm-phishing</id><content type="html" xml:base="http://0.0.0.0:8888/posts/chm-phishing">&lt;p&gt;进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。&lt;/p&gt;
 
 &lt;h1 id=&quot;使用com控件命令执行&quot;&gt;使用com控件命令执行&lt;/h1&gt;
 
@@ -106,7 +106,7 @@ x.Click();
 
 &lt;p&gt;测试：&lt;/p&gt;
 
-&lt;p&gt;美中不足的是加载使用js加载.net会有启用activeX控件的警告，必须点“是”之后才能加载。&lt;/p&gt;
+&lt;p&gt;美中不足的是使用js加载.net会有启用activeX控件的警告，必须点“是”之后才能加载。&lt;/p&gt;
 
 &lt;p&gt;360火绒均不拦截&lt;/p&gt;
 
