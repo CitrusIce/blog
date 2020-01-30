@@ -118,7 +118,7 @@ DotNetToJScript.exe -o 1.js ClassLibrary1.dll -c ClassLibrary1.Class1
 
 测试：
 
-美中不足的是加载使用js加载.net会有启用activeX控件的警告，必须点“是”之后才能加载。
+美中不足的是使用js加载.net会有启用activeX控件的警告，必须点“是”之后才能加载。
 
 360火绒均不拦截
 
