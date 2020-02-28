@@ -69,7 +69,8 @@ html {
   -webkit-text-size-adjust: 100%; }
 
 body {
-  margin: 0; }
+  margin: 0;
+  overflow-x: hidden; }
 
 article,
 aside,
@@ -563,12 +564,12 @@ pre.highlight, code {
 
 body {
   font-family: 'Nunito Sans', sans-serif;
+  overflow-x: hidden;
   font-size: 16px;
   line-height: 1.55em;
   margin: 0;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden; }
+  -moz-osx-font-smoothing: grayscale; }
   @media screen and (min-width: 320px) {
     body {
       font-size: calc(16px + 3 * ((100vw - 320px) / 960)); } }
