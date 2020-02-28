@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	{%- include head.html -%}
+</head>
+<body>
+	<header class="texture-{{ site.texture.style }}">
+		<div class="container">
+			{%- include nav.html -%}
+		</div>
+		{%- include page_header.html -%}	
+	</header>
+	<main>
+        <div id="block_container">
+            <div class="container">
+                {{ content }}
+            </div>
+            <!-- <div id="block_right">
+                <ul>
+                    {% for category in site.categories %}
+                    <li>
+                        <a href="/{{ category | first | downcase }}{% unless forloop.last %}{% endunless %} ">{{ category | first }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div> -->
+        </div>
+	</main>
+	{%- include footer.html -%}
+</body>
+</html>

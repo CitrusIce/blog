@@ -1,85 +1,41 @@
-# Welcome to Jekyll!
-#
-# This config file is meant for settings that affect your whole blog, values
-# which you are expected to set up once and rarely edit after that. If you find
-# yourself editing this file very often, consider using Jekyll's data files
-# feature for the data you need to update frequently.
-#
-# For technical reasons, this file is *NOT* reloaded automatically when you use
-# 'bundle exec jekyll serve'. If you change this file, please restart the server process.
-#
-# If you need help with YAML syntax, here are some quick references for you: 
-# https://learn-the-web.algonquindesign.ca/topics/markdown-yaml-cheat-sheet/#yaml
-# https://learnxinyminutes.com/docs/yaml/
-#
-# Site settings
-# These are used to personalize your new site. If you look in the HTML files,
-# you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
-# You can create any custom variable you would like, and they will be accessible
-# in the templates via {{ site.myvariable }}.
-
 title: Nqd8VId6
+#author: GitHub User
 email: None
-description: >- # this means to ignore newlines until "baseurl:"
-  JFDSIEFWODLFJOZJLKAJDOQWJLKQJFKLFIVXZPQ{QWJXZ<C}
-
-baseurl: "" # the subpath of your site, e.g. /blog
-url: "" # the base hostname & protocol for your site, e.g. http://example.com
-# twitter_username: jekyllrb
-
-# Build settings
-#theme: texture
-remote_theme: CitrusIce/texture
-plugins:
-  - jekyll-feed
-  - jekyll-archives
-
-# Exclude from processing.
-# The following items will not be processed, by default.
-# Any item listed under the `exclude:` key here will be automatically added to
-# the internal "default list".
-#
-# Excluded items can be processed by explicitly listing the directories or
-# their entries' file path in the `include:` list.
-#
-# exclude:
-#   - .sass-cache/
-#   - .jekyll-cache/
-#   - gemfiles/
-#   - Gemfile
-#   - Gemfile.lock
-#   - node_modules/
-#   - vendor/bundle/
-#   - vendor/cache/
-#   - vendor/gems/
-#   - vendor/ruby/
-show_excerpts: true
-collections:
-  posts:
-    output: true
-    permalink: /posts/:title
+description: > # this means to ignore newlines until "show_exerpts:"
+  my blog
+show_excerpts: true # set to true to show excerpts on the homepage
+baseurl: ""
+url: "https://citrusice.github.io"
+# Minima date format
+# refer to http://shopify.github.io/liquid/filters/date/ if you want to customize this
+sass:
+  sass_dir: _sass
+exclude: [makefile,newpost.sh,Gemfile,Gemfile.lock,LICENSE.txt,README.md,screen1.png,screen2.png,texture.gemspec]
+permalink: /posts/:title/
 texture:
   title: Nqd8VId6
   tagline: Developer. Penetration Tester
   date_format: "%b %-d, %Y"
-
-  showNav: true
-
   style: black
+  showNav: false
+  showPicker: false
+
+  # generate social links in footer
   social_links:
-    github: CitrusIce
-    # linkedIn: in/thelehhman # format: locale/username
-jekyll-archives:
-  enabled:
-    - year
-    - categories
+    #twitter: thelehhman
+    github:  Citrus
+    #linkedIn: in/thelehhman
+    rss: "/feed.xml"
+ 
 
-  layout: archive
-  permalinks:
-    year: '/:year/'
-    month: '/:year/:month/'
-    day: '/:year/:month/:day/'
-    tag: '/tag/:name/'
-    # category: '/test/'
-    category: '/:name/'
+# If you want to link only specific pages in your header, uncomment
+# this and add the path to the pages in order as they should show up
+#header_pages:
+# - about.md
 
+# Build settings
+# theme: texture
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-feed
