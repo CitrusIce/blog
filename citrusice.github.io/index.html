@@ -5,27 +5,31 @@
 <meta http-equiv="X-UA-Compatible" content="ie=edge">
 <link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
 <title>Nqd8VId6</title>
 </head>
 <body>
 	<header class="texture-black">
-		<div class="container"><div class="navbar">
-	<ul>
-		<a href="/index"><li>Home</li></a>
-		<a href="/about"><li>About</li></a>
-		<a href="/archive"><li>Archive</li></a>
-	</ul>
-</div></div><div class="container">
+		<div class="container"></div><div class="container">
 	<h1>Nqd8VId6</h1>
 	<h2>Developer. Penetration Tester</h2>
-	<ul class="social"><a href="https://github.com/CitrusIce"><li><i class="icon-github-circled"></i></li></a></ul>
+	<ul class="social"><a href="https://github.com/Citrus"><li><i class="icon-github-circled"></i></li></a><a href="/feed.xml"><li><i class="fa fa-rss-square"></i></li></a></ul>
 </div>
 </header>
 	<main>
         <div id="block_container">
             <div class="container">
                 <ul class="posts"><li><div class="post-meta">
-			<a class="post-link" href="/posts/chm-phishing">
+			<a class="post-link" href="/posts/memory-execute/">
+				<h2 class="post-title">使用内存加载躲避静态查杀</h2>
+			</a>
+			<div class="post-date"><i class="icon-calendar"></i>Feb 28, 2020</div>
+		</div>
+		<div class="post">在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。
+
+</div>
+	</li><li><div class="post-meta">
+			<a class="post-link" href="/posts/chm-phishing/">
 				<h2 class="post-title">使用CHM文件进行钓鱼</h2>
 			</a>
 			<div class="post-date"><i class="icon-calendar"></i>Jan 30, 2020</div>
@@ -34,7 +38,7 @@
 
 </div>
 	</li><li><div class="post-meta">
-			<a class="post-link" href="/posts/rdp-tuunel">
+			<a class="post-link" href="/posts/rdp-tuunel/">
 				<h2 class="post-title">渗透测试中的rdp隧道</h2>
 			</a>
 			<div class="post-date"><i class="icon-calendar"></i>Jan 27, 2020</div>
@@ -43,7 +47,7 @@
 
 </div>
 	</li><li><div class="post-meta">
-			<a class="post-link" href="/posts/malicious-macro">
+			<a class="post-link" href="/posts/malicious-macro/">
 				<h2 class="post-title">恶意宏文档与免杀</h2>
 			</a>
 			<div class="post-date"><i class="icon-calendar"></i>Dec 3, 2019</div>
@@ -53,7 +57,7 @@
 </div>
 	</li></ul>
             </div>
-            <div id="block_right">
+            <!-- <div id="block_right">
                 <ul>
                     
                     <li>
@@ -68,8 +72,12 @@
                         <a href="/post-exploition ">post-exploition</a>
                     </li>
                     
+                    <li>
+                        <a href="/anti-av ">anti-av</a>
+                    </li>
+                    
                 </ul>
-            </div>
+            </div> -->
         </div>
 	</main></body>
 </html>

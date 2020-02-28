@@ -43,7 +43,11 @@
   /* text-shadow: 1px 1px 1px rgba(127, 127, 127, 0.3); */ }
 
 .icon-calendar:before {
-  content: '\e800'; }
+  content: '\f09c'; }
+
+/* '' */
+.icon-rss:before {
+  content: '\f143'; }
 
 /* '' */
 .icon-github-circled:before {
@@ -563,7 +567,8 @@ body {
   line-height: 1.55em;
   margin: 0;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale; }
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden; }
   @media screen and (min-width: 320px) {
     body {
       font-size: calc(16px + 3 * ((100vw - 320px) / 960)); } }
@@ -572,11 +577,11 @@ body {
       font-size: 19px; } }
 
 a {
-  color: #999;
+  color: #808080;
   text-decoration: none;
   transition: border-bottom 0.4s; }
   a:hover {
-    border-bottom: 0.5px solid #999; }
+    border-bottom: 0.5px solid #808080; }
 
 h1, h2, h3 {
   line-height: 1.2em; }
@@ -609,6 +614,11 @@ h4 {
   @media screen and (min-width: 1280px) {
     h4 {
       font-size: 20px; } }
+
+figcaption {
+  font-size: 10pt;
+  line-height: 1.5em;
+  margin-top: -1em; }
 
 header {
   padding: 120px 0;
@@ -764,15 +774,6 @@ header {
       .navbar ul li:hover {
         background-color: rgba(255, 255, 255, 0.15);
         cursor: pointer; }
-
-#block_container > div {
-  display: inline-block;
-  vertical-align: middle; }
-
-#block_right {
-  float: right;
-  padding-right: 200px;
-  padding-top: 100px; }
 
 .texture-black {
   background-image: url("/assets/textures/black.jpg"); }

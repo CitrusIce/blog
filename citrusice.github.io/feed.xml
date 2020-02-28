@@ -1,4 +1,161 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="http://0.0.0.0:8888/feed.xml" rel="self" type="application/atom+xml" /><link href="http://0.0.0.0:8888/" rel="alternate" type="text/html" /><updated>2020-01-30T18:12:55+08:00</updated><id>http://0.0.0.0:8888/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>JFDSIEFWODLFJOZJLKAJDOQWJLKQJFKLFIVXZPQ{QWJXZ&lt;C}</subtitle><entry><title type="html">使用CHM文件进行钓鱼</title><link href="http://0.0.0.0:8888/posts/chm-phishing" rel="alternate" type="text/html" title="使用CHM文件进行钓鱼" /><published>2020-01-30T17:56:19+08:00</published><updated>2020-01-30T17:56:19+08:00</updated><id>http://0.0.0.0:8888/posts/chm-phishing</id><content type="html" xml:base="http://0.0.0.0:8888/posts/chm-phishing">&lt;p&gt;进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="https://citrusice.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io//" rel="alternate" type="text/html" /><updated>2020-02-28T15:41:10+08:00</updated><id>https://citrusice.github.io//feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">使用内存加载躲避静态查杀</title><link href="https://citrusice.github.io//posts/memory-execute/" rel="alternate" type="text/html" title="使用内存加载躲避静态查杀" /><published>2020-02-28T15:34:38+08:00</published><updated>2020-02-28T15:34:38+08:00</updated><id>https://citrusice.github.io//posts/memory-execute</id><content type="html" xml:base="https://citrusice.github.io//posts/memory-execute/">&lt;p&gt;在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。&lt;/p&gt;
+
+&lt;p&gt;本文将只探讨思路，不涉及具体实现。&lt;/p&gt;
+
+&lt;h1 id=&quot;特征码技术与免杀&quot;&gt;特征码技术与免杀&lt;/h1&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;特征码技术：运用程序中某一段或几段64字节以下的代码作为判别程序病毒的主要依据&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;谈到杀毒软件就不得不说特征码技术，尽管历史悠久，但到目前为止仍是各大杀毒软件判断可执行程序的主要手段。shellcode分离免杀之所以能获得很好的效果就是因为shellcode加载器本身并不包含恶意代码，自然也不会包含恶意软件的特征码，而只有当加载器运行时，它才会从程序之外加载shellcode执行。&lt;/p&gt;
+
+&lt;p&gt;借鉴shellcode分离免杀的思路，如果将pe文件以加密的形式存储，使用加载器读取pe文件并解密，最后放到内存中执行，那么程序的免杀性将大大地提高。实际上类似的技术早在至少08年就被提出过，叫做反射型dll注入（reflective dll injection），通过内存而不是从磁盘上加载dll。要实现从内存加载可执行程序并不困难，只要了解操作系统如何将exe加载到内存并编程重新实现就可以了。&lt;/p&gt;
+
+&lt;h1 id=&quot;实现原理&quot;&gt;实现原理&lt;/h1&gt;
+
+&lt;p&gt;exe程序被执行的过程：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;windows pe loader读取pe文件，检查pe文件的有效性。&lt;/li&gt;
+  &lt;li&gt;根据pe文件头中的IMAGE_OPTIONAL_HEADER.SizeOfImage申请一块空间&lt;/li&gt;
+  &lt;li&gt;pe loader将pe文件按IMAGE_OPTIONAL_HEADER.SectionAlignment展开，将pe文件装载到内存空间。&lt;/li&gt;
+  &lt;li&gt;根据pe文件的导入表，pe loader将pe所需要的dll加载进地址空间并更新IAT&lt;/li&gt;
+  &lt;li&gt;如果没有加载在pe文件中设定的ImageBase，需要使用重定位表进行重定位&lt;/li&gt;
+  &lt;li&gt;跳到pe入口点&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;基本上只要实现了上述几个步骤就可以实现内存加载，但是具体实现的时候我还遇到了几个问题：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;如果PE文件不存在重定位表，应该如何加载&lt;/li&gt;
+  &lt;li&gt;如何修改传给被加载程序的参数&lt;/li&gt;
+  &lt;li&gt;如何加载.Net PE&lt;/li&gt;
+  &lt;li&gt;如何加载x64程序&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h1 id=&quot;加载无重定位表的pe&quot;&gt;加载无重定位表的PE&lt;/h1&gt;
+
+&lt;p&gt;关于重定位表：&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;当加载器加载程序时，如果加载器为某PE（.exe、.dll）分配的基址与其自身默认记录的ImageBase不相同，那么该程序文件加载完毕后就需要修正重定位表中的所有需要修正的地址。如果加载器分配的基址和该程序文件中记录默认的ImageBase相同，则不需要修正，重定位表对于该dll也是没有效用的。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;因此如果将PE加载在默认的位置则可以无需重定位表。我们将加载器的ImageBase设为其他地址，为没有重定位表的pe程序让出空间，随后用virtualloc在目标pe程序的默认基址处开辟一块内存用来放置目标pe程序，这样就可以避免考虑重定位的问题。&lt;/p&gt;
+
+&lt;h1 id=&quot;修改传递给被加载程序的命令行参数&quot;&gt;修改传递给被加载程序的命令行参数&lt;/h1&gt;
+
+&lt;p&gt;我对加载器的设想是传递一个目标pe文件路径参数给加载器，然后加载器通过路径进行加载。如果只是加载一些木马就不需要考虑命令行参数的问题，但是如果要加载一些工具那传递给加载器的参数就会污染传递给被加载pe文件的参数，因此需要考虑参数传递的问题。&lt;/p&gt;
+
+&lt;h2 id=&quot;一个进程如何获得命令行参数&quot;&gt;一个进程如何获得命令行参数&lt;/h2&gt;
+
+&lt;p&gt;一般进程获取到命令行参数的方法是通过windows api的GetCommandLine获取&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;LPSTR&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;GetCommandLineA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;LPWSTR&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;GetCommandLineW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;有一个误区是很多人认为这个函数是从进程peb中获取到的参数，但实际上系统在加载进程时保存了一份命令行参数的拷贝在某个私有变量中，GetCommandLine都是从那个拷贝中获取，因此只有修改了拷贝的地址中的内容才有效。&lt;/p&gt;
+
+&lt;h2 id=&quot;示例代码&quot;&gt;示例代码&lt;/h2&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;LPWSTR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pCommandLine&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GetCommandLineW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;LPSTR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pCommandLineA&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GetCommandLineA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;strcpy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pCommandLineA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;maxCount&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lstrlenW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pCommandLine&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;converted&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;mbstowcs_s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;converted&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pCommandLine&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;maxCount&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;如何加载net程序&quot;&gt;如何加载.Net程序&lt;/h1&gt;
+
+&lt;p&gt;PE实际上只是一种存储数据的方式，尽管都是PE文件，但是.Net程序与Win32程序还是有着本质的区别。要了解.Net，还要从CLR说起。&lt;/p&gt;
+
+&lt;h2 id=&quot;common-language-runtime&quot;&gt;Common Language Runtime&lt;/h2&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;The Common Language Runtime (CLR) is a complete, high level virtual machine designed to support a broad variety of programming languages and interoperation among them.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;em&gt;公共语言运行时（CLR）是一套完整的、高级的虚拟机，它被设计为用来支持不同的编程语言，并支持它们之间的互操作。&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;正如 JRE 是 JAVA 的运行环境一样，CLR是.Net的运行环境，不同的是它可以为多种语言提供支持。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200227192210.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;em&gt;著名的.Net体系&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;.Net程序经过编译器编译后，会生成一种中间语言——MSIL，执行时CLR再将他们翻译为真正的机器语言执行。因此我们不能像处理Win32程序一样处理.Net程序，而需要与CLR进行交互，将.Net程序交给CLR去执行。&lt;/p&gt;
+
+&lt;h2 id=&quot;示例代码-1&quot;&gt;示例代码&lt;/h2&gt;
+
+&lt;p&gt;加载.Net环境并执行.Net程序的代码很多，以下代码只是示范&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;HRESULT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;ICLRMetaHost&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pMetaHost&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;ICLRRuntimeInfo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pRuntimeInfo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;ICLRRuntimeHost&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pClrRuntimeHost&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// build runtime&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CLRCreateInstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CLSID_CLRMetaHost&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IID_PPV_ARGS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pMetaHost&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pMetaHost&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetRuntime&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;L&quot;v4.0.30319&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IID_PPV_ARGS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pRuntimeInfo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pRuntimeInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetInterface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CLSID_CLRRuntimeHost&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
+    &lt;span class=&quot;n&quot;&gt;IID_PPV_ARGS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pClrRuntimeHost&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// start runtime&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pClrRuntimeHost&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// execute managed assembly&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pReturnValue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pClrRuntimeHost&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ExecuteInDefaultAppDomain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;s&quot;&gt;L&quot;T:&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;FrameworkInjection&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;_build&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;debug&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;anycpu&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;InjectExample.exe&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
+    &lt;span class=&quot;s&quot;&gt;L&quot;InjectExample.Program&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
+    &lt;span class=&quot;s&quot;&gt;L&quot;EntryPoint&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
+    &lt;span class=&quot;s&quot;&gt;L&quot;hello .net runtime&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
+    &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pReturnValue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+&lt;span class=&quot;c1&quot;&gt;// free resources&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;pMetaHost&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Release&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;pRuntimeInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Release&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;pClrRuntimeHost&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Release&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;加载x64程序&quot;&gt;加载x64程序&lt;/h1&gt;
+
+&lt;p&gt;如果要图方便的话只要稍微修改一下代码重新编译一个x64的加载器就可以（事实上我就是这样做的），但如果我们追求极致，想让我们的加载器做到能同时加载32位和64位程序呢？理论上讲，如果我们的程序是32位的，那就没法执行64位的cpu指令，如果是64位的，同样也无法执行32位的cpu指令。想要实现在32位指令与64位指令的切换，就需要了解当我们在64位操作系统下执行了32位程序时，操作系统都做了哪些工作。&lt;/p&gt;
+
+&lt;h2 id=&quot;windows-x64下的win32程序&quot;&gt;Windows x64下的Win32程序&lt;/h2&gt;
+
+&lt;p&gt;在64位系统，任何进程中首先执行的代码是64位的ntdll.dll，它会初始化一个64位的进程。而稍后32位的应用程序将运行在一个名为WoW64的子系统下（说到子系统有没有想到WSL），这个子系统加载32位的ntdll.dll，将cpu转换为32位模式以执行Win32程序中的代码。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200227221306.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;在x64系统下观察一个Win32程序，发现会同时加载了两个ntdll.dll，其中有一个处在64位的地址空间，这就是64位的ntdll.dll。32位的ntdll.dll并没有包含任何sysenter的指令，因此当Win32程序尝试通过32位的ntdll.dll与系统交互时，32位的ntdll.dll将参数转发给64位的ntdll.dll并再一次进行cpu的模式转换，回到64位完成这次系统调用。&lt;/p&gt;
+
+&lt;p&gt;可以看到，在启动程序与系统调用的过程中，cpu分别发生了64到32与32到64两种转换，如果我们手动实现这一过程，那么我们的程序也可以在32位与64位指令中进行切换。&lt;/p&gt;
+
+&lt;h2 id=&quot;天堂之门-从32位到64位&quot;&gt;天堂之门 从32位到64位&lt;/h2&gt;
+
+&lt;p&gt;x64构架的cpu使用cs段寄存器来确定cpu的运行模式。在32位进程中，cs=0x23；在64位进程中，cs=0x33。当cs被更改后，cpu的运行模式便会发生转变。由此产生一种技术，天堂之门（Heaven’s Gate），通过改变段寄存器来实现32位与64位代码的转换。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;push 33h //将0x33压栈
+push 64bit_code_address //将64bit的代码地址压栈
+reft //模式转换
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;其中reft指令又叫far ret，是带有段寄存器的返回，它会从栈中弹出两个值，一个给cs，一个给ip，因此在reft执行后，cpu将按照64位模式继续执行64位代码。&lt;/p&gt;
+
+&lt;h1 id=&quot;小结&quot;&gt;小结&lt;/h1&gt;
+
+&lt;p&gt;这算是我这段时期学习免杀的一个总结，尽管本文探讨的技术都十分古老，但放到现在仍旧值得我们去学习。&lt;/p&gt;
+
+&lt;h1 id=&quot;引用&quot;&gt;引用&lt;/h1&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://www.codeproject.com/Articles/607352/Injecting-Net-Assemblies-Into-Unmanaged-Processes&quot;&gt;https://www.codeproject.com/Articles/607352/Injecting-Net-Assemblies-Into-Unmanaged-Processes&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&quot;&gt;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。</summary></entry><entry><title type="html">使用CHM文件进行钓鱼</title><link href="https://citrusice.github.io//posts/chm-phishing/" rel="alternate" type="text/html" title="使用CHM文件进行钓鱼" /><published>2020-01-30T17:56:19+08:00</published><updated>2020-01-30T17:56:19+08:00</updated><id>https://citrusice.github.io//posts/chm-phishing</id><content type="html" xml:base="https://citrusice.github.io//posts/chm-phishing/">&lt;p&gt;进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。&lt;/p&gt;
 
 &lt;h1 id=&quot;使用com控件命令执行&quot;&gt;使用com控件命令执行&lt;/h1&gt;
 
@@ -110,7 +267,7 @@ x.Click();
 
 &lt;p&gt;360火绒均不拦截&lt;/p&gt;
 
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200130173719.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。</summary></entry><entry><title type="html">渗透测试中的rdp隧道</title><link href="http://0.0.0.0:8888/posts/rdp-tuunel" rel="alternate" type="text/html" title="渗透测试中的rdp隧道" /><published>2020-01-27T20:03:35+08:00</published><updated>2020-01-27T20:03:35+08:00</updated><id>http://0.0.0.0:8888/posts/rdp-tuunel</id><content type="html" xml:base="http://0.0.0.0:8888/posts/rdp-tuunel">&lt;p&gt;渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200130173719.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。</summary></entry><entry><title type="html">渗透测试中的rdp隧道</title><link href="https://citrusice.github.io//posts/rdp-tuunel/" rel="alternate" type="text/html" title="渗透测试中的rdp隧道" /><published>2020-01-27T20:03:35+08:00</published><updated>2020-01-27T20:03:35+08:00</updated><id>https://citrusice.github.io//posts/rdp-tuunel</id><content type="html" xml:base="https://citrusice.github.io//posts/rdp-tuunel/">&lt;p&gt;渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。&lt;/p&gt;
 
 &lt;h2 id=&quot;编译rdp2tcp&quot;&gt;编译rdp2tcp&lt;/h2&gt;
 
@@ -154,7 +311,7 @@ make &lt;span class=&quot;nb&quot;&gt;install&lt;/span&gt;
 
 &lt;p&gt;将本地445端口的流量通过rdp tunnel转发到目标机上&lt;/p&gt;
 
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200127194853.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。</summary></entry><entry><title type="html">恶意宏文档与免杀</title><link href="http://0.0.0.0:8888/posts/malicious-macro" rel="alternate" type="text/html" title="恶意宏文档与免杀" /><published>2019-12-03T12:48:05+08:00</published><updated>2019-12-03T12:48:05+08:00</updated><id>http://0.0.0.0:8888/posts/malicious-macro</id><content type="html" xml:base="http://0.0.0.0:8888/posts/malicious-macro">&lt;p&gt;office宏，译自英文单词Macro。宏是微软公司为其OFFICE软件包设计的一个特殊功能，软件设计者为了让人们在使用软件进行工作时，避免一再地重复相同的动作而设计出来的一种工具，它利用简单的语法，把常用的动作写成宏，当在工作时，就可以直接利用事先编好的宏自动运行，去完成某项特定的任务，而不必再重复相同的动作，目的是让用户文档中的一些任务自动化。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200127194853.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。</summary></entry><entry><title type="html">恶意宏文档与免杀</title><link href="https://citrusice.github.io//posts/malicious-macro/" rel="alternate" type="text/html" title="恶意宏文档与免杀" /><published>2019-12-03T12:48:05+08:00</published><updated>2019-12-03T12:48:05+08:00</updated><id>https://citrusice.github.io//posts/malicious-macro</id><content type="html" xml:base="https://citrusice.github.io//posts/malicious-macro/">&lt;p&gt;office宏，译自英文单词Macro。宏是微软公司为其OFFICE软件包设计的一个特殊功能，软件设计者为了让人们在使用软件进行工作时，避免一再地重复相同的动作而设计出来的一种工具，它利用简单的语法，把常用的动作写成宏，当在工作时，就可以直接利用事先编好的宏自动运行，去完成某项特定的任务，而不必再重复相同的动作，目的是让用户文档中的一些任务自动化。&lt;/p&gt;
 
 &lt;h1 id=&quot;生成执行cmd的宏&quot;&gt;生成执行cmd的宏&lt;/h1&gt;
 
