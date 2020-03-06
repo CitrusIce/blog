@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2020-03-06T11:27:34+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2020-03-06T18:41:43+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
 </subtitle><entry><title type="html">自动化信息收集框架：设计数据库</title><link href="https://citrusice.github.io/posts/database-design/" rel="alternate" type="text/html" title="自动化信息收集框架：设计数据库" /><published>2020-03-06T11:20:33+08:00</published><updated>2020-03-06T11:20:33+08:00</updated><id>https://citrusice.github.io/posts/database-design</id><content type="html" xml:base="https://citrusice.github.io/posts/database-design/">&lt;p&gt;对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。&lt;/p&gt;
 
 &lt;h1 id=&quot;数据存储与数据库范式&quot;&gt;数据存储与数据库范式&lt;/h1&gt;
@@ -58,6 +58,12 @@
       &lt;li&gt;domain：目标所有的域名&lt;/li&gt;
     &lt;/ul&gt;
   &lt;/li&gt;
+  &lt;li&gt;对于域名
+    &lt;ul&gt;
+      &lt;li&gt;ip_address:指向的ip&lt;/li&gt;
+      &lt;li&gt;use_CDN:是否使用cdn&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
   &lt;li&gt;对于每台服务器
     &lt;ul&gt;
       &lt;li&gt;ip_address：目标所有的ip地址&lt;/li&gt;
@@ -88,6 +94,7 @@
 &lt;ul&gt;
   &lt;li&gt;domain -&amp;gt; project_name&lt;/li&gt;
   &lt;li&gt;domain -&amp;gt; ip_address&lt;/li&gt;
+  &lt;li&gt;domain -&amp;gt; use_CDN&lt;/li&gt;
   &lt;li&gt;ip_address, open_port_id -&amp;gt; port_service&lt;/li&gt;
   &lt;li&gt;url -&amp;gt; web_fingerprint（考虑到会有虚拟主机所以加上domain）&lt;/li&gt;
   &lt;li&gt;url -&amp;gt; title&lt;/li&gt;
@@ -100,7 +107,7 @@
 &lt;p&gt;根据关系来设计数据表&lt;/p&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;project_assets( domain [primary key ], project_name)&lt;/li&gt;
+  &lt;li&gt;project_assets( domain [primary key ], project_name, ip_address, use_CDN)&lt;/li&gt;
   &lt;li&gt;server_information( ip_address [primary key ], open_port_id [primary_key ], port_service)&lt;/li&gt;
   &lt;li&gt;web_service( url [primary key ], web_fingerprint, title ,screenshot_path)&lt;/li&gt;
   &lt;li&gt;web_path_information( url [primary key ], available_path [primary_key ], state_code, content-length, redirect)&lt;/li&gt;
