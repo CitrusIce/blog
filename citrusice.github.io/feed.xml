@@ -1,5 +1,116 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2020-02-28T23:33:32+08:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">使用内存加载躲避静态查杀</title><link href="http://localhost:4000/posts/memory-execute/" rel="alternate" type="text/html" title="使用内存加载躲避静态查杀" /><published>2020-02-28T15:34:38+08:00</published><updated>2020-02-28T15:34:38+08:00</updated><id>http://localhost:4000/posts/memory-execute</id><content type="html" xml:base="http://localhost:4000/posts/memory-execute/">&lt;p&gt;在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2020-03-06T11:27:34+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">自动化信息收集框架：设计数据库</title><link href="https://citrusice.github.io/posts/database-design/" rel="alternate" type="text/html" title="自动化信息收集框架：设计数据库" /><published>2020-03-06T11:20:33+08:00</published><updated>2020-03-06T11:20:33+08:00</updated><id>https://citrusice.github.io/posts/database-design</id><content type="html" xml:base="https://citrusice.github.io/posts/database-design/">&lt;p&gt;对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。&lt;/p&gt;
+
+&lt;h1 id=&quot;数据存储与数据库范式&quot;&gt;数据存储与数据库范式&lt;/h1&gt;
+
+&lt;p&gt;在信息收集之后，我们应该如何存储这些收集来的数据？长久以来我都是对每一个项目单开一个文件夹，将扫描结果以文本的形式零散的存放进去。这样做既不便于整理也不便于查找。因此我产生了使用数据库的念头（事实上数据库不就是干这个用的嘛）。随之而来的问题是如何设计？我们知道数据库由库、表组成，表中是按照列名存储的一行一行数据，怎样的设计才能让我们的数据是简洁、结构清晰同时还方便查找，这时候就需要用到数据库范式。&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;数据库的设计范式是数据库设计所需要满足的规范，满足这些规范的数据库是简洁的、结构明晰的，同时，不会发生插入（insert）、删除（delete）和更新（update）操作异常。反之则是乱七八糟，不仅给数据库的编程人员制造麻烦，而且面目可憎，可能存储了大量不需要的冗余信息。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;下面只对4个范式进行简单回顾。&lt;/p&gt;
+
+&lt;h2 id=&quot;1nf&quot;&gt;1NF&lt;/h2&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;1NF是对属性的&lt;strong&gt;原子性&lt;/strong&gt;，要求属性具有原子性，不可再分解；&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;举个例子，假设一个表中有一列叫出生年月日，每人的这列数据都分为3个格子（年、月、日），那这种数据库就不符合1NF。而事实上1NF是关系型数据库的基本要求，这也代表着如果你这么设计数据表的话那这种操作一定是不会成功的。&lt;/p&gt;
+
+&lt;h2 id=&quot;2nf&quot;&gt;2NF&lt;/h2&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;2NF是对记录的&lt;strong&gt;惟一性&lt;/strong&gt;，要求记录有惟一标识，即实体的惟一性，即不存在部分依赖；&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;2NF在1NF的基础上消除了非主属性对于码的部分函数依赖，简单来讲就是非主键字段必须完全依赖主键。假设一张表主键为（学号，课号），那么对于属性姓名来讲，只有学号才决定姓名而与课号无关，因此属性姓名对于主键为部分依赖，因此不符合2NF&lt;/p&gt;
+
+&lt;h2 id=&quot;3nf&quot;&gt;3NF&lt;/h2&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;3NF是对字段的&lt;strong&gt;冗余性&lt;/strong&gt;，要求任何字段不能由其他字段派生出来，它要求字段没有冗余，即不存在传递依赖；&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;3NF在2NF的基础之上，消除了非主属性对于码的传递函数依赖。如果一张表学号为主键，有属性学院名和学院主任，学号决定所属学院，所属学院决定学院主任。因此学院主任这个属性对主属性学号为传递依赖，不符合3NF&lt;/p&gt;
+
+&lt;h2 id=&quot;bcnf&quot;&gt;BCNF&lt;/h2&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;若关系模式R属于3NF，且关系模式中每一个决定因素都包含候选键，则为BCNF。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;BCNF不允许存在&lt;strong&gt;主属性&lt;/strong&gt;对于码的部分函数依赖与传递函数依赖。（实在想不出该怎么解释）&lt;/p&gt;
+
+&lt;p&gt;当我们设计的数据库达到了BCNF范式的要求，那么这个设计可以说是相当不错的，虽然之后还有4NF、5NF，但是我们不作考虑。（不会）&lt;/p&gt;
+
+&lt;h1 id=&quot;设计&quot;&gt;设计&lt;/h1&gt;
+
+&lt;p&gt;首先要确定要存什么样的内容&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;项目属性&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;project_name：项目名称&lt;/li&gt;
+      &lt;li&gt;domain：目标所有的域名&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;对于每台服务器
+    &lt;ul&gt;
+      &lt;li&gt;ip_address：目标所有的ip地址&lt;/li&gt;
+      &lt;li&gt;open_port_id：目标ip开放的端口&lt;/li&gt;
+      &lt;li&gt;port_service：目标ip端口上运行的服务&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;对于web服务
+    &lt;ul&gt;
+      &lt;li&gt;url：不用多说&lt;/li&gt;
+      &lt;li&gt;web_fingerprint：目标web服务的指纹&lt;/li&gt;
+      &lt;li&gt;title：web服务网页的标题&lt;/li&gt;
+      &lt;li&gt;screenshow_path：web服务的截屏的存储路径&lt;/li&gt;
+      &lt;li&gt;available_path：扫描出的web服务的路径&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;对于web服务的每个路径
+    &lt;ul&gt;
+      &lt;li&gt;state_code：各个路径的状态码&lt;/li&gt;
+      &lt;li&gt;content-length：返回的内容长度&lt;/li&gt;
+      &lt;li&gt;redirect：如果有重定向，重定向的位置&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;确定这些数据的关系（X -&amp;gt; Y 代表存在函数依赖且X函数决定Y）&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;domain -&amp;gt; project_name&lt;/li&gt;
+  &lt;li&gt;domain -&amp;gt; ip_address&lt;/li&gt;
+  &lt;li&gt;ip_address, open_port_id -&amp;gt; port_service&lt;/li&gt;
+  &lt;li&gt;url -&amp;gt; web_fingerprint（考虑到会有虚拟主机所以加上domain）&lt;/li&gt;
+  &lt;li&gt;url -&amp;gt; title&lt;/li&gt;
+  &lt;li&gt;url -&amp;gt; screenshot_path&lt;/li&gt;
+  &lt;li&gt;url, available_path -&amp;gt; state_code&lt;/li&gt;
+  &lt;li&gt;url, available_path -&amp;gt; content-length&lt;/li&gt;
+  &lt;li&gt;url, available_path -&amp;gt; redirect&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;根据关系来设计数据表&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;project_assets( domain [primary key ], project_name)&lt;/li&gt;
+  &lt;li&gt;server_information( ip_address [primary key ], open_port_id [primary_key ], port_service)&lt;/li&gt;
+  &lt;li&gt;web_service( url [primary key ], web_fingerprint, title ,screenshot_path)&lt;/li&gt;
+  &lt;li&gt;web_path_information( url [primary key ], available_path [primary_key ], state_code, content-length, redirect)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&quot;一些参考资料&quot;&gt;一些参考资料&lt;/h1&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html&quot;&gt;https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://segmentfault.com/a/1190000013695030&quot;&gt;https://segmentfault.com/a/1190000013695030&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。</summary></entry><entry><title type="html">使用内存加载躲避静态查杀</title><link href="https://citrusice.github.io/posts/memory-execute/" rel="alternate" type="text/html" title="使用内存加载躲避静态查杀" /><published>2020-02-28T15:34:38+08:00</published><updated>2020-02-28T15:34:38+08:00</updated><id>https://citrusice.github.io/posts/memory-execute</id><content type="html" xml:base="https://citrusice.github.io/posts/memory-execute/">&lt;p&gt;在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。&lt;/p&gt;
 
 &lt;p&gt;本文将只探讨思路，不涉及具体实现。&lt;/p&gt;
 
@@ -155,7 +266,7 @@ reft //模式转换
 
 &lt;p&gt;&lt;a href=&quot;https://www.codeproject.com/Articles/607352/Injecting-Net-Assemblies-Into-Unmanaged-Processes&quot;&gt;https://www.codeproject.com/Articles/607352/Injecting-Net-Assemblies-Into-Unmanaged-Processes&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&quot;&gt;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。</summary></entry><entry><title type="html">使用CHM文件进行钓鱼</title><link href="http://localhost:4000/posts/chm-phishing/" rel="alternate" type="text/html" title="使用CHM文件进行钓鱼" /><published>2020-01-30T17:56:19+08:00</published><updated>2020-01-30T17:56:19+08:00</updated><id>http://localhost:4000/posts/chm-phishing</id><content type="html" xml:base="http://localhost:4000/posts/chm-phishing/">&lt;p&gt;进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&quot;&gt;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。</summary></entry><entry><title type="html">使用CHM文件进行钓鱼</title><link href="https://citrusice.github.io/posts/chm-phishing/" rel="alternate" type="text/html" title="使用CHM文件进行钓鱼" /><published>2020-01-30T17:56:19+08:00</published><updated>2020-01-30T17:56:19+08:00</updated><id>https://citrusice.github.io/posts/chm-phishing</id><content type="html" xml:base="https://citrusice.github.io/posts/chm-phishing/">&lt;p&gt;进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。&lt;/p&gt;
 
 &lt;h1 id=&quot;使用com控件命令执行&quot;&gt;使用com控件命令执行&lt;/h1&gt;
 
@@ -267,7 +378,7 @@ x.Click();
 
 &lt;p&gt;360火绒均不拦截&lt;/p&gt;
 
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200130173719.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。</summary></entry><entry><title type="html">渗透测试中的rdp隧道</title><link href="http://localhost:4000/posts/rdp-tuunel/" rel="alternate" type="text/html" title="渗透测试中的rdp隧道" /><published>2020-01-27T20:03:35+08:00</published><updated>2020-01-27T20:03:35+08:00</updated><id>http://localhost:4000/posts/rdp-tuunel</id><content type="html" xml:base="http://localhost:4000/posts/rdp-tuunel/">&lt;p&gt;渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200130173719.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。</summary></entry><entry><title type="html">渗透测试中的rdp隧道</title><link href="https://citrusice.github.io/posts/rdp-tuunel/" rel="alternate" type="text/html" title="渗透测试中的rdp隧道" /><published>2020-01-27T20:03:35+08:00</published><updated>2020-01-27T20:03:35+08:00</updated><id>https://citrusice.github.io/posts/rdp-tuunel</id><content type="html" xml:base="https://citrusice.github.io/posts/rdp-tuunel/">&lt;p&gt;渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。&lt;/p&gt;
 
 &lt;h2 id=&quot;编译rdp2tcp&quot;&gt;编译rdp2tcp&lt;/h2&gt;
 
@@ -311,7 +422,7 @@ make &lt;span class=&quot;nb&quot;&gt;install&lt;/span&gt;
 
 &lt;p&gt;将本地445端口的流量通过rdp tunnel转发到目标机上&lt;/p&gt;
 
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200127194853.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。</summary></entry><entry><title type="html">恶意宏文档与免杀</title><link href="http://localhost:4000/posts/malicious-macro/" rel="alternate" type="text/html" title="恶意宏文档与免杀" /><published>2019-12-03T12:48:05+08:00</published><updated>2019-12-03T12:48:05+08:00</updated><id>http://localhost:4000/posts/malicious-macro</id><content type="html" xml:base="http://localhost:4000/posts/malicious-macro/">&lt;p&gt;office宏，译自英文单词Macro。宏是微软公司为其OFFICE软件包设计的一个特殊功能，软件设计者为了让人们在使用软件进行工作时，避免一再地重复相同的动作而设计出来的一种工具，它利用简单的语法，把常用的动作写成宏，当在工作时，就可以直接利用事先编好的宏自动运行，去完成某项特定的任务，而不必再重复相同的动作，目的是让用户文档中的一些任务自动化。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200127194853.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。</summary></entry><entry><title type="html">恶意宏文档与免杀</title><link href="https://citrusice.github.io/posts/malicious-macro/" rel="alternate" type="text/html" title="恶意宏文档与免杀" /><published>2019-12-03T12:48:05+08:00</published><updated>2019-12-03T12:48:05+08:00</updated><id>https://citrusice.github.io/posts/malicious-macro</id><content type="html" xml:base="https://citrusice.github.io/posts/malicious-macro/">&lt;p&gt;office宏，译自英文单词Macro。宏是微软公司为其OFFICE软件包设计的一个特殊功能，软件设计者为了让人们在使用软件进行工作时，避免一再地重复相同的动作而设计出来的一种工具，它利用简单的语法，把常用的动作写成宏，当在工作时，就可以直接利用事先编好的宏自动运行，去完成某项特定的任务，而不必再重复相同的动作，目的是让用户文档中的一些任务自动化。&lt;/p&gt;
 
 &lt;h1 id=&quot;生成执行cmd的宏&quot;&gt;生成执行cmd的宏&lt;/h1&gt;
 
