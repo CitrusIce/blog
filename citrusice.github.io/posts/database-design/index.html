@@ -81,6 +81,12 @@
       <li>domain：目标所有的域名</li>
     </ul>
   </li>
+  <li>对于域名
+    <ul>
+      <li>ip_address:指向的ip</li>
+      <li>use_CDN:是否使用cdn</li>
+    </ul>
+  </li>
   <li>对于每台服务器
     <ul>
       <li>ip_address：目标所有的ip地址</li>
@@ -111,6 +117,7 @@
 <ul>
   <li>domain -&gt; project_name</li>
   <li>domain -&gt; ip_address</li>
+  <li>domain -&gt; use_CDN</li>
   <li>ip_address, open_port_id -&gt; port_service</li>
   <li>url -&gt; web_fingerprint（考虑到会有虚拟主机所以加上domain）</li>
   <li>url -&gt; title</li>
@@ -123,7 +130,7 @@
 <p>根据关系来设计数据表</p>
 
 <ul>
-  <li>project_assets( domain [primary key ], project_name)</li>
+  <li>project_assets( domain [primary key ], project_name, ip_address, use_CDN)</li>
   <li>server_information( ip_address [primary key ], open_port_id [primary_key ], port_service)</li>
   <li>web_service( url [primary key ], web_fingerprint, title ,screenshot_path)</li>
   <li>web_path_information( url [primary key ], available_path [primary_key ], state_code, content-length, redirect)</li>

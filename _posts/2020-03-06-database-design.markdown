@@ -49,6 +49,9 @@ BCNF不允许存在**主属性**对于码的部分函数依赖与传递函数依
 
   - project_name：项目名称
   - domain：目标所有的域名
+- 对于域名
+  - ip_address:指向的ip
+  - use_CDN:是否使用cdn
 - 对于每台服务器
   - ip_address：目标所有的ip地址
   - open_port_id：目标ip开放的端口
@@ -68,6 +71,7 @@ BCNF不允许存在**主属性**对于码的部分函数依赖与传递函数依
 
 - domain -> project_name
 - domain -> ip_address
+- domain -> use_CDN
 - ip_address, open_port_id -> port_service
 - url -> web_fingerprint（考虑到会有虚拟主机所以加上domain）
 - url -> title
@@ -78,7 +82,7 @@ BCNF不允许存在**主属性**对于码的部分函数依赖与传递函数依
 
 根据关系来设计数据表
 
-- project_assets( domain [primary key ], project_name)
+- project_assets( domain [primary key ], project_name, ip_address, use_CDN)
 - server_information( ip_address [primary key ], open_port_id [primary_key ], port_service)
 - web_service( url [primary key ], web_fingerprint, title ,screenshot_path)
 - web_path_information( url [primary key ], available_path [primary_key ], state_code, content-length, redirect)
