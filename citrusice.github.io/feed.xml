@@ -1,5 +1,34 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2020-03-06T18:41:43+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">自动化信息收集框架：设计数据库</title><link href="https://citrusice.github.io/posts/database-design/" rel="alternate" type="text/html" title="自动化信息收集框架：设计数据库" /><published>2020-03-06T11:20:33+08:00</published><updated>2020-03-06T11:20:33+08:00</updated><id>https://citrusice.github.io/posts/database-design</id><content type="html" xml:base="https://citrusice.github.io/posts/database-design/">&lt;p&gt;对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2020-03-15T11:42:02+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">一次后渗透的反思</title><link href="https://citrusice.github.io/posts/post-exploition-rethink/" rel="alternate" type="text/html" title="一次后渗透的反思" /><published>2020-03-15T11:30:22+08:00</published><updated>2020-03-15T11:30:22+08:00</updated><id>https://citrusice.github.io/posts/post-exploition-rethink</id><content type="html" xml:base="https://citrusice.github.io/posts/post-exploition-rethink/">&lt;p&gt;项目的一个目标，在可以执行命令后开始进行后渗透的工作。目标低权限，同时服务器装了杀软，还打了很多补丁，加上网络实在是不行所以工作展开的异常艰难，最终也只是获得一个反弹shell，所以写篇文章反思一下当前使用的工具还有哪些不足。&lt;/p&gt;
+
+&lt;h1 id=&quot;过程&quot;&gt;过程&lt;/h1&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;首先是自写的内存加载器，传上去没有问题，但是在加载msf的reverse_tcp payload之后（刚开启session但未接收到stager）程序自动退了，再运行程序的时候发现程序已经打不开了，失败。&lt;/li&gt;
+  &lt;li&gt;怀疑是限制了流量，遂改成使用powershell加载cs的reverse_http，服务放在了80端口，同样失败。&lt;/li&gt;
+  &lt;li&gt;尝试ssh隧道，连不上服务器&lt;/li&gt;
+  &lt;li&gt;尝试马+dns隧道，dns隧道可以连通，但是上马失败&lt;/li&gt;
+  &lt;li&gt;进行上述操作的过程会中间歇性地ban我ip，最后只好借了朋友的服务器，用powercat反弹了个shell，耻辱结束。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&quot;分析&quot;&gt;分析&lt;/h1&gt;
+
+&lt;p&gt;虽然只进行了几次尝试，但几乎花费了我一天的时间，大部分时间都花在了配置以及忍受极慢网速的过程中。仔细分析各种方法失败的原因，我觉得问题出在流量上面。内存加载器获取payload的时候payload没有经过加密，之后的通信过程也没有加密，因此被识别出流量特征，之后的cs的reverse_http也同样如此。dns隧道尽管与服务器建立了加密隧道，但是在马与隧道之间流量扔需要经过本地回环，因此再次失败了。ssh隧道没法连接成功可能因为做了acl之类的东西。&lt;/p&gt;
+
+&lt;p&gt;因此可以改进的地方有两点&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;流量特征&lt;/li&gt;
+  &lt;li&gt;可信的ip/域名&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h1 id=&quot;解决&quot;&gt;解决&lt;/h1&gt;
+
+&lt;p&gt;流量特征的问题很好解决，msf可以使用rc4加密的payload，cs也有malleable C2可以修改证书加密流量。那如何让自己的ip/域名可信呢？奇安信A-team在2019BCS中介绍过很多使用第三方服务用作C2的文章，这对我来说是相对可行的方案。&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://truneski.github.io/blog/2018/11/05/cobaltstrike-over-external-c2-via-dropbox/&quot;&gt;Dropbox as a C2 channel using the Dropbox APIs&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;感觉又要写好多代码。。&lt;/p&gt;</content><author><name></name></author><summary type="html">项目的一个目标，在可以执行命令后开始进行后渗透的工作。目标低权限，同时服务器装了杀软，还打了很多补丁，加上网络实在是不行所以工作展开的异常艰难，最终也只是获得一个反弹shell，所以写篇文章反思一下当前使用的工具还有哪些不足。</summary></entry><entry><title type="html">自动化信息收集框架：设计数据库</title><link href="https://citrusice.github.io/posts/database-design/" rel="alternate" type="text/html" title="自动化信息收集框架：设计数据库" /><published>2020-03-06T11:20:33+08:00</published><updated>2020-03-06T11:20:33+08:00</updated><id>https://citrusice.github.io/posts/database-design</id><content type="html" xml:base="https://citrusice.github.io/posts/database-design/">&lt;p&gt;对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。&lt;/p&gt;
 
 &lt;h1 id=&quot;数据存储与数据库范式&quot;&gt;数据存储与数据库范式&lt;/h1&gt;
 
