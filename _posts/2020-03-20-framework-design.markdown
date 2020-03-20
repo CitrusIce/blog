@@ -70,7 +70,7 @@ class Module(metaclass=ABCMeta):
         pass
 ```
 
-Pipe类用作模块与模块之间的通信，每个Module具有一个task_list和一个pipe_list。task_list作为Module的输入，当模块运行后将从task_list中获取任务然后执行，pipe_list中的Pipe对象是模块的数据出口，当模块执行完毕后，通过get_output()获取数据然后通过send_to_pipe()将数据送到各个pipe中去，而pipe将数据处理为下一个模块所需的特定格式后转送到下一个模块的taskl_ist。
+Pipe类用作模块与模块之间的通信，每个Module具有一个task_list和一个pipe_list。task_list作为Module的输入，当模块运行后将从task_list中获取任务然后执行，pipe_list中的Pipe对象是模块的数据出口，当模块执行完毕后，通过get_output()获取数据然后通过send_to_pipe()将数据送到各个pipe中去，而pipe将数据处理为下一个模块所需的特定格式后转送到下一个模块的task_list。
 
 ```python
 class Pipe:
