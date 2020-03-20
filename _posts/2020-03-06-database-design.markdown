@@ -60,7 +60,7 @@ BCNF不允许存在**主属性**对于码的部分函数依赖与传递函数依
   - url：不用多说
   - web_fingerprint：目标web服务的指纹
   - title：web服务网页的标题
-  - screenshow_path：web服务的截屏的存储路径
+  - screenshot_path：web服务的截屏的存储路径
   - available_path：扫描出的web服务的路径
 - 对于web服务的每个路径
   - state_code：各个路径的状态码
