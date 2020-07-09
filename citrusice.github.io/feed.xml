@@ -1,5 +1,98 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2020-04-22T17:40:44+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">自动化信息收集框架：设计框架</title><link href="https://citrusice.github.io/posts/framework-design/" rel="alternate" type="text/html" title="自动化信息收集框架：设计框架" /><published>2020-03-20T21:33:52+08:00</published><updated>2020-03-20T21:33:52+08:00</updated><id>https://citrusice.github.io/posts/framework-design</id><content type="html" xml:base="https://citrusice.github.io/posts/framework-design/">&lt;p&gt;如果想要将各个信息收集工具整合到一起，就需要为他们封装出统一的接口，我把这些具有统一接口的对象定义为Module类。Module类具有三个抽象方法需要在封装模块的时候实现：&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.6">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2020-07-09T18:40:46+08:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">逆向的一些总结</title><link href="http://localhost:4000/posts/re-summarize/" rel="alternate" type="text/html" title="逆向的一些总结" /><published>2020-07-09T18:35:43+08:00</published><updated>2020-07-09T18:35:43+08:00</updated><id>http://localhost:4000/posts/re-summarize</id><content type="html" xml:base="http://localhost:4000/posts/re-summarize/">&lt;p&gt;最近做了一些windows逆向的工作，尽管大部分都是苦力活，但还是有一些收获，所以总结一下&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;观察程序行为&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;文件操作&lt;/li&gt;
+      &lt;li&gt;注册表读写&lt;/li&gt;
+      &lt;li&gt;dll调用&lt;/li&gt;
+      &lt;li&gt;……&lt;/li&gt;
+    &lt;/ul&gt;
+
+    &lt;p&gt;procmon&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;定位关键代码&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;搜索字符串特征&lt;/li&gt;
+      &lt;li&gt;相关windows api
+        &lt;ul&gt;
+          &lt;li&gt;CreateFile&lt;/li&gt;
+          &lt;li&gt;ReadFile&lt;/li&gt;
+          &lt;li&gt;WriteFile&lt;/li&gt;
+          &lt;li&gt;……&lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+      &lt;li&gt;内存断点&lt;/li&gt;
+      &lt;li&gt;函数特征，ida signature，findcrypt&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;代码分析&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;动态分析 =&amp;gt; 分析具体行为&lt;/li&gt;
+      &lt;li&gt;静态分析 =&amp;gt; 分析调用关系，程序逻辑&lt;/li&gt;
+      &lt;li&gt;关注数据流向&lt;/li&gt;
+      &lt;li&gt;类的识别&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;逆不动？&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;注入进程寻找解密后的数据&lt;/li&gt;
+      &lt;li&gt;找到解密函数直接调用&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;未解决的问题以及可能的解决方案&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;p&gt;结构体及类的逆向&lt;/p&gt;
+
+        &lt;p&gt;下次可以尝试使用reclass&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;在发现一个已经初始化完毕的对象、结构体后，难以定位之前对其进行初始化、写入数据等操作的代码&lt;/p&gt;
+
+        &lt;ul&gt;
+          &lt;li&gt;
+            &lt;p&gt;ce搜索指针链，一层一层定位初始化代码&lt;/p&gt;
+          &lt;/li&gt;
+          &lt;li&gt;
+            &lt;p&gt;下断new，malloc、VirtualAlloc等函数，定位构造函数&lt;/p&gt;
+          &lt;/li&gt;
+          &lt;li&gt;
+            &lt;p&gt;根据构造函数特征定位构造函数&lt;/p&gt;
+
+            &lt;ul&gt;
+              &lt;li&gt;
+                &lt;p&gt;使用ecx传参（类函数特征）&lt;/p&gt;
+              &lt;/li&gt;
+              &lt;li&gt;
+                &lt;p&gt;函数开始push ebx, esi, edi, ecx寄存器，对exc操作之后再pop ecx&lt;/p&gt;
+
+                &lt;p&gt;&lt;a href=&quot;https://bbs.pediy.com/thread-195449.htm&quot;&gt;https://bbs.pediy.com/thread-195449.htm&lt;/a&gt;&lt;/p&gt;
+
+                &lt;p&gt;&lt;a href=&quot;https://www.cnblogs.com/predator-wang/p/8031071.html&quot;&gt;https://www.cnblogs.com/predator-wang/p/8031071.html&lt;/a&gt;&lt;/p&gt;
+              &lt;/li&gt;
+            &lt;/ul&gt;
+          &lt;/li&gt;
+        &lt;/ul&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ps：&lt;/p&gt;
+
+&lt;p&gt;web手做逆向，有点惨&lt;/p&gt;</content><author><name></name></author><summary type="html">最近做了一些windows逆向的工作，尽管大部分都是苦力活，但还是有一些收获，所以总结一下</summary></entry><entry><title type="html">自动化信息收集框架：设计框架</title><link href="http://localhost:4000/posts/framework-design/" rel="alternate" type="text/html" title="自动化信息收集框架：设计框架" /><published>2020-03-20T21:33:52+08:00</published><updated>2020-03-20T21:33:52+08:00</updated><id>http://localhost:4000/posts/framework-design</id><content type="html" xml:base="http://localhost:4000/posts/framework-design/">&lt;p&gt;如果想要将各个信息收集工具整合到一起，就需要为他们封装出统一的接口，我把这些具有统一接口的对象定义为Module类。Module类具有三个抽象方法需要在封装模块的时候实现：&lt;/p&gt;
 
 &lt;ul&gt;
   &lt;li&gt;
@@ -123,7 +216,7 @@
 
 &lt;p&gt;PS:&lt;/p&gt;
 
-&lt;p&gt;虽然很想讲点理论的东西，但是我从未接触过程序设计方面的内容，绞尽脑汁才想出了框架的轮廓。在设计框架的时候我的不足也立马显现了出来，我时常问自己，“我要做什么”，“我为什么要这样做”，但往往给不出完美的答案。不过秉着尽量可以重复利用代码的原则，我大体还是把它构思完了，不过以后如果有空还是应该多读一下设计模式方面的书籍。&lt;/p&gt;</content><author><name></name></author><summary type="html">如果想要将各个信息收集工具整合到一起，就需要为他们封装出统一的接口，我把这些具有统一接口的对象定义为Module类。Module类具有三个抽象方法需要在封装模块的时候实现：</summary></entry><entry><title type="html">一次后渗透的反思</title><link href="https://citrusice.github.io/posts/post-exploition-rethink/" rel="alternate" type="text/html" title="一次后渗透的反思" /><published>2020-03-15T11:30:22+08:00</published><updated>2020-03-15T11:30:22+08:00</updated><id>https://citrusice.github.io/posts/post-exploition-rethink</id><content type="html" xml:base="https://citrusice.github.io/posts/post-exploition-rethink/">&lt;p&gt;项目的一个目标，在可以执行命令后开始进行后渗透的工作。目标低权限，同时服务器装了杀软，还打了很多补丁，加上网络实在是不行所以工作展开的异常艰难，最终也只是获得一个反弹shell，所以写篇文章反思一下当前使用的工具还有哪些不足。&lt;/p&gt;
+&lt;p&gt;虽然很想讲点理论的东西，但是我从未接触过程序设计方面的内容，绞尽脑汁才想出了框架的轮廓。在设计框架的时候我的不足也立马显现了出来，我时常问自己，“我要做什么”，“我为什么要这样做”，但往往给不出完美的答案。不过秉着尽量可以重复利用代码的原则，我大体还是把它构思完了，不过以后如果有空还是应该多读一下设计模式方面的书籍。&lt;/p&gt;</content><author><name></name></author><summary type="html">如果想要将各个信息收集工具整合到一起，就需要为他们封装出统一的接口，我把这些具有统一接口的对象定义为Module类。Module类具有三个抽象方法需要在封装模块的时候实现：</summary></entry><entry><title type="html">一次后渗透的反思</title><link href="http://localhost:4000/posts/post-exploition-rethink/" rel="alternate" type="text/html" title="一次后渗透的反思" /><published>2020-03-15T11:30:22+08:00</published><updated>2020-03-15T11:30:22+08:00</updated><id>http://localhost:4000/posts/post-exploition-rethink</id><content type="html" xml:base="http://localhost:4000/posts/post-exploition-rethink/">&lt;p&gt;项目的一个目标，在可以执行命令后开始进行后渗透的工作。目标低权限，同时服务器装了杀软，还打了很多补丁，加上网络实在是不行所以工作展开的异常艰难，最终也只是获得一个反弹shell，所以写篇文章反思一下当前使用的工具还有哪些不足。&lt;/p&gt;
 
 &lt;h1 id=&quot;过程&quot;&gt;过程&lt;/h1&gt;
 
@@ -152,7 +245,7 @@
 
 &lt;p&gt;&lt;a href=&quot;https://truneski.github.io/blog/2018/11/05/cobaltstrike-over-external-c2-via-dropbox/&quot;&gt;Dropbox as a C2 channel using the Dropbox APIs&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;感觉又要写好多代码。。&lt;/p&gt;</content><author><name></name></author><summary type="html">项目的一个目标，在可以执行命令后开始进行后渗透的工作。目标低权限，同时服务器装了杀软，还打了很多补丁，加上网络实在是不行所以工作展开的异常艰难，最终也只是获得一个反弹shell，所以写篇文章反思一下当前使用的工具还有哪些不足。</summary></entry><entry><title type="html">自动化信息收集框架：设计数据库</title><link href="https://citrusice.github.io/posts/database-design/" rel="alternate" type="text/html" title="自动化信息收集框架：设计数据库" /><published>2020-03-06T11:20:33+08:00</published><updated>2020-03-06T11:20:33+08:00</updated><id>https://citrusice.github.io/posts/database-design</id><content type="html" xml:base="https://citrusice.github.io/posts/database-design/">&lt;p&gt;对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。&lt;/p&gt;
+&lt;p&gt;感觉又要写好多代码。。&lt;/p&gt;</content><author><name></name></author><summary type="html">项目的一个目标，在可以执行命令后开始进行后渗透的工作。目标低权限，同时服务器装了杀软，还打了很多补丁，加上网络实在是不行所以工作展开的异常艰难，最终也只是获得一个反弹shell，所以写篇文章反思一下当前使用的工具还有哪些不足。</summary></entry><entry><title type="html">自动化信息收集框架：设计数据库</title><link href="http://localhost:4000/posts/database-design/" rel="alternate" type="text/html" title="自动化信息收集框架：设计数据库" /><published>2020-03-06T11:20:33+08:00</published><updated>2020-03-06T11:20:33+08:00</updated><id>http://localhost:4000/posts/database-design</id><content type="html" xml:base="http://localhost:4000/posts/database-design/">&lt;p&gt;对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。&lt;/p&gt;
 
 &lt;h1 id=&quot;数据存储与数据库范式&quot;&gt;数据存储与数据库范式&lt;/h1&gt;
 
@@ -270,7 +363,7 @@
 
 &lt;p&gt;&lt;a href=&quot;https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html&quot;&gt;https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://segmentfault.com/a/1190000013695030&quot;&gt;https://segmentfault.com/a/1190000013695030&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。</summary></entry><entry><title type="html">使用内存加载躲避静态查杀</title><link href="https://citrusice.github.io/posts/memory-execute/" rel="alternate" type="text/html" title="使用内存加载躲避静态查杀" /><published>2020-02-28T15:34:38+08:00</published><updated>2020-02-28T15:34:38+08:00</updated><id>https://citrusice.github.io/posts/memory-execute</id><content type="html" xml:base="https://citrusice.github.io/posts/memory-execute/">&lt;p&gt;在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://segmentfault.com/a/1190000013695030&quot;&gt;https://segmentfault.com/a/1190000013695030&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。</summary></entry><entry><title type="html">使用内存加载躲避静态查杀</title><link href="http://localhost:4000/posts/memory-execute/" rel="alternate" type="text/html" title="使用内存加载躲避静态查杀" /><published>2020-02-28T15:34:38+08:00</published><updated>2020-02-28T15:34:38+08:00</updated><id>http://localhost:4000/posts/memory-execute</id><content type="html" xml:base="http://localhost:4000/posts/memory-execute/">&lt;p&gt;在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。&lt;/p&gt;
 
 &lt;p&gt;本文将只探讨思路，不涉及具体实现。&lt;/p&gt;
 
@@ -426,7 +519,7 @@ reft //模式转换
 
 &lt;p&gt;&lt;a href=&quot;https://www.codeproject.com/Articles/607352/Injecting-Net-Assemblies-Into-Unmanaged-Processes&quot;&gt;https://www.codeproject.com/Articles/607352/Injecting-Net-Assemblies-Into-Unmanaged-Processes&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&quot;&gt;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。</summary></entry><entry><title type="html">使用CHM文件进行钓鱼</title><link href="https://citrusice.github.io/posts/chm-phishing/" rel="alternate" type="text/html" title="使用CHM文件进行钓鱼" /><published>2020-01-30T17:56:19+08:00</published><updated>2020-01-30T17:56:19+08:00</updated><id>https://citrusice.github.io/posts/chm-phishing</id><content type="html" xml:base="https://citrusice.github.io/posts/chm-phishing/">&lt;p&gt;进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&quot;&gt;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。</summary></entry><entry><title type="html">使用CHM文件进行钓鱼</title><link href="http://localhost:4000/posts/chm-phishing/" rel="alternate" type="text/html" title="使用CHM文件进行钓鱼" /><published>2020-01-30T17:56:19+08:00</published><updated>2020-01-30T17:56:19+08:00</updated><id>http://localhost:4000/posts/chm-phishing</id><content type="html" xml:base="http://localhost:4000/posts/chm-phishing/">&lt;p&gt;进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。&lt;/p&gt;
 
 &lt;h1 id=&quot;使用com控件命令执行&quot;&gt;使用com控件命令执行&lt;/h1&gt;
 
@@ -538,7 +631,7 @@ x.Click();
 
 &lt;p&gt;360火绒均不拦截&lt;/p&gt;
 
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200130173719.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。</summary></entry><entry><title type="html">渗透测试中的rdp隧道</title><link href="https://citrusice.github.io/posts/rdp-tuunel/" rel="alternate" type="text/html" title="渗透测试中的rdp隧道" /><published>2020-01-27T20:03:35+08:00</published><updated>2020-01-27T20:03:35+08:00</updated><id>https://citrusice.github.io/posts/rdp-tuunel</id><content type="html" xml:base="https://citrusice.github.io/posts/rdp-tuunel/">&lt;p&gt;渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200130173719.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。</summary></entry><entry><title type="html">渗透测试中的rdp隧道</title><link href="http://localhost:4000/posts/rdp-tuunel/" rel="alternate" type="text/html" title="渗透测试中的rdp隧道" /><published>2020-01-27T20:03:35+08:00</published><updated>2020-01-27T20:03:35+08:00</updated><id>http://localhost:4000/posts/rdp-tuunel</id><content type="html" xml:base="http://localhost:4000/posts/rdp-tuunel/">&lt;p&gt;渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。&lt;/p&gt;
 
 &lt;h2 id=&quot;编译rdp2tcp&quot;&gt;编译rdp2tcp&lt;/h2&gt;
 
@@ -582,7 +675,7 @@ make &lt;span class=&quot;nb&quot;&gt;install&lt;/span&gt;
 
 &lt;p&gt;将本地445端口的流量通过rdp tunnel转发到目标机上&lt;/p&gt;
 
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200127194853.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。</summary></entry><entry><title type="html">恶意宏文档与免杀</title><link href="https://citrusice.github.io/posts/malicious-macro/" rel="alternate" type="text/html" title="恶意宏文档与免杀" /><published>2019-12-03T12:48:05+08:00</published><updated>2019-12-03T12:48:05+08:00</updated><id>https://citrusice.github.io/posts/malicious-macro</id><content type="html" xml:base="https://citrusice.github.io/posts/malicious-macro/">&lt;p&gt;office宏，译自英文单词Macro。宏是微软公司为其OFFICE软件包设计的一个特殊功能，软件设计者为了让人们在使用软件进行工作时，避免一再地重复相同的动作而设计出来的一种工具，它利用简单的语法，把常用的动作写成宏，当在工作时，就可以直接利用事先编好的宏自动运行，去完成某项特定的任务，而不必再重复相同的动作，目的是让用户文档中的一些任务自动化。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200127194853.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><summary type="html">渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。</summary></entry><entry><title type="html">恶意宏文档与免杀</title><link href="http://localhost:4000/posts/malicious-macro/" rel="alternate" type="text/html" title="恶意宏文档与免杀" /><published>2019-12-03T12:48:05+08:00</published><updated>2019-12-03T12:48:05+08:00</updated><id>http://localhost:4000/posts/malicious-macro</id><content type="html" xml:base="http://localhost:4000/posts/malicious-macro/">&lt;p&gt;office宏，译自英文单词Macro。宏是微软公司为其OFFICE软件包设计的一个特殊功能，软件设计者为了让人们在使用软件进行工作时，避免一再地重复相同的动作而设计出来的一种工具，它利用简单的语法，把常用的动作写成宏，当在工作时，就可以直接利用事先编好的宏自动运行，去完成某项特定的任务，而不必再重复相同的动作，目的是让用户文档中的一些任务自动化。&lt;/p&gt;
 
 &lt;h1 id=&quot;生成执行cmd的宏&quot;&gt;生成执行cmd的宏&lt;/h1&gt;
 

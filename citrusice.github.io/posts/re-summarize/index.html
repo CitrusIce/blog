@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>逆向的一些总结</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"></div><div class="container">
+	<h1>逆向的一些总结</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Jul 9, 2020
+	</div>
+	<ul class="post-tags"><li>bin</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>最近做了一些windows逆向的工作，尽管大部分都是苦力活，但还是有一些收获，所以总结一下</p>
+
+<ul>
+  <li>
+    <p>观察程序行为</p>
+
+    <ul>
+      <li>文件操作</li>
+      <li>注册表读写</li>
+      <li>dll调用</li>
+      <li>……</li>
+    </ul>
+
+    <p>procmon</p>
+  </li>
+  <li>
+    <p>定位关键代码</p>
+
+    <ul>
+      <li>搜索字符串特征</li>
+      <li>相关windows api
+        <ul>
+          <li>CreateFile</li>
+          <li>ReadFile</li>
+          <li>WriteFile</li>
+          <li>……</li>
+        </ul>
+      </li>
+      <li>内存断点</li>
+      <li>函数特征，ida signature，findcrypt</li>
+    </ul>
+  </li>
+  <li>
+    <p>代码分析</p>
+
+    <ul>
+      <li>动态分析 =&gt; 分析具体行为</li>
+      <li>静态分析 =&gt; 分析调用关系，程序逻辑</li>
+      <li>关注数据流向</li>
+      <li>类的识别</li>
+    </ul>
+  </li>
+  <li>
+    <p>逆不动？</p>
+
+    <ul>
+      <li>注入进程寻找解密后的数据</li>
+      <li>找到解密函数直接调用</li>
+    </ul>
+  </li>
+  <li>
+    <p>未解决的问题以及可能的解决方案</p>
+
+    <ul>
+      <li>
+        <p>结构体及类的逆向</p>
+
+        <p>下次可以尝试使用reclass</p>
+      </li>
+      <li>
+        <p>在发现一个已经初始化完毕的对象、结构体后，难以定位之前对其进行初始化、写入数据等操作的代码</p>
+
+        <ul>
+          <li>
+            <p>ce搜索指针链，一层一层定位初始化代码</p>
+          </li>
+          <li>
+            <p>下断new，malloc、VirtualAlloc等函数，定位构造函数</p>
+          </li>
+          <li>
+            <p>根据构造函数特征定位构造函数</p>
+
+            <ul>
+              <li>
+                <p>使用ecx传参（类函数特征）</p>
+              </li>
+              <li>
+                <p>函数开始push ebx, esi, edi, ecx寄存器，对exc操作之后再pop ecx</p>
+
+                <p><a href="https://bbs.pediy.com/thread-195449.htm">https://bbs.pediy.com/thread-195449.htm</a></p>
+
+                <p><a href="https://www.cnblogs.com/predator-wang/p/8031071.html">https://www.cnblogs.com/predator-wang/p/8031071.html</a></p>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<p>ps：</p>
+
+<p>web手做逆向，有点惨</p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
