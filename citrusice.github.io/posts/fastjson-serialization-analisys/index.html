@@ -113,7 +113,7 @@
         <span class="k">if</span> <span class="o">(</span><span class="n">type</span> <span class="k">instanceof</span> <span class="nc">Class</span><span class="o">&lt;?&gt;)</span> <span class="o">{</span>
             <span class="k">return</span> <span class="nf">getDeserializer</span><span class="o">((</span><span class="nc">Class</span><span class="o">&lt;?&gt;)</span> <span class="n">type</span><span class="o">,</span> <span class="n">type</span><span class="o">);</span>
         <span class="o">}</span>
-<span class="err">………………省略……………………</span>
+<span class="err">………………</span><span class="n">省略</span><span class="err">……………………</span>
     <span class="o">}</span>
 </code></pre></div></div>
 
@@ -213,7 +213,7 @@
         <span class="k">this</span><span class="o">.</span><span class="na">parserFeatures</span> <span class="o">=</span> <span class="nc">TypeUtils</span><span class="o">.</span><span class="na">getParserFeatures</span><span class="o">(</span><span class="n">clazz</span><span class="o">);</span>
         <span class="k">this</span><span class="o">.</span><span class="na">buildMethod</span> <span class="o">=</span> <span class="n">buildMethod</span><span class="o">;</span>
 
-    <span class="o">....</span><span class="err">省略</span><span class="o">.....</span>
+    <span class="o">....</span><span class="na">省略</span><span class="o">.....</span>
 
         <span class="n">fields</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">FieldInfo</span><span class="o">[</span><span class="n">fieldList</span><span class="o">.</span><span class="na">size</span><span class="o">()];</span>
         <span class="n">fieldList</span><span class="o">.</span><span class="na">toArray</span><span class="o">(</span><span class="n">fields</span><span class="o">);</span>
@@ -222,7 +222,7 @@
         <span class="nc">System</span><span class="o">.</span><span class="na">arraycopy</span><span class="o">(</span><span class="n">fields</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="n">sortedFields</span><span class="o">,</span> <span class="mi">0</span><span class="o">,</span> <span class="n">fields</span><span class="o">.</span><span class="na">length</span><span class="o">);</span>
         <span class="nc">Arrays</span><span class="o">.</span><span class="na">sort</span><span class="o">(</span><span class="n">sortedFields</span><span class="o">);</span>
 
-    <span class="o">....</span><span class="err">省略</span><span class="o">.....</span>
+    <span class="o">....</span><span class="na">省略</span><span class="o">.....</span>
    
     <span class="o">}</span>
 </code></pre></div></div>
@@ -295,7 +295,7 @@ fastjson-1.2.24-sources.jar!/com/alibaba/fastjson/parser/deserializer/JavaBeanDe
 
 <p>调用栈</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>popContext:1256, DefaultJSONParser (com.alibaba.fastjson.parser)
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>popContext:1256, DefaultJSONParser (com.alibaba.fastjson.parser)
 parseObject:358, DefaultJSONParser (com.alibaba.fastjson.parser)
 parse:1327, DefaultJSONParser (com.alibaba.fastjson.parser)
 parse:1293, DefaultJSONParser (com.alibaba.fastjson.parser)
@@ -335,7 +335,7 @@ main:41, test (test)
 
 <p>下面是调用堆栈</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>addContext:1280, DefaultJSONParser (com.alibaba.fastjson.parser)
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>addContext:1280, DefaultJSONParser (com.alibaba.fastjson.parser)
 setContext:1274, DefaultJSONParser (com.alibaba.fastjson.parser)
 deserialze:-1, FastjsonASMDeserializer_1_JdbcRowSetImpl (com.alibaba.fastjson.parser.deserializer)
 deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer)

