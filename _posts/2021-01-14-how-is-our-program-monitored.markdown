@@ -1,0 +1,332 @@
+---
+layout: post
+title: "我们的程序如何被监控"
+date: 2021-01-14 12:29:42 +0800
+categories: reverse-engineering
+---
+
+ring3下，杀软对程序无非就是各种iat hook、inline hook；在ring0由于有pg的出现，杀软厂商们不得不放弃原来使用的hook而使用微软提供的内核回调
+
+我所知道的回调大概有这些
+
+- 进程创建回调
+
+- 线程创建回调
+
+- 模块加载回调
+
+- 注册表回调
+
+- 文件监控回调
+
+- 网络监控回调
+
+这些内核回调函数对于程序行为的监控基本是很完全了，但是还不够，是有很多盲点的。聪明的黑客们也早已想到了很多办法，其中apc注入就是一种最为典型的来绕过这些内核回调监控的方法，早已被滥用于许多木马中。
+
+既然在ring0无法使用回调的方式监控apc注入，有些杀毒软件厂商就将hook位置从内核拿到用户态。ring3下hook的好处是简单、稳定，纵使hook出现了问题也最多是程序崩溃而不会影响全局，而缺点也是显而易见的——容易被绕过、摘除
+
+那么这是否意味着我们只要绕过了ring3下的hook，apc注入便可以成为一种难以被察觉的进程注入手段呢？答案肯定是否定的，只要对apc注入进行过测试就会知道这种方式是会被拦截的。但是杀软是如何监控到的呢？带着这个问题，我开始了探索，并写这篇文章来简要记录。
+
+
+
+首先写一个简单的apc注入器，在安装了杀软的环境中进行注入
+
+尽管知道不会是ring3下的hook，但是保险起见，一直跟入到syscall
+
+![image-20201214171817590](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201214171817590.png)
+
+没有hook
+
+接下来我们要进入内核一探究竟，syscall是进入内核的指令，根据手册，syscall指令会从msr的lstar（0xC0000082）中读取地址作为rip
+
+```
+0: kd> rdmsr c0000082
+msr[c0000082] = fffff800`0dc116c0
+0: kd> u fffff800`0dc116c0
+nt!KiSystemCall64:
+fffff800`0dc116c0 0f01f8          swapgs
+fffff800`0dc116c3 654889242510000000 mov   qword ptr gs:[10h],rsp
+fffff800`0dc116cc 65488b2425a8010000 mov   rsp,qword ptr gs:[1A8h]
+fffff800`0dc116d5 6a2b            push    2Bh
+fffff800`0dc116d7 65ff342510000000 push    qword ptr gs:[10h]
+fffff800`0dc116df 4153            push    r11
+fffff800`0dc116e1 6a33            push    33h
+fffff800`0dc116e3 51              push    rcx
+```
+
+可以看到其中的地址指向了nt!KiSystemCall64，于是在这里下断，运行，程序并没有被断住。
+
+到这里就卡住了，我之前从未对这里下过断点，仅仅知道这个函数大概会根据ssdt找到NtQueueApcThread对应的内核函数并调用，我也想不出任何关于调试器无法在这里下断的原因，尽管我可以静态分析来查看杀软是否对这里进行了hook，但此时我更想知道这到底是怎么一回事。
+
+经过两天的研究事情终于有了一些眉目，在正常的情况下对nt!KiSystemCall64下断点会导致BSOD，而我这里由于杀软做了某些操作导致无事发生。nt!KiSystemCall64的前三条指令设置了gs寄存器以及内核栈，而windbg的调试实际上是依赖于windows内核的，windbg做的只不过是通过串口与内核进行交互，因此在已经进入了ring0但内核栈没有设置正确的情况下触发异常会导致蓝屏。那为什么在安装了杀软的环境中断点没有生效呢？一种情况是可能cpu根本没有运行那些指令，而是绕开了断点走了其他的地方，又或者是杀软可能对一些debug函数进行了hook阻碍了我的调试。
+
+为了检查杀软确实没有在nt!KiSystemCall64中hook，只能静态看一下了，把这个函数的内存dump下来比较一下
+
+```powershell
+PS C:\> diff .\av.dump .\no-av.dump
+
+InputObject  SideIndicator
+-----------  -------------
+.\no-av.dump =>
+.\av.dump    <=
+```
+
+内容是一致的
+
+从系统调用的入口没办法继续跟进，那就只能从出口入手了。
+
+首先要检查的是ssdt中的内容是否有被更改，从ntdll!NtQueueApcThread中可以看到，他的调用号是45h
+
+```
+0: kd> u nt!KiServiceTable+(dwo(nt!KiServiceTable+(4*45))>>4)
+nt!NtQueueApcThread:
+fffff802`36a962a0 4883ec38        sub     rsp,38h
+fffff802`36a962a4 488b442460      mov     rax,qword ptr [rsp+60h]
+fffff802`36a962a9 4889442428      mov     qword ptr [rsp+28h],rax
+fffff802`36a962ae 4c894c2420      mov     qword ptr [rsp+20h],r9
+fffff802`36a962b3 4d8bc8          mov     r9,r8
+fffff802`36a962b6 4c8bc2          mov     r8,rdx
+fffff802`36a962b9 33d2            xor     edx,edx
+fffff802`36a962bb e810000000      call    nt!NtQueueApcThreadEx (fffff802`36a962d0)
+```
+
+ssdt表是正常的，没有被修改
+
+在nt!NtQueueApcThread下断，让程序跑起来，等待程序断下后查看调用堆栈
+
+```
+0: kd> 
+Breakpoint 2 hit
+nt!NtQueueApcThread:
+0010:fffff802`36a962a0 4883ec38        sub     rsp,38h
+0: kd> k
+ # Child-SP          RetAddr               Call Site
+00 fffffd05`75cf2918 fffff802`3a2b34db     nt!NtQueueApcThread
+01 fffffd05`75cf2920 ffffe60e`35f67080     0xfffff802`3a2b34db 奇怪的调用者
+02 fffffd05`75cf2928 00000000`00000016     0xffffe60e`35f67080
+03 fffffd05`75cf2930 fffffd05`75cf2950     0x16
+04 fffffd05`75cf2938 00000202`6fdb0000     0xfffffd05`75cf2950
+05 fffffd05`75cf2940 00000000`00000000     0x00000202`6fdb0000
+```
+
+与正常的调用作比较
+
+```
+0: kd> k
+ # Child-SP          RetAddr               Call Site
+00 ffff920b`14837a88 fffff800`0dc11bb5     nt!NtQueueApcThread
+01 ffff920b`14837a90 00007ffe`27fac644     nt!KiSystemServiceCopyEnd+0x25
+02 000000e6`96cff598 00007ffe`258a137f     ntdll!NtQueueApcThread+0x14
+03 000000e6`96cff5a0 00007ff6`5f1d95d8     KERNELBASE!QueueUserAPC+0x8f
+04 000000e6`96cff600 00000000`00000000     xxxx!inject+0x4d8 
+```
+
+可以看到杀软对我们的hook
+
+分析这个hook函数
+
+```assembly
+0010:fffff802`3a2b3428 4c8bdc           mov     r11, rsp ;函数起始位置，栈指针存入r11
+0010:fffff802`3a2b342b 49895b08         mov     qword ptr [r11+8], rbx ; 存rbx
+0010:fffff802`3a2b342f 49897310         mov     qword ptr [r11+10h], rsi; 存rsi
+0010:fffff802`3a2b3433 57               push    rdi
+0010:fffff802`3a2b3434 4881ec60010000   sub     rsp, 160h
+0010:fffff802`3a2b343b 488b842490010000 mov     rax, qword ptr [rsp+190h]
+0010:fffff802`3a2b3443 48894c2430       mov     qword ptr [rsp+30h], rcx
+0010:fffff802`3a2b3448 0fb70dbd540600   movzx   ecx, word ptr [fffff802`3a31890c]
+0010:fffff802`3a2b344f 4889442450       mov     qword ptr [rsp+50h], rax
+0010:fffff802`3a2b3454 498d4328         lea     rax, [r11+28h]
+0010:fffff802`3a2b3458 4c89442440       mov     qword ptr [rsp+40h], r8
+0010:fffff802`3a2b345d 4889442428       mov     qword ptr [rsp+28h], rax
+0010:fffff802`3a2b3462 4c894c2448       mov     qword ptr [rsp+48h], r9
+0010:fffff802`3a2b3467 488d442460       lea     rax, [rsp+60h]
+0010:fffff802`3a2b346c 4889542438       mov     qword ptr [rsp+38h], rdx
+0010:fffff802`3a2b3471 4d8d8b78ffffff   lea     r9, [r11-88h]
+0010:fffff802`3a2b3478 4c8d442430       lea     r8, [rsp+30h]
+0010:fffff802`3a2b347d ba16000000       mov     edx, 16h
+0010:fffff802`3a2b3482 4889442420       mov     qword ptr [rsp+20h], rax
+0010:fffff802`3a2b3487 e87852ffff       call    fffff802`3a2a8704
+0010:fffff802`3a2b348c 8bd8             mov     ebx, eax
+0010:fffff802`3a2b348e 3d030500c0       cmp     eax, 0C0000503h
+0010:fffff802`3a2b3493 7504             jne     fffff802`3a2b3499
+0010:fffff802`3a2b3495 33db             xor     ebx, ebx
+0010:fffff802`3a2b3497 eb45             jmp     fffff802`3a2b34de
+0010:fffff802`3a2b3499 85c0             test    eax, eax
+0010:fffff802`3a2b349b 7841             js      fffff802`3a2b34de
+0010:fffff802`3a2b349d 488b157c550600   mov     rdx, qword ptr [fffff802`3a318a20] ;rdx指向nt!KeServiceDescriptorTable
+0010:fffff802`3a2b34a4 0fb70d61540600   movzx   ecx, word ptr [fffff802`3a31890c] ;调用号
+0010:fffff802`3a2b34ab 4c8b4c2448       mov     r9, qword ptr [rsp+48h]
+0010:fffff802`3a2b34b0 488b02           mov     rax, qword ptr [rdx] ;rax指向了ssdt
+0010:fffff802`3a2b34b3 4c8b442440       mov     r8, qword ptr [rsp+40h]
+0010:fffff802`3a2b34b8 488b542438       mov     rdx, qword ptr [rsp+38h]
+0010:fffff802`3a2b34bd 8b0c88           mov     ecx, dword ptr [rax+rcx*4];根据调用号与ssdt基地址获取了内核函数的偏移
+0010:fffff802`3a2b34c0 c1f904           sar     ecx, 4 ;右移4位
+0010:fffff802`3a2b34c3 4c63d1           movsxd  r10, ecx
+0010:fffff802`3a2b34c6 488b4c2430       mov     rcx, qword ptr [rsp+30h]
+0010:fffff802`3a2b34cb 4c03d0           add     r10, rax ;计算出目标函数地址
+0010:fffff802`3a2b34ce 488b442450       mov     rax, qword ptr [rsp+50h]
+0010:fffff802`3a2b34d3 4889442420       mov     qword ptr [rsp+20h], rax
+0010:fffff802`3a2b34d8 41ffd2           call    r10 ;调用目标函数
+0010:fffff802`3a2b34db 488bd8           mov     rbx, rax
+0010:fffff802`3a2b34de 4863bc2490010000 movsxd  rdi, dword ptr [rsp+190h]
+0010:fffff802`3a2b34e6 85ff             test    edi, edi
+0010:fffff802`3a2b34e8 743a             je      fffff802`3a2b3524
+0010:fffff802`3a2b34ea 488d34fdf8ffffff lea     rsi, [rdi*8-8]
+0010:fffff802`3a2b34f2 4c8b4c3460       mov     r9, qword ptr [rsp+rsi+60h]
+0010:fffff802`3a2b34f7 488d542430       lea     rdx, [rsp+30h]
+0010:fffff802`3a2b34fc 4c63c3           movsxd  r8, ebx
+0010:fffff802`3a2b34ff b916000000       mov     ecx, 16h
+0010:fffff802`3a2b3504 ff9434e0000000   call    qword ptr [rsp+rsi+0E0h]
+0010:fffff802`3a2b350b 3d030500c0       cmp     eax, 0C0000503h
+0010:fffff802`3a2b3510 7504             jne     fffff802`3a2b3516
+0010:fffff802`3a2b3512 33db             xor     ebx, ebx
+0010:fffff802`3a2b3514 eb05             jmp     fffff802`3a2b351b
+0010:fffff802`3a2b3516 85c0             test    eax, eax
+0010:fffff802`3a2b3518 0f48d8           cmovs   ebx, eax
+0010:fffff802`3a2b351b 4883ee08         sub     rsi, 8
+0010:fffff802`3a2b351f 83c7ff           add     edi, 0FFFFFFFFh
+0010:fffff802`3a2b3522 75ce             jne     fffff802`3a2b34f2
+0010:fffff802`3a2b3524 4c8d9c2460010000 lea     r11, [rsp+160h]; 清栈   
+0010:fffff802`3a2b352c 8bc3             mov     eax, ebx
+0010:fffff802`3a2b352e 498b5b10         mov     rbx, qword ptr [r11+10h]
+0010:fffff802`3a2b3532 498b7318         mov     rsi, qword ptr [r11+18h]
+0010:fffff802`3a2b3536 498be3           mov     rsp, r11
+0010:fffff802`3a2b3539 5f               pop     rdi ;rsp现在指向 nt!KiSystemServiceCopyEnd + 0x25 
+0010:fffff802`3a2b353a c3               ret     
+```
+
+可以看出它同样实现了KiSystemCall64的功能做了查找ssdt的工作
+
+这段函数不属于任意一个模块，而根据最后函数最后ret的地址指向 nt!KiSystemServiceCopyEnd + 0x25，这似乎意味着这个hook函数是正常从nt!KiSystemServiceCopyEnd调用过来的。但是正常情况来讲nt!KiSystemServiceCopyEnd会从原有的ssdt中取值计算出用户态syscall对应的内核函数，如果这个hook函数是由KiSystemServiceCopyEnd调用的，这也就代表杀软修改了ssdt，这就出现了矛盾。因此我猜测这个返回地址是伪造出来的，可以用这样几种方式实现
+
+```assembly
+push nt!KiSystemServiceCopyEnd + 0x25
+jmp hook_func_addr_offset
+
+push nt!KiSystemServiceCopyEnd + 0x25
+mov rax,hook_func_addr
+jmp rax
+
+push nt!KiSystemServiceCopyEnd + 0x25
+push hook_func_addr_offset
+ret
+```
+
+用这样的代码来调用它，我们可以伪造出调用方，防止逆向人员的逆向
+
+尝试在nt!KiSystemServiceCopyEnd设置断点，很幸运，与在KiSystemCall64设置断点不同，在这里断点可以生效。
+
+```
+1: kd> u nt!KiSystemServiceCopyEnd
+nt!KiSystemServiceCopyEnd:
+fffff802`3681eb90 f705665a8f0001000000 test dword ptr [nt!KiDynamicTraceMask (fffff802`37114600)],1
+fffff802`3681eb9a 0f8593040000    jne     nt!KiSystemServiceExitPico+0x1fe (fffff802`3681f033)
+fffff802`3681eba0 f705de588f0040000000 test dword ptr [nt!PerfGlobalGroupMask+0x8 (fffff802`37114488)],40h
+fffff802`3681ebaa 0f85f7040000    jne     nt!KiSystemServiceExitPico+0x272 (fffff802`3681f0a7)
+fffff802`3681ebb0 498bc2          mov     rax,r10
+fffff802`3681ebb3 ffd0            call    rax
+fffff802`3681ebb5 0f1f00          nop     dword ptr [rax]
+fffff802`3681ebb8 65ff0425b82e0000 inc     dword ptr gs:[2EB8h]
+1: kd> r r10
+r10=fffff8023a2b3428
+```
+
+之后的代码会调用r10中指向的函数，而r10的地址正是之前分析的hook函数的地址，看来hook函数的调用这就是nt!KiSystemServiceCopyEnd + 0x25，而并非是伪造出的。
+
+那么这个r10中的地址是怎样得到的呢，从nt!KiSystemServiceCopyEnd往上翻，我们可以找到r10的来源
+
+```
+1: kd> u nt!KiSystemServiceRepeat  nt!KiSystemServiceGdiTebAccess
+nt!KiSystemServiceRepeat:
+fffff802`3681ea34 4c8d1585ae9f00  lea     r10,[nt!KeServiceDescriptorTable (fffff802`372198c0)]
+fffff802`3681ea3b 4c8d1dfe5f8f00  lea     r11,[nt!KeServiceDescriptorTableShadow (fffff802`37114a40)]
+fffff802`3681ea42 f7437880000000  test    dword ptr [rbx+78h],80h
+fffff802`3681ea49 7413            je      nt!KiSystemServiceRepeat+0x2a (fffff802`3681ea5e)
+fffff802`3681ea4b f7437800002000  test    dword ptr [rbx+78h],200000h
+fffff802`3681ea52 7407            je      nt!KiSystemServiceRepeat+0x27 (fffff802`3681ea5b)
+fffff802`3681ea54 4c8d1d65618f00  lea     r11,[nt!KeServiceDescriptorTableFilter (fffff802`37114bc0)]
+fffff802`3681ea5b 4d8bd3          mov     r10,r11
+fffff802`3681ea5e 413b443a10      cmp     eax,dword ptr [r10+rdi+10h]
+fffff802`3681ea63 0f832c050000    jae     nt!KiSystemServiceExitPico+0x160 (fffff802`3681ef95)
+fffff802`3681ea69 4d8b143a        mov     r10,qword ptr [r10+rdi]
+fffff802`3681ea6d 4d631c82        movsxd  r11,dword ptr [r10+rax*4]
+fffff802`3681ea71 498bc3          mov     rax,r11
+fffff802`3681ea74 49c1fb04        sar     r11,4
+fffff802`3681ea78 4d03d3          add     r10,r11
+fffff802`3681ea7b 83ff20          cmp     edi,20h
+fffff802`3681ea7e 7550            jne     nt!KiSystemServiceGdiTebAccess+0x49 (fffff802`3681ead0)
+fffff802`3681ea80 4c8b9bf0000000  mov     r11,qword ptr [rbx+0F0h]
+nt!KiSystemServiceGdiTebAccess:
+fffff802`3681ea87 4183bb4017000000 cmp     dword ptr [r11+1740h],0
+```
+
+从代码中可以看出，r10应该是解析了ssdt表后所指向的内核函数，而从我们调试得到的结果来看，r10指向的并非是应该指向的函数，并且ssdt表也没有被修改。
+
+继续在nt!KiSystemServiceRepeat这里下断点，发现情况与之前在KiSystemCall64下断的情况一下，断点并未生效。
+
+经过一番摸索后发现，在nt!KiSystemServiceRepeat+0x47之后的地方下断都可以生效，而在其之前都无法生效
+
+```
+1: kd> u nt!KiSystemServiceRepeat+0x47
+nt!KiSystemServiceRepeat+0x47:
+fffff802`3681ea7b 83ff20          cmp     edi,20h
+fffff802`3681ea7e 7550            jne     nt!KiSystemServiceGdiTebAccess+0x49 (fffff802`3681ead0)
+fffff802`3681ea80 4c8b9bf0000000  mov     r11,qword ptr [rbx+0F0h]
+.....
+```
+
+断在这里的时候r10已经指向hook函数
+
+```
+1: kd> g
+Breakpoint 6 hit
+nt!KiSystemServiceRepeat+0x47:
+0010:fffff802`3681ea7b 83ff20          cmp     edi,20h
+1: kd> r r10
+r10=fffff8023a2b3428
+```
+
+确实有点不知道如何是好了，看起来在执行syscall之后，cpu并没有来到nt!KiSystemCall64，而是走了另外的代码，最终又跳转回来。
+
+有想过把附近4gb的内存全部dump下来用ida分析看看是哪里跳过来的，但是仔细一想根本不可行，4gb内存不知道要分析多长时间，而且这4gb内存必然是不连续的，在dump过程中会访问到不可读的内存导致出错。
+
+又折腾了两三天，在查阅资料的过程中我了解到了这是一种基于vmm的hook，他修改了msr中的值，让cpu在执行syscall时跳转到它的hook函数，而当其他人读取msr寄存器中的值时会返回一个伪造的值让msr看起来并没有被修改。但是如何证明杀软确实是这么做的呢？qemu理论应该可以跟踪cpu的执行流程在执行syscall后跳到了hook函数的地址，或者直接获取msr寄存器中真实的值（纯软件模拟应该可以，但是现在qemu并非纯软件模拟了）。最后感觉自己这方面知识太少还不足以去调试vt，只好弄了个最简单的方法：在关掉了虚拟化后，在KiSystemCall64下断可以生效。这大概也算是证明了吧。
+
+基于vmm，不但可以修改msr不被发现，甚至连内存也可以伪造出来，有点想到黑客帝国了。
+
+--------
+
+本来文章到这里应该就结束了，但是一周之后再回头看一眼，尽管已经回答了文章开头提出的问题，但是有点虎头蛇尾，所以准备进一步研究一下。
+
+这次准备找一下杀软处理vm的模块以及相关函数，尽量看一看内部逻辑。
+
+找之前先翻了一些文档以及基于vt的hook框架，大概对vt有了一些了解。由于模块名字比较显眼，一下就看到了对应的模块。根据之前的了解，启动虚拟机需要使用VMXON指令，因此直接搜这个指令一下就可以定位到启用vmx的代码开始逆向
+
+![image-20210113174052058](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113174052058.png)
+
+![image-20210113174325354](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113174325354.png)
+
+![image-20210113174519268](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113174519268.png)
+
+这段代码为启用vmx做了一些检查，然后为每个cpu分配4KB的物理空间用于记录一些信息（vmxon需要），最后调用vmxon进行启用虚拟机，随后调用vmInit进行初始化
+
+![image-20210113175449339](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113175449339.png)
+
+vmInit函数很大，一番搜寻后我找到了设置vm host入口的代码，即处理vm事件的函数VM_handler。
+
+![image-20210113175520122](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113175520122.png)
+
+VM_hanlder在保存现场之后，调用GetVMExitReason
+
+![image-20210113175706367](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113175706367.png)
+
+![image-20210113180222755](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113180222755.png)
+
+函数通过vmread读取VM_EXIT_REASON，并根据不同的值调用不同的函数。当cpu使用rdmsr指令时会触发vm_exit事件，其对应的VM_EXIT_REASON为31。当VM_handler捕获到rdmsr指令时会调用SpoofMSRFunc来欺骗调用者，返回假的msr值。
+
+![image-20210113180700346](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113180700346.png)
+
+可以看出来当读取msr的index为if中的那些值时这个函数会对其进行处理。
+
+以前总是在臆想杀软会怎么做、怎么检测，最多也就是通过杀与不杀来判断杀软的行为，真正去分析的话能对杀软有更清楚的认知。
+
