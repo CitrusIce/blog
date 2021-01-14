@@ -2,7 +2,7 @@
 layout: post
 title: "逆向的一些总结"
 date: 2020-07-09 18:35:43 +0800
-categories: bin
+categories: reverse-engineering
 ---
 
 最近做了一些windows逆向的工作，尽管大部分都是苦力活，但还是有一些收获，所以总结一下
