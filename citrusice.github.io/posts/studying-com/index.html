@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>COM学习</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"></div><div class="container">
+	<h1>COM学习</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Feb 12, 2021
+	</div>
+	<ul class="post-tags"><li>develop</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>com不是什么新的东西，主要是写一下学习路径</p>
+
+<h2 id="类">类</h2>
+
+<p>回答以下几个问题</p>
+
+<p>类在内存中的样子？</p>
+
+<p>类对象在内存中的样子？</p>
+
+<p>多态底层怎么实现？为什么基类指针指向派生类对象就能实现多态？底层是怎么做的？</p>
+
+<p>构造函数可以为虚函数吗？如果构造函数为虚函数，能够实现多态吗？为什么？</p>
+
+<p>析构函数可以为虚函数吗？为什么？</p>
+
+<p>如果派生类不重写虚函数， 基类指针指向派生类对象，调用的是谁的虚函数？</p>
+
+<h2 id="认识com组件">认识COM组件</h2>
+
+<p>com有in-proc与out-proc两种形态</p>
+
+<p>使用c/c++编写inproc com组件</p>
+
+<p>编写outproc组件</p>
+
+<ul>
+  <li>了解idl、alt</li>
+  <li>使用alt实现out-proc com</li>
+  <li>不使用alt实现out-proc com</li>
+</ul>
+
+<h2 id="localserver-com如何通信">localserver com如何通信</h2>
+
+<p>基于rpc</p>
+
+<p>编写RPC helloworld</p>
+
+<h2 id="vbs如何获取到类函数地址">vbs如何获取到类函数地址</h2>
+
+<p>对于脚本语言来说，他无法获取到目标类函数在虚表中的位置，那么com组件通过什么样的方式来实现”语言无关”呢？</p>
+
+<p>了解IDispatch</p>
+
+<p>了解typelib</p>
+
+<h2 id="marshaling">Marshaling</h2>
+
+<h2 id="dcom">DCOM</h2>
+
+<p>https://saravanesh.files.wordpress.com/2007/09/understanding-com.pdf</p>
+
+<h2 id="dll-surrogate">dll surrogate</h2>
+
+<p>https://docs.microsoft.com/en-us/windows/win32/com/registering-the-dll-server-for-surrogate-activation</p>
+
+<hr />
+
+<p>ole、activex、winrt、.net，com是这些东西的基础，在了解了com之后再去学习这些微软的技术、框架会变得更加轻松</p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
