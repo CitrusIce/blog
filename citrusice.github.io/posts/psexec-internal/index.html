@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>Psexec Internal</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"></div><div class="container">
+	<h1>Psexec Internal</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Feb 24, 2021
+	</div>
+	<ul class="post-tags"><li>reverse-engineering</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>psexec是后渗透的常用工具，拥有一个目标系统的账户后我们可以通过它在目标系统执行命令。但是它是如何工作的？这篇文章将记录我的研究过程。</p>
+
+<h2 id="psexec的登录过程">psexec的登录过程</h2>
+
+<p>https://docs.microsoft.com/en-us/troubleshoot/windows-server/networking/inter-process-communication-share-null-session</p>
+
+<p>使用函数WNetAddConnection2W通过ipc$共享登录到目标计算机</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224110927413.png" alt="image-20210224110927413" /></p>
+
+<h2 id="psexec如何在目标系统上执行命令">psexec如何在目标系统上执行命令</h2>
+
+<p>psexec自身携带了psexesvc，在登录后会将psexesvc通过admin$共享将psexesvc拷贝过去</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111039427.png" alt="image-20210224111039427" /></p>
+
+<p>​	查看psexec的资源表，可以发现附带的psexecsvc程序</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111153742.png" alt="image-20210224111153742" /></p>
+
+<p>之后打开目标系统上的服务管理器，创建psexesvc的服务并启动。</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111351331.png" alt="image-20210224111351331" /></p>
+
+<p>之后使用命名管道来与psexesvc进行通信，向psexesvc发送指令来执行命令</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111747076.png" alt="image-20210224111747076" /></p>
+
+<h2 id="psexesvc以什么身份账户在目标系统上执行">psexesvc以什么身份（账户）在目标系统上执行</h2>
+
+<p>psexecsvc是以服务的身份启动的，因此如果执行命令，那就是以服务的身份执行。可实际上使用时我们知道，我们是以通过命令行传入psexec的账户的身份执行的</p>
+
+<p>这是如何做到的？</p>
+
+<p>在发送指令的包中，psexec会同时将用户传入的凭据发送给psexesvc</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224112856530.png" alt="image-20210224112856530" /></p>
+
+<p>psexecsvc使用LogonUserExExW进行登录，获取一个目标账户的token</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224113040740.png" alt="image-20210224113040740" /></p>
+
+<p>接着使用CreateProcessAsUser，通过已获取的token来以目标账户的身份登录</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224113336005.png" alt="image-20210224113336005" /></p>
+
+<hr />
+
+<ul>
+  <li>
+    <p>在学习的时候发现了一个开源版本的psexec https://github.com/poweradminllc/PAExec</p>
+  </li>
+  <li>终于向内网前进了一点</li>
+  <li>还是那句话，想要更好的使用工具或者开发自己的工具就需要深入了解其内部的机制</li>
+</ul>
+
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
