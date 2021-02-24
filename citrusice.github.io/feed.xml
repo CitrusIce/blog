@@ -1,5 +1,59 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-02-12T18:24:13+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">COM学习</title><link href="https://citrusice.github.io/posts/studying-com/" rel="alternate" type="text/html" title="COM学习" /><published>2021-02-12T18:21:48+08:00</published><updated>2021-02-12T18:21:48+08:00</updated><id>https://citrusice.github.io/posts/studying-com</id><content type="html" xml:base="https://citrusice.github.io/posts/studying-com/">&lt;p&gt;com不是什么新的东西，主要是写一下学习路径&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-02-24T12:21:00+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">Psexec Internal</title><link href="https://citrusice.github.io/posts/psexec-internal/" rel="alternate" type="text/html" title="Psexec Internal" /><published>2021-02-24T12:17:31+08:00</published><updated>2021-02-24T12:17:31+08:00</updated><id>https://citrusice.github.io/posts/psexec-internal</id><content type="html" xml:base="https://citrusice.github.io/posts/psexec-internal/">&lt;p&gt;psexec是后渗透的常用工具，拥有一个目标系统的账户后我们可以通过它在目标系统执行命令。但是它是如何工作的？这篇文章将记录我的研究过程。&lt;/p&gt;
+
+&lt;h2 id=&quot;psexec的登录过程&quot;&gt;psexec的登录过程&lt;/h2&gt;
+
+&lt;p&gt;https://docs.microsoft.com/en-us/troubleshoot/windows-server/networking/inter-process-communication-share-null-session&lt;/p&gt;
+
+&lt;p&gt;使用函数WNetAddConnection2W通过ipc$共享登录到目标计算机&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224110927413.png&quot; alt=&quot;image-20210224110927413&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;psexec如何在目标系统上执行命令&quot;&gt;psexec如何在目标系统上执行命令&lt;/h2&gt;
+
+&lt;p&gt;psexec自身携带了psexesvc，在登录后会将psexesvc通过admin$共享将psexesvc拷贝过去&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111039427.png&quot; alt=&quot;image-20210224111039427&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;​	查看psexec的资源表，可以发现附带的psexecsvc程序&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111153742.png&quot; alt=&quot;image-20210224111153742&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;之后打开目标系统上的服务管理器，创建psexesvc的服务并启动。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111351331.png&quot; alt=&quot;image-20210224111351331&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;之后使用命名管道来与psexesvc进行通信，向psexesvc发送指令来执行命令&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111747076.png&quot; alt=&quot;image-20210224111747076&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;psexesvc以什么身份账户在目标系统上执行&quot;&gt;psexesvc以什么身份（账户）在目标系统上执行&lt;/h2&gt;
+
+&lt;p&gt;psexecsvc是以服务的身份启动的，因此如果执行命令，那就是以服务的身份执行。可实际上使用时我们知道，我们是以通过命令行传入psexec的账户的身份执行的&lt;/p&gt;
+
+&lt;p&gt;这是如何做到的？&lt;/p&gt;
+
+&lt;p&gt;在发送指令的包中，psexec会同时将用户传入的凭据发送给psexesvc&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224112856530.png&quot; alt=&quot;image-20210224112856530&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;psexecsvc使用LogonUserExExW进行登录，获取一个目标账户的token&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224113040740.png&quot; alt=&quot;image-20210224113040740&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;接着使用CreateProcessAsUser，通过已获取的token来以目标账户的身份登录&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224113336005.png&quot; alt=&quot;image-20210224113336005&quot; /&gt;&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;在学习的时候发现了一个开源版本的psexec https://github.com/poweradminllc/PAExec&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;终于向内网前进了一点&lt;/li&gt;
+  &lt;li&gt;还是那句话，想要更好的使用工具或者开发自己的工具就需要深入了解其内部的机制&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">psexec是后渗透的常用工具，拥有一个目标系统的账户后我们可以通过它在目标系统执行命令。但是它是如何工作的？这篇文章将记录我的研究过程。</summary></entry><entry><title type="html">COM学习</title><link href="https://citrusice.github.io/posts/studying-com/" rel="alternate" type="text/html" title="COM学习" /><published>2021-02-12T18:21:48+08:00</published><updated>2021-02-12T18:21:48+08:00</updated><id>https://citrusice.github.io/posts/studying-com</id><content type="html" xml:base="https://citrusice.github.io/posts/studying-com/">&lt;p&gt;com不是什么新的东西，主要是写一下学习路径&lt;/p&gt;
 
 &lt;h2 id=&quot;类&quot;&gt;类&lt;/h2&gt;
 
@@ -1180,160 +1234,4 @@ main:41, test (test)
 
 &lt;p&gt;&lt;a href=&quot;https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html&quot;&gt;https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://segmentfault.com/a/1190000013695030&quot;&gt;https://segmentfault.com/a/1190000013695030&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><category term="information-gathering" /><summary type="html">对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。 数据存储与数据库范式 在信息收集之后，我们应该如何存储这些收集来的数据？长久以来我都是对每一个项目单开一个文件夹，将扫描结果以文本的形式零散的存放进去。这样做既不便于整理也不便于查找。因此我产生了使用数据库的念头（事实上数据库不就是干这个用的嘛）。随之而来的问题是如何设计？我们知道数据库由库、表组成，表中是按照列名存储的一行一行数据，怎样的设计才能让我们的数据是简洁、结构清晰同时还方便查找，这时候就需要用到数据库范式。 数据库的设计范式是数据库设计所需要满足的规范，满足这些规范的数据库是简洁的、结构明晰的，同时，不会发生插入（insert）、删除（delete）和更新（update）操作异常。反之则是乱七八糟，不仅给数据库的编程人员制造麻烦，而且面目可憎，可能存储了大量不需要的冗余信息。 下面只对4个范式进行简单回顾。 1NF 1NF是对属性的原子性，要求属性具有原子性，不可再分解； 举个例子，假设一个表中有一列叫出生年月日，每人的这列数据都分为3个格子（年、月、日），那这种数据库就不符合1NF。而事实上1NF是关系型数据库的基本要求，这也代表着如果你这么设计数据表的话那这种操作一定是不会成功的。 2NF 2NF是对记录的惟一性，要求记录有惟一标识，即实体的惟一性，即不存在部分依赖； 2NF在1NF的基础上消除了非主属性对于码的部分函数依赖，简单来讲就是非主键字段必须完全依赖主键。假设一张表主键为（学号，课号），那么对于属性姓名来讲，只有学号才决定姓名而与课号无关，因此属性姓名对于主键为部分依赖，因此不符合2NF 3NF 3NF是对字段的冗余性，要求任何字段不能由其他字段派生出来，它要求字段没有冗余，即不存在传递依赖； 3NF在2NF的基础之上，消除了非主属性对于码的传递函数依赖。如果一张表学号为主键，有属性学院名和学院主任，学号决定所属学院，所属学院决定学院主任。因此学院主任这个属性对主属性学号为传递依赖，不符合3NF BCNF 若关系模式R属于3NF，且关系模式中每一个决定因素都包含候选键，则为BCNF。 BCNF不允许存在主属性对于码的部分函数依赖与传递函数依赖。（实在想不出该怎么解释） 当我们设计的数据库达到了BCNF范式的要求，那么这个设计可以说是相当不错的，虽然之后还有4NF、5NF，但是我们不作考虑。（不会） 设计 首先要确定要存什么样的内容 项目属性 project_name：项目名称 domain：目标所有的域名 对于域名 ip_address:指向的ip use_CDN:是否使用cdn 对于每台服务器 ip_address：目标所有的ip地址 open_port_id：目标ip开放的端口 port_service：目标ip端口上运行的服务 对于web服务 url：不用多说 web_fingerprint：目标web服务的指纹 title：web服务网页的标题 screenshot_path：web服务的截屏的存储路径 available_path：扫描出的web服务的路径 对于web服务的每个路径 state_code：各个路径的状态码 content-length：返回的内容长度 redirect：如果有重定向，重定向的位置 确定这些数据的关系（X -&amp;gt; Y 代表存在函数依赖且X函数决定Y） domain -&amp;gt; project_name domain -&amp;gt; ip_address domain -&amp;gt; use_CDN ip_address, open_port_id -&amp;gt; port_service url -&amp;gt; web_fingerprint（考虑到会有虚拟主机所以加上domain） url -&amp;gt; title url -&amp;gt; screenshot_path url, available_path -&amp;gt; state_code url, available_path -&amp;gt; content-length url, available_path -&amp;gt; redirect 根据关系来设计数据表 project_assets( domain [primary key ], project_name, ip_address, use_CDN) server_information( ip_address [primary key ], open_port_id [primary_key ], port_service) web_service( url [primary key ], web_fingerprint, title ,screenshot_path) web_path_information( url [primary key ], available_path [primary_key ], state_code, content-length, redirect) 一些参考资料 https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html https://segmentfault.com/a/1190000013695030</summary></entry><entry><title type="html">使用内存加载躲避静态查杀</title><link href="https://citrusice.github.io/posts/memory-execute/" rel="alternate" type="text/html" title="使用内存加载躲避静态查杀" /><published>2020-02-28T15:34:38+08:00</published><updated>2020-02-28T15:34:38+08:00</updated><id>https://citrusice.github.io/posts/memory-execute</id><content type="html" xml:base="https://citrusice.github.io/posts/memory-execute/">&lt;p&gt;在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。&lt;/p&gt;
-
-&lt;p&gt;本文将只探讨思路，不涉及具体实现。&lt;/p&gt;
-
-&lt;h1 id=&quot;特征码技术与免杀&quot;&gt;特征码技术与免杀&lt;/h1&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;特征码技术：运用程序中某一段或几段64字节以下的代码作为判别程序病毒的主要依据&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;谈到杀毒软件就不得不说特征码技术，尽管历史悠久，但到目前为止仍是各大杀毒软件判断可执行程序的主要手段。shellcode分离免杀之所以能获得很好的效果就是因为shellcode加载器本身并不包含恶意代码，自然也不会包含恶意软件的特征码，而只有当加载器运行时，它才会从程序之外加载shellcode执行。&lt;/p&gt;
-
-&lt;p&gt;借鉴shellcode分离免杀的思路，如果将pe文件以加密的形式存储，使用加载器读取pe文件并解密，最后放到内存中执行，那么程序的免杀性将大大地提高。实际上类似的技术早在至少08年就被提出过，叫做反射型dll注入（reflective dll injection），通过内存而不是从磁盘上加载dll。要实现从内存加载可执行程序并不困难，只要了解操作系统如何将exe加载到内存并编程重新实现就可以了。&lt;/p&gt;
-
-&lt;h1 id=&quot;实现原理&quot;&gt;实现原理&lt;/h1&gt;
-
-&lt;p&gt;exe程序被执行的过程：&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;windows pe loader读取pe文件，检查pe文件的有效性。&lt;/li&gt;
-  &lt;li&gt;根据pe文件头中的IMAGE_OPTIONAL_HEADER.SizeOfImage申请一块空间&lt;/li&gt;
-  &lt;li&gt;pe loader将pe文件按IMAGE_OPTIONAL_HEADER.SectionAlignment展开，将pe文件装载到内存空间。&lt;/li&gt;
-  &lt;li&gt;根据pe文件的导入表，pe loader将pe所需要的dll加载进地址空间并更新IAT&lt;/li&gt;
-  &lt;li&gt;如果没有加载在pe文件中设定的ImageBase，需要使用重定位表进行重定位&lt;/li&gt;
-  &lt;li&gt;跳到pe入口点&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;基本上只要实现了上述几个步骤就可以实现内存加载，但是具体实现的时候我还遇到了几个问题：&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;如果PE文件不存在重定位表，应该如何加载&lt;/li&gt;
-  &lt;li&gt;如何修改传给被加载程序的参数&lt;/li&gt;
-  &lt;li&gt;如何加载.Net PE&lt;/li&gt;
-  &lt;li&gt;如何加载x64程序&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;h1 id=&quot;加载无重定位表的pe&quot;&gt;加载无重定位表的PE&lt;/h1&gt;
-
-&lt;p&gt;关于重定位表：&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;当加载器加载程序时，如果加载器为某PE（.exe、.dll）分配的基址与其自身默认记录的ImageBase不相同，那么该程序文件加载完毕后就需要修正重定位表中的所有需要修正的地址。如果加载器分配的基址和该程序文件中记录默认的ImageBase相同，则不需要修正，重定位表对于该dll也是没有效用的。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;因此如果将PE加载在默认的位置则可以无需重定位表。我们将加载器的ImageBase设为其他地址，为没有重定位表的pe程序让出空间，随后用virtualloc在目标pe程序的默认基址处开辟一块内存用来放置目标pe程序，这样就可以避免考虑重定位的问题。&lt;/p&gt;
-
-&lt;h1 id=&quot;修改传递给被加载程序的命令行参数&quot;&gt;修改传递给被加载程序的命令行参数&lt;/h1&gt;
-
-&lt;p&gt;我对加载器的设想是传递一个目标pe文件路径参数给加载器，然后加载器通过路径进行加载。如果只是加载一些木马就不需要考虑命令行参数的问题，但是如果要加载一些工具那传递给加载器的参数就会污染传递给被加载pe文件的参数，因此需要考虑参数传递的问题。&lt;/p&gt;
-
-&lt;h2 id=&quot;一个进程如何获得命令行参数&quot;&gt;一个进程如何获得命令行参数&lt;/h2&gt;
-
-&lt;p&gt;一般进程获取到命令行参数的方法是通过windows api的GetCommandLine获取&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;LPSTR&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;GetCommandLineA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;LPWSTR&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;GetCommandLineW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;有一个误区是很多人认为这个函数是从进程peb中获取到的参数，但实际上系统在加载进程时保存了一份命令行参数的拷贝在某个私有变量中，GetCommandLine都是从那个拷贝中获取，因此只有修改了拷贝的地址中的内容才有效。&lt;/p&gt;
-
-&lt;h2 id=&quot;示例代码&quot;&gt;示例代码&lt;/h2&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;LPWSTR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pCommandLine&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GetCommandLineW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;LPSTR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pCommandLineA&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GetCommandLineA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;strcpy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pCommandLineA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;
-&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;maxCount&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lstrlenW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pCommandLine&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;converted&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;mbstowcs_s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;converted&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pCommandLine&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;maxCount&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h1 id=&quot;如何加载net程序&quot;&gt;如何加载.Net程序&lt;/h1&gt;
-
-&lt;p&gt;PE实际上只是一种存储数据的方式，尽管都是PE文件，但是.Net程序与Win32程序还是有着本质的区别。要了解.Net，还要从CLR说起。&lt;/p&gt;
-
-&lt;h2 id=&quot;common-language-runtime&quot;&gt;Common Language Runtime&lt;/h2&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;The Common Language Runtime (CLR) is a complete, high level virtual machine designed to support a broad variety of programming languages and interoperation among them.&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;&lt;em&gt;公共语言运行时（CLR）是一套完整的、高级的虚拟机，它被设计为用来支持不同的编程语言，并支持它们之间的互操作。&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;正如 JRE 是 JAVA 的运行环境一样，CLR是.Net的运行环境，不同的是它可以为多种语言提供支持。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200227192210.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;em&gt;著名的.Net体系&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;.Net程序经过编译器编译后，会生成一种中间语言——MSIL，执行时CLR再将他们翻译为真正的机器语言执行。因此我们不能像处理Win32程序一样处理.Net程序，而需要与CLR进行交互，将.Net程序交给CLR去执行。&lt;/p&gt;
-
-&lt;h2 id=&quot;示例代码-1&quot;&gt;示例代码&lt;/h2&gt;
-
-&lt;p&gt;加载.Net环境并执行.Net程序的代码很多，以下代码只是示范&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;HRESULT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;ICLRMetaHost&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pMetaHost&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;ICLRRuntimeInfo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pRuntimeInfo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;ICLRRuntimeHost&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pClrRuntimeHost&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-&lt;span class=&quot;c1&quot;&gt;// build runtime&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CLRCreateInstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CLSID_CLRMetaHost&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IID_PPV_ARGS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pMetaHost&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pMetaHost&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetRuntime&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;L&quot;v4.0.30319&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IID_PPV_ARGS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pRuntimeInfo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pRuntimeInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetInterface&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CLSID_CLRRuntimeHost&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
-    &lt;span class=&quot;n&quot;&gt;IID_PPV_ARGS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pClrRuntimeHost&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-
-&lt;span class=&quot;c1&quot;&gt;// start runtime&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pClrRuntimeHost&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-
-&lt;span class=&quot;c1&quot;&gt;// execute managed assembly&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pReturnValue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;hr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pClrRuntimeHost&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ExecuteInDefaultAppDomain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;s&quot;&gt;L&quot;T:&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;FrameworkInjection&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;_build&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;debug&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;anycpu&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;InjectExample.exe&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
-    &lt;span class=&quot;s&quot;&gt;L&quot;InjectExample.Program&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
-    &lt;span class=&quot;s&quot;&gt;L&quot;EntryPoint&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
-    &lt;span class=&quot;s&quot;&gt;L&quot;hello .net runtime&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; 
-    &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pReturnValue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-&lt;span class=&quot;c1&quot;&gt;// free resources&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;pMetaHost&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Release&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;pRuntimeInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Release&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;pClrRuntimeHost&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Release&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h1 id=&quot;加载x64程序&quot;&gt;加载x64程序&lt;/h1&gt;
-
-&lt;p&gt;如果要图方便的话只要稍微修改一下代码重新编译一个x64的加载器就可以（事实上我就是这样做的），但如果我们追求极致，想让我们的加载器做到能同时加载32位和64位程序呢？理论上讲，如果我们的程序是32位的，那就没法执行64位的cpu指令，如果是64位的，同样也无法执行32位的cpu指令。想要实现在32位指令与64位指令的切换，就需要了解当我们在64位操作系统下执行了32位程序时，操作系统都做了哪些工作。&lt;/p&gt;
-
-&lt;h2 id=&quot;windows-x64下的win32程序&quot;&gt;Windows x64下的Win32程序&lt;/h2&gt;
-
-&lt;p&gt;在64位系统，任何进程中首先执行的代码是64位的ntdll.dll，它会初始化一个64位的进程。而稍后32位的应用程序将运行在一个名为WoW64的子系统下（说到子系统有没有想到WSL），这个子系统加载32位的ntdll.dll，将cpu转换为32位模式以执行Win32程序中的代码。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200227221306.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;在x64系统下观察一个Win32程序，发现会同时加载了两个ntdll.dll，其中有一个处在64位的地址空间，这就是64位的ntdll.dll。32位的ntdll.dll并没有包含任何sysenter的指令，因此当Win32程序尝试通过32位的ntdll.dll与系统交互时，32位的ntdll.dll将参数转发给64位的ntdll.dll并再一次进行cpu的模式转换，回到64位完成这次系统调用。&lt;/p&gt;
-
-&lt;p&gt;可以看到，在启动程序与系统调用的过程中，cpu分别发生了64到32与32到64两种转换，如果我们手动实现这一过程，那么我们的程序也可以在32位与64位指令中进行切换。&lt;/p&gt;
-
-&lt;h2 id=&quot;天堂之门-从32位到64位&quot;&gt;天堂之门 从32位到64位&lt;/h2&gt;
-
-&lt;p&gt;x64构架的cpu使用cs段寄存器来确定cpu的运行模式。在32位进程中，cs=0x23；在64位进程中，cs=0x33。当cs被更改后，cpu的运行模式便会发生转变。由此产生一种技术，天堂之门（Heaven’s Gate），通过改变段寄存器来实现32位与64位代码的转换。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;push 33h //将0x33压栈
-push 64bit_code_address //将64bit的代码地址压栈
-reft //模式转换
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;其中reft指令又叫far ret，是带有段寄存器的返回，它会从栈中弹出两个值，一个给cs，一个给ip，因此在reft执行后，cpu将按照64位模式继续执行64位代码。&lt;/p&gt;
-
-&lt;h1 id=&quot;小结&quot;&gt;小结&lt;/h1&gt;
-
-&lt;p&gt;这算是我这段时期学习免杀的一个总结，尽管本文探讨的技术都十分古老，但放到现在仍旧值得我们去学习。&lt;/p&gt;
-
-&lt;h1 id=&quot;引用&quot;&gt;引用&lt;/h1&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://www.codeproject.com/Articles/607352/Injecting-Net-Assemblies-Into-Unmanaged-Processes&quot;&gt;https://www.codeproject.com/Articles/607352/Injecting-Net-Assemblies-Into-Unmanaged-Processes&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&quot;&gt;https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><category term="anti-av" /><category term="post-exploition" /><summary type="html">在进行后渗透阶段的过程中，首先要面临的问题就是免杀。如果服务器安装了反病毒软件，那不管是用马进行权限维持还是上传提权exp进行提权，甚至使用一些隧道工具（如ew）都将都到影响。如果是使用msf/cs等工具可以使用加载shellcode的方式进行免杀，但是涉及到一些常用工具的免杀就需要用修改源码、修改特征码的方式进行处理。这种处理不但烦琐而且不具有通用性，因此开发一种通用的工具来进行免杀是必要的。 本文将只探讨思路，不涉及具体实现。 特征码技术与免杀 特征码技术：运用程序中某一段或几段64字节以下的代码作为判别程序病毒的主要依据 谈到杀毒软件就不得不说特征码技术，尽管历史悠久，但到目前为止仍是各大杀毒软件判断可执行程序的主要手段。shellcode分离免杀之所以能获得很好的效果就是因为shellcode加载器本身并不包含恶意代码，自然也不会包含恶意软件的特征码，而只有当加载器运行时，它才会从程序之外加载shellcode执行。 借鉴shellcode分离免杀的思路，如果将pe文件以加密的形式存储，使用加载器读取pe文件并解密，最后放到内存中执行，那么程序的免杀性将大大地提高。实际上类似的技术早在至少08年就被提出过，叫做反射型dll注入（reflective dll injection），通过内存而不是从磁盘上加载dll。要实现从内存加载可执行程序并不困难，只要了解操作系统如何将exe加载到内存并编程重新实现就可以了。 实现原理 exe程序被执行的过程： windows pe loader读取pe文件，检查pe文件的有效性。 根据pe文件头中的IMAGE_OPTIONAL_HEADER.SizeOfImage申请一块空间 pe loader将pe文件按IMAGE_OPTIONAL_HEADER.SectionAlignment展开，将pe文件装载到内存空间。 根据pe文件的导入表，pe loader将pe所需要的dll加载进地址空间并更新IAT 如果没有加载在pe文件中设定的ImageBase，需要使用重定位表进行重定位 跳到pe入口点 基本上只要实现了上述几个步骤就可以实现内存加载，但是具体实现的时候我还遇到了几个问题： 如果PE文件不存在重定位表，应该如何加载 如何修改传给被加载程序的参数 如何加载.Net PE 如何加载x64程序 加载无重定位表的PE 关于重定位表： 当加载器加载程序时，如果加载器为某PE（.exe、.dll）分配的基址与其自身默认记录的ImageBase不相同，那么该程序文件加载完毕后就需要修正重定位表中的所有需要修正的地址。如果加载器分配的基址和该程序文件中记录默认的ImageBase相同，则不需要修正，重定位表对于该dll也是没有效用的。 因此如果将PE加载在默认的位置则可以无需重定位表。我们将加载器的ImageBase设为其他地址，为没有重定位表的pe程序让出空间，随后用virtualloc在目标pe程序的默认基址处开辟一块内存用来放置目标pe程序，这样就可以避免考虑重定位的问题。 修改传递给被加载程序的命令行参数 我对加载器的设想是传递一个目标pe文件路径参数给加载器，然后加载器通过路径进行加载。如果只是加载一些木马就不需要考虑命令行参数的问题，但是如果要加载一些工具那传递给加载器的参数就会污染传递给被加载pe文件的参数，因此需要考虑参数传递的问题。 一个进程如何获得命令行参数 一般进程获取到命令行参数的方法是通过windows api的GetCommandLine获取 LPSTR GetCommandLineA(); LPWSTR GetCommandLineW(); 有一个误区是很多人认为这个函数是从进程peb中获取到的参数，但实际上系统在加载进程时保存了一份命令行参数的拷贝在某个私有变量中，GetCommandLine都是从那个拷贝中获取，因此只有修改了拷贝的地址中的内容才有效。 示例代码 LPWSTR pCommandLine = GetCommandLineW(); LPSTR pCommandLineA = GetCommandLineA(); strcpy(pCommandLineA, arguments.c_str()); int maxCount = lstrlenW(pCommandLine); size_t converted = 0; mbstowcs_s(&amp;amp;converted, pCommandLine, arguments.length() + 1, arguments.c_str(), maxCount); 如何加载.Net程序 PE实际上只是一种存储数据的方式，尽管都是PE文件，但是.Net程序与Win32程序还是有着本质的区别。要了解.Net，还要从CLR说起。 Common Language Runtime The Common Language Runtime (CLR) is a complete, high level virtual machine designed to support a broad variety of programming languages and interoperation among them. 公共语言运行时（CLR）是一套完整的、高级的虚拟机，它被设计为用来支持不同的编程语言，并支持它们之间的互操作。 正如 JRE 是 JAVA 的运行环境一样，CLR是.Net的运行环境，不同的是它可以为多种语言提供支持。 著名的.Net体系 .Net程序经过编译器编译后，会生成一种中间语言——MSIL，执行时CLR再将他们翻译为真正的机器语言执行。因此我们不能像处理Win32程序一样处理.Net程序，而需要与CLR进行交互，将.Net程序交给CLR去执行。 示例代码 加载.Net环境并执行.Net程序的代码很多，以下代码只是示范 HRESULT hr; ICLRMetaHost *pMetaHost = NULL; ICLRRuntimeInfo *pRuntimeInfo = NULL; ICLRRuntimeHost *pClrRuntimeHost = NULL; // build runtime hr = CLRCreateInstance(CLSID_CLRMetaHost, IID_PPV_ARGS(&amp;amp;pMetaHost)); hr = pMetaHost-&amp;gt;GetRuntime(L&quot;v4.0.30319&quot;, IID_PPV_ARGS(&amp;amp;pRuntimeInfo)); hr = pRuntimeInfo-&amp;gt;GetInterface(CLSID_CLRRuntimeHost, IID_PPV_ARGS(&amp;amp;pClrRuntimeHost)); // start runtime hr = pClrRuntimeHost-&amp;gt;Start(); // execute managed assembly DWORD pReturnValue; hr = pClrRuntimeHost-&amp;gt;ExecuteInDefaultAppDomain( L&quot;T:\\FrameworkInjection\\_build\\debug\\anycpu\\InjectExample.exe&quot;, L&quot;InjectExample.Program&quot;, L&quot;EntryPoint&quot;, L&quot;hello .net runtime&quot;, &amp;amp;pReturnValue); // free resources pMetaHost-&amp;gt;Release(); pRuntimeInfo-&amp;gt;Release(); pClrRuntimeHost-&amp;gt;Release(); 加载x64程序 如果要图方便的话只要稍微修改一下代码重新编译一个x64的加载器就可以（事实上我就是这样做的），但如果我们追求极致，想让我们的加载器做到能同时加载32位和64位程序呢？理论上讲，如果我们的程序是32位的，那就没法执行64位的cpu指令，如果是64位的，同样也无法执行32位的cpu指令。想要实现在32位指令与64位指令的切换，就需要了解当我们在64位操作系统下执行了32位程序时，操作系统都做了哪些工作。 Windows x64下的Win32程序 在64位系统，任何进程中首先执行的代码是64位的ntdll.dll，它会初始化一个64位的进程。而稍后32位的应用程序将运行在一个名为WoW64的子系统下（说到子系统有没有想到WSL），这个子系统加载32位的ntdll.dll，将cpu转换为32位模式以执行Win32程序中的代码。 在x64系统下观察一个Win32程序，发现会同时加载了两个ntdll.dll，其中有一个处在64位的地址空间，这就是64位的ntdll.dll。32位的ntdll.dll并没有包含任何sysenter的指令，因此当Win32程序尝试通过32位的ntdll.dll与系统交互时，32位的ntdll.dll将参数转发给64位的ntdll.dll并再一次进行cpu的模式转换，回到64位完成这次系统调用。 可以看到，在启动程序与系统调用的过程中，cpu分别发生了64到32与32到64两种转换，如果我们手动实现这一过程，那么我们的程序也可以在32位与64位指令中进行切换。 天堂之门 从32位到64位 x64构架的cpu使用cs段寄存器来确定cpu的运行模式。在32位进程中，cs=0x23；在64位进程中，cs=0x33。当cs被更改后，cpu的运行模式便会发生转变。由此产生一种技术，天堂之门（Heaven’s Gate），通过改变段寄存器来实现32位与64位代码的转换。 push 33h //将0x33压栈 push 64bit_code_address //将64bit的代码地址压栈 reft //模式转换 其中reft指令又叫far ret，是带有段寄存器的返回，它会从栈中弹出两个值，一个给cs，一个给ip，因此在reft执行后，cpu将按照64位模式继续执行64位代码。 小结 这算是我这段时期学习免杀的一个总结，尽管本文探讨的技术都十分古老，但放到现在仍旧值得我们去学习。 引用 https://www.codeproject.com/Articles/607352/Injecting-Net-Assemblies-Into-Unmanaged-Processes https://medium.com/@fsx30/hooking-heavens-gate-a-wow64-hooking-technique-5235e1aeed73</summary></entry></feed>
+&lt;p&gt;&lt;a href=&quot;https://segmentfault.com/a/1190000013695030&quot;&gt;https://segmentfault.com/a/1190000013695030&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><category term="information-gathering" /><summary type="html">对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。 数据存储与数据库范式 在信息收集之后，我们应该如何存储这些收集来的数据？长久以来我都是对每一个项目单开一个文件夹，将扫描结果以文本的形式零散的存放进去。这样做既不便于整理也不便于查找。因此我产生了使用数据库的念头（事实上数据库不就是干这个用的嘛）。随之而来的问题是如何设计？我们知道数据库由库、表组成，表中是按照列名存储的一行一行数据，怎样的设计才能让我们的数据是简洁、结构清晰同时还方便查找，这时候就需要用到数据库范式。 数据库的设计范式是数据库设计所需要满足的规范，满足这些规范的数据库是简洁的、结构明晰的，同时，不会发生插入（insert）、删除（delete）和更新（update）操作异常。反之则是乱七八糟，不仅给数据库的编程人员制造麻烦，而且面目可憎，可能存储了大量不需要的冗余信息。 下面只对4个范式进行简单回顾。 1NF 1NF是对属性的原子性，要求属性具有原子性，不可再分解； 举个例子，假设一个表中有一列叫出生年月日，每人的这列数据都分为3个格子（年、月、日），那这种数据库就不符合1NF。而事实上1NF是关系型数据库的基本要求，这也代表着如果你这么设计数据表的话那这种操作一定是不会成功的。 2NF 2NF是对记录的惟一性，要求记录有惟一标识，即实体的惟一性，即不存在部分依赖； 2NF在1NF的基础上消除了非主属性对于码的部分函数依赖，简单来讲就是非主键字段必须完全依赖主键。假设一张表主键为（学号，课号），那么对于属性姓名来讲，只有学号才决定姓名而与课号无关，因此属性姓名对于主键为部分依赖，因此不符合2NF 3NF 3NF是对字段的冗余性，要求任何字段不能由其他字段派生出来，它要求字段没有冗余，即不存在传递依赖； 3NF在2NF的基础之上，消除了非主属性对于码的传递函数依赖。如果一张表学号为主键，有属性学院名和学院主任，学号决定所属学院，所属学院决定学院主任。因此学院主任这个属性对主属性学号为传递依赖，不符合3NF BCNF 若关系模式R属于3NF，且关系模式中每一个决定因素都包含候选键，则为BCNF。 BCNF不允许存在主属性对于码的部分函数依赖与传递函数依赖。（实在想不出该怎么解释） 当我们设计的数据库达到了BCNF范式的要求，那么这个设计可以说是相当不错的，虽然之后还有4NF、5NF，但是我们不作考虑。（不会） 设计 首先要确定要存什么样的内容 项目属性 project_name：项目名称 domain：目标所有的域名 对于域名 ip_address:指向的ip use_CDN:是否使用cdn 对于每台服务器 ip_address：目标所有的ip地址 open_port_id：目标ip开放的端口 port_service：目标ip端口上运行的服务 对于web服务 url：不用多说 web_fingerprint：目标web服务的指纹 title：web服务网页的标题 screenshot_path：web服务的截屏的存储路径 available_path：扫描出的web服务的路径 对于web服务的每个路径 state_code：各个路径的状态码 content-length：返回的内容长度 redirect：如果有重定向，重定向的位置 确定这些数据的关系（X -&amp;gt; Y 代表存在函数依赖且X函数决定Y） domain -&amp;gt; project_name domain -&amp;gt; ip_address domain -&amp;gt; use_CDN ip_address, open_port_id -&amp;gt; port_service url -&amp;gt; web_fingerprint（考虑到会有虚拟主机所以加上domain） url -&amp;gt; title url -&amp;gt; screenshot_path url, available_path -&amp;gt; state_code url, available_path -&amp;gt; content-length url, available_path -&amp;gt; redirect 根据关系来设计数据表 project_assets( domain [primary key ], project_name, ip_address, use_CDN) server_information( ip_address [primary key ], open_port_id [primary_key ], port_service) web_service( url [primary key ], web_fingerprint, title ,screenshot_path) web_path_information( url [primary key ], available_path [primary_key ], state_code, content-length, redirect) 一些参考资料 https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html https://segmentfault.com/a/1190000013695030</summary></entry></feed>
