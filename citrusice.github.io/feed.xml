@@ -1,5 +1,159 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-02-24T12:21:00+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">Psexec Internal</title><link href="https://citrusice.github.io/posts/psexec-internal/" rel="alternate" type="text/html" title="Psexec Internal" /><published>2021-02-24T12:17:31+08:00</published><updated>2021-02-24T12:17:31+08:00</updated><id>https://citrusice.github.io/posts/psexec-internal</id><content type="html" xml:base="https://citrusice.github.io/posts/psexec-internal/">&lt;p&gt;psexec是后渗透的常用工具，拥有一个目标系统的账户后我们可以通过它在目标系统执行命令。但是它是如何工作的？这篇文章将记录我的研究过程。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-04-07T14:21:11+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">UAC逆向</title><link href="https://citrusice.github.io/posts/uac-reversing/" rel="alternate" type="text/html" title="UAC逆向" /><published>2021-04-07T14:17:43+08:00</published><updated>2021-04-07T14:17:43+08:00</updated><id>https://citrusice.github.io/posts/uac-reversing</id><content type="html" xml:base="https://citrusice.github.io/posts/uac-reversing/">&lt;p&gt;网上的文章关于uac的具体细节太少，大部分都是如何绕过uac，但是如果不了解uac的机制又怎么能理解那些绕过的手法呢，于是便决定去逆向uac。&lt;/p&gt;
+
+&lt;h2 id=&quot;谁拉起的elevated进程&quot;&gt;谁拉起的elevated进程&lt;/h2&gt;
+
+&lt;p&gt;尽管在任务管理器中使用管理员身份启动的进程的父进程是explorer，但是在explorer中KERNELBASE!CreateProcessW位置下断，使用管理员权限运行程序，并不会断下，而正常启动程序则可以正常断下来，这说明elevated的程序很有可能并非是由explorer拉起的。从权限的角度想这也很合理：explorer本身并不是一个system进程或elevated的进程，如果是由explorer拉起，那自然也不可能达到提权的目的。&lt;/p&gt;
+
+&lt;p&gt;如果以管理员身份启动程序并不会调用CreateProcessW，那肯定是在某一个函数中走了另一个分支。因此正常启动一个程序，断下，查看调用栈进行分析，尝试确定关键函数&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;1: kd&amp;gt; bp /p ffffbb86ae9da340 kernelbase!createprocessw
+0: kd&amp;gt; g
+Breakpoint 3 hit
+KERNELBASE!CreateProcessW:
+0033:00007ffc`4f576a50 4c8bdc          mov     r11,rsp
+0: kd&amp;gt; k
+ # Child-SP          RetAddr               Call Site
+00 00000000`0630d998 00007ffc`502dcbb4     KERNELBASE!CreateProcessW
+01 00000000`0630d9a0 00007ffc`4d4c0ccd     KERNEL32!CreateProcessWStub+0x54
+02 00000000`0630da00 00007ffc`4d47d68c     windows_storage!CInvokeCreateProcessVerb::CallCreateProcess+0x13d
+03 00000000`0630dca0 00007ffc`4d478e54     windows_storage!CInvokeCreateProcessVerb::_PrepareAndCallCreateProcess+0x2b0
+04 00000000`0630dd20 00007ffc`4d47778b     windows_storage!CInvokeCreateProcessVerb::_TryCreateProcess+0x3c
+05 00000000`0630dd50 00007ffc`4d47740d     windows_storage!CInvokeCreateProcessVerb::Launch+0xef
+06 00000000`0630ddf0 00007ffc`4d47c4b5     windows_storage!CInvokeCreateProcessVerb::Execute+0x5d
+........
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;经过测试，CInvokeCreateProcessVerb::CallCreateProcess就是我们要找的关键函数。用ida对这个函数进行逆向，发现在以管理员身份运行程序时CInvokeCreateProcessVerb::CallCreateProcess会去调用AicLaunchAdminProcess，而AicLaunchAdminProcess本身并不拉起进程，而是做了rpc通信，看来真正拉起权限提升进程的程序并非是explorer&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210320132941566.png&quot; alt=&quot;image-20210320132941566&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;根据创建binding handle时使用的uuid在rpcview找到对应的接口，发现是一个svchost起的服务&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210320132923499.png&quot; alt=&quot;image-20210320132923499&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;从启动命令行中可以看到是appinfo&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210320133100719.png&quot; alt=&quot;image-20210320133100719&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;根据rpcview中显示的procedure地址，我们可以找到对应的dll，也就是appinfo.dll&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210320133248408.png&quot; alt=&quot;image-20210320133248408&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;根据接口地址找到对应函数RAiLaunchAdminProcess&lt;/p&gt;
+
+&lt;p&gt;在RAiLaunchAdminProcess中，我们可以看到最终调用了AiLaunchProcess，而AiLaunchProcess又是对CreateProcessAsUserW的封装，可以看出权限提升的进程最终是由appinfo服务进程拉起来的。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210406175451171.png&quot; alt=&quot;image-20210406175451171&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;什么样的程序可以不弹出uac窗口&quot;&gt;什么样的程序可以不弹出uac窗口&lt;/h2&gt;
+
+&lt;p&gt;首先要找到使uac弹窗的函数&lt;/p&gt;
+
+&lt;p&gt;以管理员权限打开一个程序，弹出uac窗口后，windbg断下来，切换到appinfo服务所在的进程，打印所有线程的栈&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;1: kd&amp;gt; !process 48c 6
+........
+        THREAD ffffbb86af9b7080  Cid 048c.18b0  Teb: 000000eb9578f000 Win32Thread: ffffbb86b02046c0 WAIT: (UserRequest) UserMode Non-Alertable
+            ffffbb86aa520080  ProcessObject
+        Not impersonating
+        DeviceMap                 ffffa90e43a35600
+        Owning Process            ffffbb86add680c0       Image:         svchost.exe
+        Attached Process          N/A            Image:         N/A
+        Wait Start TickCount      21551          Ticks: 509 (0:00:00:07.953)
+        Context Switch Count      3579           IdealProcessor: 1             
+        UserTime                  00:00:00.265
+        KernelTime                00:00:00.578
+        Win32 Start Address ntdll!TppWorkerThread (0x00007ffc51aa20e0)
+        Stack Init ffffb90acbaa7c90 Current ffffb90acbaa76a0
+        Base ffffb90acbaa8000 Limit ffffb90acbaa2000 Call 0000000000000000
+        Priority 9 BasePriority 8 PriorityDecrement 0 IoPriority 2 PagePriority 5
+        Child-SP          RetAddr               : Args to Child                                                           : Call Site
+        ffffb90a`cbaa76e0 fffff803`1b0e4e60     : ffffbb86`00000008 00000000`ffffffff ffffb90a`00000000 ffffbb86`ae3d2158 : nt!KiSwapContext+0x76
+        ffffb90a`cbaa7820 fffff803`1b0e438f     : 00000000`00000009 00000000`00000000 ffffb90a`cbaa79e0 ffffffff`fffffffe : nt!KiSwapThread+0x500
+        ffffb90a`cbaa78d0 fffff803`1b0e3c33     : ffff5817`00000000 fffff803`00000000 00000000`00000000 ffffbb86`af9b71c0 : nt!KiCommitThreadWait+0x14f
+        ffffb90a`cbaa7970 fffff803`1b4f6531     : ffffbb86`aa520080 fffff803`00000006 ffffb90a`cbaa7b01 ffffb90a`cbaa7b00 : nt!KeWaitForSingleObject+0x233
+        ffffb90a`cbaa7a60 fffff803`1b4f65da     : ffffbb86`af9b7080 00000000`00000000 00000000`00000000 00000000`00000000 : nt!ObWaitForSingleObject+0x91
+        ffffb90a`cbaa7ac0 fffff803`1b20bbb5     : ffffbb86`af9b0000 00000000`00001000 00000000`00000000 00000000`00000000 : nt!NtWaitForSingleObject+0x6a
+        ffffb90a`cbaa7b00 00007ffc`51b2be24     : 00007ffc`4f5926ee 00000000`00000022 00000023`00000004 00000004`00000000 : nt!KiSystemServiceCopyEnd+0x25 (TrapFrame @ ffffb90a`cbaa7b00)
+        000000eb`99f7e1f8 00007ffc`4f5926ee     : 00000000`00000022 00000023`00000004 00000004`00000000 00000000`00000024 : ntdll!NtWaitForSingleObject+0x14
+        000000eb`99f7e200 00007ffc`38537bf9     : 00000000`00000000 00000000`00000001 000000eb`00000000 00000000`00001c88 : KERNELBASE!WaitForSingleObjectEx+0x8e
+        000000eb`99f7e2a0 00007ffc`38537503     : 00000000`00000000 00000220`790095e0 000000eb`00000002 00000000`00000004 : appinfo!AiLaunchConsentUI+0x559
+        000000eb`99f7e4c0 00007ffc`38536ba2     : 00000000`00000021 00000000`00000021 00000000`00000000 00000220`7c39e7f8 : appinfo!AiCheckLUA+0x343
+        000000eb`99f7e6a0 00007ffc`50772153     : 00000220`7b1f3e00 00000220`7b245df0 00000220`7c39e7f8 00000220`7c39e860 : appinfo!RAiLaunchAdminProcess+0xbe2
+        000000eb`99f7ecb0 00007ffc`507da5ea     : 00000220`7b1f3e00 00000220`7b23fae0 00000220`772b1ae0 00007ffc`00000000 : RPCRT4!Invoke+0x73
+        000000eb`99f7ed60 00007ffc`50756838     : 00000220`75a80000 00007ffc`51aa7000 00000220`0000000c 
+        ...................
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;在茫茫线程中一番搜寻，很快便找到了我们想要的。可以看到UAC的弹窗流程是&lt;/p&gt;
+
+&lt;p&gt;RAiLaunchAdminProcess -&amp;gt; AiCheckLUA -&amp;gt; AiLaunchConsentUI&lt;/p&gt;
+
+&lt;p&gt;接下来开始逆AiLaunchConsentUI这个函数&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404131558600.png&quot; alt=&quot;image-20210404131558600&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;构造命令行后会调用AiLaunchProcess来启动consent.exe，也就是真正绘制uac窗口的程序&lt;/p&gt;
+
+&lt;p&gt;为了快速定位关键代码，我们切换到consent.exe，打印consent.exe的线程栈，可惜这次并没有找到我们想要的，只好接着逆向consent.exe。&lt;/p&gt;
+
+&lt;p&gt;同时继续提出几个问题&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;在consent绘制的uac窗口上，我们可以看到要进行权限提升的程序的路径，命令行等等相关信息，consent是如何获取这些信息的？&lt;/p&gt;
+
+    &lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404133752729.png&quot; alt=&quot;image-20210404133752729&quot; /&gt;&lt;/p&gt;
+
+    &lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404134511322.png&quot; alt=&quot;image-20210404134511322&quot; /&gt;&lt;/p&gt;
+
+    &lt;p&gt;答案就在consent的命令行中。consent的命令行中传入了父进程的pid（appinfo服务的进程pid），一个结构体长度以及一个指向结构体的指针，随后consent调用NtReadVirtualMemory从父进程的内存中读取结构体的内容，这个结构体中就包含了需要特权提升的进程信息。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;特权提升的进程最终是由appinfo服务进程拉起的，但是uac窗口则是consent绘制的，那consen如何将用户的操作反馈给appinfo服务进程？&lt;/p&gt;
+
+    &lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404134338774.png&quot; alt=&quot;image-20210404134338774&quot; /&gt;&lt;/p&gt;
+
+    &lt;p&gt;同样是通过读写appinfo进程的内存实现&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;通过逆向找到了决定是否弹窗的关键函数&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404135241498.png&quot; alt=&quot;image-20210404135241498&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;关键代码&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404135516888.png&quot; alt=&quot;image-20210404135516888&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;可以看到consent是否弹窗主要由父进程传入的结构体确定，因此再返回appinfo继续逆向&lt;/p&gt;
+
+&lt;p&gt;详细细节有些复杂，所以直接贴部分代码&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404135951243.png&quot; alt=&quot;image-20210404135951243&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404140004231.png&quot; alt=&quot;image-20210404140004231&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404140056297.png&quot; alt=&quot;image-20210404140056297&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404140115678.png&quot; alt=&quot;image-20210404140115678&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;可以看到对程序所处的路径有限制，同时包含一些白名单校验，当满足这些条件后，consent便不会绘制uac窗口。&lt;/p&gt;
+
+&lt;h2 id=&quot;令牌的权限提升过程&quot;&gt;令牌的权限提升过程&lt;/h2&gt;
+
+&lt;p&gt;权限提升的过程位于consent中，consent从appinfo服务进程中获取未权限提升的令牌后，调用NtQueryInformationToken获取一个权限提升的令牌（undocument的用法），随后将这个token写回到appinfo服务进程中，appinfo再使用这个提升后的令牌创建进程。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210406164130159.png&quot; alt=&quot;image-20210406164130159&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;通过NtQueryInformationToken获取权限提升的令牌&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210406164314330.png&quot; alt=&quot;image-20210406164314330&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;将令牌写回到appinfo的进程中去&lt;/p&gt;
+
+&lt;p&gt;文章写得有些简略，只是大致写了部分流程。断断续续逆了快两个月，终于看到了UAC的全貌，感觉十分舒畅。&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">网上的文章关于uac的具体细节太少，大部分都是如何绕过uac，但是如果不了解uac的机制又怎么能理解那些绕过的手法呢，于是便决定去逆向uac。</summary></entry><entry><title type="html">Psexec Internal</title><link href="https://citrusice.github.io/posts/psexec-internal/" rel="alternate" type="text/html" title="Psexec Internal" /><published>2021-02-24T12:17:31+08:00</published><updated>2021-02-24T12:17:31+08:00</updated><id>https://citrusice.github.io/posts/psexec-internal</id><content type="html" xml:base="https://citrusice.github.io/posts/psexec-internal/">&lt;p&gt;psexec是后渗透的常用工具，拥有一个目标系统的账户后我们可以通过它在目标系统执行命令。但是它是如何工作的？这篇文章将记录我的研究过程。&lt;/p&gt;
 
 &lt;h2 id=&quot;psexec的登录过程&quot;&gt;psexec的登录过程&lt;/h2&gt;
 
@@ -1116,122 +1270,4 @@ main:41, test (test)
 
 &lt;p&gt;&lt;a href=&quot;https://truneski.github.io/blog/2018/11/05/cobaltstrike-over-external-c2-via-dropbox/&quot;&gt;Dropbox as a C2 channel using the Dropbox APIs&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;感觉又要写好多代码。。&lt;/p&gt;</content><author><name></name></author><category term="post-exploition" /><summary type="html">项目的一个目标，在可以执行命令后开始进行后渗透的工作。目标低权限，同时服务器装了杀软，还打了很多补丁，加上网络实在是不行所以工作展开的异常艰难，最终也只是获得一个反弹shell，所以写篇文章反思一下当前使用的工具还有哪些不足。 过程 首先是自写的内存加载器，传上去没有问题，但是在加载msf的reverse_tcp payload之后（刚开启session但未接收到stager）程序自动退了，再运行程序的时候发现程序已经打不开了，失败。 怀疑是限制了流量，遂改成使用powershell加载cs的reverse_http，服务放在了80端口，同样失败。 尝试ssh隧道，连不上服务器 尝试马+dns隧道，dns隧道可以连通，但是上马失败 进行上述操作的过程会中间歇性地ban我ip，最后只好借了朋友的服务器，用powercat反弹了个shell，耻辱结束。 分析 虽然只进行了几次尝试，但几乎花费了我一天的时间，大部分时间都花在了配置以及忍受极慢网速的过程中。仔细分析各种方法失败的原因，我觉得问题出在流量上面。内存加载器获取payload的时候payload没有经过加密，之后的通信过程也没有加密，因此被识别出流量特征，之后的cs的reverse_http也同样如此。dns隧道尽管与服务器建立了加密隧道，但是在马与隧道之间流量扔需要经过本地回环，因此再次失败了。ssh隧道没法连接成功可能因为做了acl之类的东西。 因此可以改进的地方有两点 流量特征 可信的ip/域名 解决 流量特征的问题很好解决，msf可以使用rc4加密的payload，cs也有malleable C2可以修改证书加密流量。那如何让自己的ip/域名可信呢？奇安信A-team在2019BCS中介绍过很多使用第三方服务用作C2的文章，这对我来说是相对可行的方案。 Dropbox as a C2 channel using the Dropbox APIs 感觉又要写好多代码。。</summary></entry><entry><title type="html">自动化信息收集框架：设计数据库</title><link href="https://citrusice.github.io/posts/database-design/" rel="alternate" type="text/html" title="自动化信息收集框架：设计数据库" /><published>2020-03-06T11:20:33+08:00</published><updated>2020-03-06T11:20:33+08:00</updated><id>https://citrusice.github.io/posts/database-design</id><content type="html" xml:base="https://citrusice.github.io/posts/database-design/">&lt;p&gt;对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。&lt;/p&gt;
-
-&lt;h1 id=&quot;数据存储与数据库范式&quot;&gt;数据存储与数据库范式&lt;/h1&gt;
-
-&lt;p&gt;在信息收集之后，我们应该如何存储这些收集来的数据？长久以来我都是对每一个项目单开一个文件夹，将扫描结果以文本的形式零散的存放进去。这样做既不便于整理也不便于查找。因此我产生了使用数据库的念头（事实上数据库不就是干这个用的嘛）。随之而来的问题是如何设计？我们知道数据库由库、表组成，表中是按照列名存储的一行一行数据，怎样的设计才能让我们的数据是简洁、结构清晰同时还方便查找，这时候就需要用到数据库范式。&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;数据库的设计范式是数据库设计所需要满足的规范，满足这些规范的数据库是简洁的、结构明晰的，同时，不会发生插入（insert）、删除（delete）和更新（update）操作异常。反之则是乱七八糟，不仅给数据库的编程人员制造麻烦，而且面目可憎，可能存储了大量不需要的冗余信息。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;下面只对4个范式进行简单回顾。&lt;/p&gt;
-
-&lt;h2 id=&quot;1nf&quot;&gt;1NF&lt;/h2&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;1NF是对属性的&lt;strong&gt;原子性&lt;/strong&gt;，要求属性具有原子性，不可再分解；&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;举个例子，假设一个表中有一列叫出生年月日，每人的这列数据都分为3个格子（年、月、日），那这种数据库就不符合1NF。而事实上1NF是关系型数据库的基本要求，这也代表着如果你这么设计数据表的话那这种操作一定是不会成功的。&lt;/p&gt;
-
-&lt;h2 id=&quot;2nf&quot;&gt;2NF&lt;/h2&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;2NF是对记录的&lt;strong&gt;惟一性&lt;/strong&gt;，要求记录有惟一标识，即实体的惟一性，即不存在部分依赖；&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;2NF在1NF的基础上消除了非主属性对于码的部分函数依赖，简单来讲就是非主键字段必须完全依赖主键。假设一张表主键为（学号，课号），那么对于属性姓名来讲，只有学号才决定姓名而与课号无关，因此属性姓名对于主键为部分依赖，因此不符合2NF&lt;/p&gt;
-
-&lt;h2 id=&quot;3nf&quot;&gt;3NF&lt;/h2&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;3NF是对字段的&lt;strong&gt;冗余性&lt;/strong&gt;，要求任何字段不能由其他字段派生出来，它要求字段没有冗余，即不存在传递依赖；&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;3NF在2NF的基础之上，消除了非主属性对于码的传递函数依赖。如果一张表学号为主键，有属性学院名和学院主任，学号决定所属学院，所属学院决定学院主任。因此学院主任这个属性对主属性学号为传递依赖，不符合3NF&lt;/p&gt;
-
-&lt;h2 id=&quot;bcnf&quot;&gt;BCNF&lt;/h2&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;若关系模式R属于3NF，且关系模式中每一个决定因素都包含候选键，则为BCNF。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;BCNF不允许存在&lt;strong&gt;主属性&lt;/strong&gt;对于码的部分函数依赖与传递函数依赖。（实在想不出该怎么解释）&lt;/p&gt;
-
-&lt;p&gt;当我们设计的数据库达到了BCNF范式的要求，那么这个设计可以说是相当不错的，虽然之后还有4NF、5NF，但是我们不作考虑。（不会）&lt;/p&gt;
-
-&lt;h1 id=&quot;设计&quot;&gt;设计&lt;/h1&gt;
-
-&lt;p&gt;首先要确定要存什么样的内容&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;项目属性&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;project_name：项目名称&lt;/li&gt;
-      &lt;li&gt;domain：目标所有的域名&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;对于域名
-    &lt;ul&gt;
-      &lt;li&gt;ip_address:指向的ip&lt;/li&gt;
-      &lt;li&gt;use_CDN:是否使用cdn&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;对于每台服务器
-    &lt;ul&gt;
-      &lt;li&gt;ip_address：目标所有的ip地址&lt;/li&gt;
-      &lt;li&gt;open_port_id：目标ip开放的端口&lt;/li&gt;
-      &lt;li&gt;port_service：目标ip端口上运行的服务&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;对于web服务
-    &lt;ul&gt;
-      &lt;li&gt;url：不用多说&lt;/li&gt;
-      &lt;li&gt;web_fingerprint：目标web服务的指纹&lt;/li&gt;
-      &lt;li&gt;title：web服务网页的标题&lt;/li&gt;
-      &lt;li&gt;screenshot_path：web服务的截屏的存储路径&lt;/li&gt;
-      &lt;li&gt;available_path：扫描出的web服务的路径&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;对于web服务的每个路径
-    &lt;ul&gt;
-      &lt;li&gt;state_code：各个路径的状态码&lt;/li&gt;
-      &lt;li&gt;content-length：返回的内容长度&lt;/li&gt;
-      &lt;li&gt;redirect：如果有重定向，重定向的位置&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;确定这些数据的关系（X -&amp;gt; Y 代表存在函数依赖且X函数决定Y）&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;domain -&amp;gt; project_name&lt;/li&gt;
-  &lt;li&gt;domain -&amp;gt; ip_address&lt;/li&gt;
-  &lt;li&gt;domain -&amp;gt; use_CDN&lt;/li&gt;
-  &lt;li&gt;ip_address, open_port_id -&amp;gt; port_service&lt;/li&gt;
-  &lt;li&gt;url -&amp;gt; web_fingerprint（考虑到会有虚拟主机所以加上domain）&lt;/li&gt;
-  &lt;li&gt;url -&amp;gt; title&lt;/li&gt;
-  &lt;li&gt;url -&amp;gt; screenshot_path&lt;/li&gt;
-  &lt;li&gt;url, available_path -&amp;gt; state_code&lt;/li&gt;
-  &lt;li&gt;url, available_path -&amp;gt; content-length&lt;/li&gt;
-  &lt;li&gt;url, available_path -&amp;gt; redirect&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;根据关系来设计数据表&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;project_assets( domain [primary key ], project_name, ip_address, use_CDN)&lt;/li&gt;
-  &lt;li&gt;server_information( ip_address [primary key ], open_port_id [primary_key ], port_service)&lt;/li&gt;
-  &lt;li&gt;web_service( url [primary key ], web_fingerprint, title ,screenshot_path)&lt;/li&gt;
-  &lt;li&gt;web_path_information( url [primary key ], available_path [primary_key ], state_code, content-length, redirect)&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h1 id=&quot;一些参考资料&quot;&gt;一些参考资料&lt;/h1&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html&quot;&gt;https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://segmentfault.com/a/1190000013695030&quot;&gt;https://segmentfault.com/a/1190000013695030&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><category term="information-gathering" /><summary type="html">对于渗透来说，信息收集的完整度决定了最后渗透的成功与否。当对一个大型目标进行渗透的过程中，信息收集的工作便变得繁重。尽管现在有诸多自动化工具为我们完成信息收集方方面面的工作，但是如何将这些工具串联起来？输入一个域名后就能自动进行各方面的收集（包括子域名，端口探测，web指纹，web路径等等），这是我所期望的效果。因此我想要实现一个框架，将各种工具组合到一起进行全自动的信息收集。 数据存储与数据库范式 在信息收集之后，我们应该如何存储这些收集来的数据？长久以来我都是对每一个项目单开一个文件夹，将扫描结果以文本的形式零散的存放进去。这样做既不便于整理也不便于查找。因此我产生了使用数据库的念头（事实上数据库不就是干这个用的嘛）。随之而来的问题是如何设计？我们知道数据库由库、表组成，表中是按照列名存储的一行一行数据，怎样的设计才能让我们的数据是简洁、结构清晰同时还方便查找，这时候就需要用到数据库范式。 数据库的设计范式是数据库设计所需要满足的规范，满足这些规范的数据库是简洁的、结构明晰的，同时，不会发生插入（insert）、删除（delete）和更新（update）操作异常。反之则是乱七八糟，不仅给数据库的编程人员制造麻烦，而且面目可憎，可能存储了大量不需要的冗余信息。 下面只对4个范式进行简单回顾。 1NF 1NF是对属性的原子性，要求属性具有原子性，不可再分解； 举个例子，假设一个表中有一列叫出生年月日，每人的这列数据都分为3个格子（年、月、日），那这种数据库就不符合1NF。而事实上1NF是关系型数据库的基本要求，这也代表着如果你这么设计数据表的话那这种操作一定是不会成功的。 2NF 2NF是对记录的惟一性，要求记录有惟一标识，即实体的惟一性，即不存在部分依赖； 2NF在1NF的基础上消除了非主属性对于码的部分函数依赖，简单来讲就是非主键字段必须完全依赖主键。假设一张表主键为（学号，课号），那么对于属性姓名来讲，只有学号才决定姓名而与课号无关，因此属性姓名对于主键为部分依赖，因此不符合2NF 3NF 3NF是对字段的冗余性，要求任何字段不能由其他字段派生出来，它要求字段没有冗余，即不存在传递依赖； 3NF在2NF的基础之上，消除了非主属性对于码的传递函数依赖。如果一张表学号为主键，有属性学院名和学院主任，学号决定所属学院，所属学院决定学院主任。因此学院主任这个属性对主属性学号为传递依赖，不符合3NF BCNF 若关系模式R属于3NF，且关系模式中每一个决定因素都包含候选键，则为BCNF。 BCNF不允许存在主属性对于码的部分函数依赖与传递函数依赖。（实在想不出该怎么解释） 当我们设计的数据库达到了BCNF范式的要求，那么这个设计可以说是相当不错的，虽然之后还有4NF、5NF，但是我们不作考虑。（不会） 设计 首先要确定要存什么样的内容 项目属性 project_name：项目名称 domain：目标所有的域名 对于域名 ip_address:指向的ip use_CDN:是否使用cdn 对于每台服务器 ip_address：目标所有的ip地址 open_port_id：目标ip开放的端口 port_service：目标ip端口上运行的服务 对于web服务 url：不用多说 web_fingerprint：目标web服务的指纹 title：web服务网页的标题 screenshot_path：web服务的截屏的存储路径 available_path：扫描出的web服务的路径 对于web服务的每个路径 state_code：各个路径的状态码 content-length：返回的内容长度 redirect：如果有重定向，重定向的位置 确定这些数据的关系（X -&amp;gt; Y 代表存在函数依赖且X函数决定Y） domain -&amp;gt; project_name domain -&amp;gt; ip_address domain -&amp;gt; use_CDN ip_address, open_port_id -&amp;gt; port_service url -&amp;gt; web_fingerprint（考虑到会有虚拟主机所以加上domain） url -&amp;gt; title url -&amp;gt; screenshot_path url, available_path -&amp;gt; state_code url, available_path -&amp;gt; content-length url, available_path -&amp;gt; redirect 根据关系来设计数据表 project_assets( domain [primary key ], project_name, ip_address, use_CDN) server_information( ip_address [primary key ], open_port_id [primary_key ], port_service) web_service( url [primary key ], web_fingerprint, title ,screenshot_path) web_path_information( url [primary key ], available_path [primary_key ], state_code, content-length, redirect) 一些参考资料 https://www.cnblogs.com/ybwang/archive/2010/06/04/1751279.html https://segmentfault.com/a/1190000013695030</summary></entry></feed>
+&lt;p&gt;感觉又要写好多代码。。&lt;/p&gt;</content><author><name></name></author><category term="post-exploition" /><summary type="html">项目的一个目标，在可以执行命令后开始进行后渗透的工作。目标低权限，同时服务器装了杀软，还打了很多补丁，加上网络实在是不行所以工作展开的异常艰难，最终也只是获得一个反弹shell，所以写篇文章反思一下当前使用的工具还有哪些不足。 过程 首先是自写的内存加载器，传上去没有问题，但是在加载msf的reverse_tcp payload之后（刚开启session但未接收到stager）程序自动退了，再运行程序的时候发现程序已经打不开了，失败。 怀疑是限制了流量，遂改成使用powershell加载cs的reverse_http，服务放在了80端口，同样失败。 尝试ssh隧道，连不上服务器 尝试马+dns隧道，dns隧道可以连通，但是上马失败 进行上述操作的过程会中间歇性地ban我ip，最后只好借了朋友的服务器，用powercat反弹了个shell，耻辱结束。 分析 虽然只进行了几次尝试，但几乎花费了我一天的时间，大部分时间都花在了配置以及忍受极慢网速的过程中。仔细分析各种方法失败的原因，我觉得问题出在流量上面。内存加载器获取payload的时候payload没有经过加密，之后的通信过程也没有加密，因此被识别出流量特征，之后的cs的reverse_http也同样如此。dns隧道尽管与服务器建立了加密隧道，但是在马与隧道之间流量扔需要经过本地回环，因此再次失败了。ssh隧道没法连接成功可能因为做了acl之类的东西。 因此可以改进的地方有两点 流量特征 可信的ip/域名 解决 流量特征的问题很好解决，msf可以使用rc4加密的payload，cs也有malleable C2可以修改证书加密流量。那如何让自己的ip/域名可信呢？奇安信A-team在2019BCS中介绍过很多使用第三方服务用作C2的文章，这对我来说是相对可行的方案。 Dropbox as a C2 channel using the Dropbox APIs 感觉又要写好多代码。。</summary></entry></feed>
