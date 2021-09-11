@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>Windows内核对象</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"></div><div class="container">
+	<h1>Windows内核对象</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Sep 11, 2021
+	</div>
+	<ul class="post-tags"><li>kernel</li><li>windows</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <h2 id="windows-kernel-object的结构">Windows Kernel Object的结构</h2>
+
+<p>从_OBJECT_HEADER看起</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kd&gt; dt nt!_OBJECT_HEADER
+   +0x000 PointerCount     : Int8B
+   +0x008 HandleCount      : Int8B
+   +0x008 NextToFree       : Ptr64 Void
+   +0x010 Lock             : _EX_PUSH_LOCK
+   +0x018 TypeIndex        : UChar
+   +0x019 TraceFlags       : UChar
+   +0x01a InfoMask         : UChar
+   +0x01b Flags            : UChar
+   +0x020 ObjectCreateInfo : Ptr64 _OBJECT_CREATE_INFORMATION
+   +0x020 QuotaBlockCharged : Ptr64 Void
+   +0x028 SecurityDescriptor : Ptr64 Void
+   +0x030 Body             : _QUAD
+</code></pre></div></div>
+
+<p>当我们查看一个windows object时，我们查看的是object的body字段。</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kd&gt; !process 0 0 explorer.exe
+PROCESS fffffa801a8e1b30
+    SessionId: 1  Cid: 087c    Peb: 7fffffd7000  ParentCid: 0840
+    DirBase: 0aa8e000  ObjectTable: fffff8a001e39d30  HandleCount: 642.
+    Image: explorer.exe
+</code></pre></div></div>
+
+<p>如上，可以看到EPROCESS的位置在fffffa801a8e1b30，根据_OBJECT_HEADER的结构我们可以计算出其_OBJECT_HEADER的位置在fffffa801a8e1b30-30，即fffffa801a8e1b00上。可以使用!object来确认计算的结果是否正确</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kd&gt; dt _OBJECT_HEADER fffffa801a8e1b00
+nt!_OBJECT_HEADER
+   +0x000 PointerCount     : 0n366
+   +0x008 HandleCount      : 0n7
+   +0x008 NextToFree       : 0x00000000`00000007 Void
+   +0x010 Lock             : _EX_PUSH_LOCK
+   +0x018 TypeIndex        : 0x7 ''
+   +0x019 TraceFlags       : 0 ''
+   +0x01a InfoMask         : 0x8 ''
+   +0x01b Flags            : 0 ''
+   +0x020 ObjectCreateInfo : 0xfffffa80`1a400100 _OBJECT_CREATE_INFORMATION
+   +0x020 QuotaBlockCharged : 0xfffffa80`1a400100 Void
+   +0x028 SecurityDescriptor : 0xfffff8a0`01dfd8db Void
+   +0x030 Body             : _QUAD
+kd&gt; !object fffffa801a8e1b30
+Object: fffffa801a8e1b30  Type: (fffffa8018d42a80) Process
+    ObjectHeader: fffffa801a8e1b00 (new version)
+    HandleCount: 7  PointerCount: 366
+</code></pre></div></div>
+
+<p>然而_OBJECT_HEADER与Body并不是整个object的全部，实际上在object header前面还有optional headers与pool header，一个完全的windows object应该是这样的：</p>
+
+<ul>
+  <li>_POOL_HEADER</li>
+  <li>_OBJECT_QUOTA_CHARGES (optional)</li>
+  <li>_OBJECT_HANDLE_DB (optional)</li>
+  <li>_OBJECT_NAME (optional)</li>
+  <li>_OBJECT_CREATOR_INFO (optional)</li>
+  <li>_OBJECT_HEADER</li>
+  <li>body</li>
+</ul>
+
+<p>_OBJECT_HEADER在_OBJECT_HEADER-&gt;InfoMask中使用掩码的方式来表示哪些可选头存在</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Bit</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0x01</td>
+      <td>nt!_OBJECT_HEADER_CREATOR_INFO</td>
+    </tr>
+    <tr>
+      <td>0x02</td>
+      <td>nt!_OBJECT_HEADER_NAME_INFO</td>
+    </tr>
+    <tr>
+      <td>0x04</td>
+      <td>nt!_OBJECT_HEADER_HANDLE_INFO</td>
+    </tr>
+    <tr>
+      <td>0x08</td>
+      <td>nt!_OBJECT_HEADER_QUOTA_INFO</td>
+    </tr>
+    <tr>
+      <td>0x10</td>
+      <td>nt!_OBJECT_HEADER_PROCESS_INFO</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>内核中存在一个数组ObpInfoMaskToOffset，我们可以根据InfoMask我们可以计算出一个数值作为数组的索引，从而获取我们想要的optional header距离object header的偏移</p>
+
+<table>
+  <tbody>
+    <tr>
+      <td>Offset = ObpInfoMaskToOffset[OBJECT_HEADER-&gt;InfoMask &amp; (DesiredHeaderBit</td>
+      <td>(DesiredHeaderBit-1))]</td>
+    </tr>
+  </tbody>
+</table>
+
+<table>
+  <tbody>
+    <tr>
+      <td>在explorer.exe的例子中，其InfoMask值为8，因此他只有一个_OBJECT_HEADER_QUOTA_INFO的可选头，要计算出他的偏移则计算0x8 &amp; (0x8</td>
+      <td>0x8-1) = 0x8，根据计算出的索引值找到偏移</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kd&gt; ?nt!ObpInfoMaskToOffset
+Evaluate expression: -8796025365056 = fffff800`04085dc0
+kd&gt; db fffff800`04085dc0+0x8 L1
+fffff800`04085dc8  20     
+</code></pre></div></div>
+
+<p>得到偏移为0x20，用object header的地址减去偏移即为我们想找的可选头的地址</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kd&gt; dt nt!_OBJECT_HEADER_QUOTA_INFO fffffa8018d42a80-20
+   +0x000 PagedPoolCharge  : 0
+   +0x004 NonPagedPoolCharge : 0
+   +0x008 SecurityDescriptorCharge : 0x13030002
+   +0x010 SecurityDescriptorQuotaBlock : (null) 
+   +0x018 Reserved         : 0
+</code></pre></div></div>
+
+<h3 id="_object_type">_OBJECT_TYPE</h3>
+
+<p>windows内核中有许多不同类型的对象，每个对象在object header包含了一个字段标注了其类型。在win7之前的windows版本中存在一个Type字段其包含了一个指针指向一个_OBJECT_TYPE结构体，在新版本中，这个字段变为了TypeIndex，其包含了一个全局数组nt!ObTypeIndexTable的索引，而这个数组中存着不同类型的结构体的指针。</p>
+
+<p>在上述例子中，EPROCESS对象的TypeIndex为7，因此我们可以通过nt!ObTypeIndexTable[0x7]来获取指向其_OBJECT_TYPE的指针</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kd&gt; dt nt!_OBJECT_TYPE poi(nt!ObTypeIndexTable + ( 7 * @$ptrsize ))
+   +0x000 TypeList         : _LIST_ENTRY [ 0xfffffa80`18d42a80 - 0xfffffa80`18d42a80 ]
+   +0x010 Name             : _UNICODE_STRING "Process"
+   +0x020 DefaultObject    : (null) 
+   +0x028 Index            : 0x7 ''
+   +0x02c TotalNumberOfObjects : 0x27
+   +0x030 TotalNumberOfHandles : 0xf0
+   +0x034 HighWaterNumberOfObjects : 0x27
+   +0x038 HighWaterNumberOfHandles : 0xf2
+   +0x040 TypeInfo         : _OBJECT_TYPE_INITIALIZER
+   +0x0b0 TypeLock         : _EX_PUSH_LOCK
+   +0x0b8 Key              : 0x636f7250
+   +0x0c0 CallbackList     : _LIST_ENTRY [ 0xfffffa80`18d42b40 - 0xfffffa80`18d42b40 ]
+</code></pre></div></div>
+
+<p>可以看到，该对象是一个Process类型对象。</p>
+
+<p>在windbg中可以使用”!object \ObjectTypes”来获取所有对象类型。</p>
+
+<p>在windows10中，处于安全考虑，TypeIndex字段被使用异或加密</p>
+
+<p>http://www.powerofcommunity.net/poc2018/nikita.pdf</p>
+
+<h3 id="一切皆对象_object_type对象">一切皆对象——_OBJECT_TYPE对象</h3>
+
+<p>如果我们使用!object命令来查看一个_OBJECT_TYPE结构体，我们会发现每一个类型竟然也是作为对象存在的</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kd&gt; !object poi(nt!ObTypeIndexTable + ( 7 * @$ptrsize ))
+Object: fffffa8018d42a80  Type: (fffffa8018d41c00) Type
+    ObjectHeader: fffffa8018d42a50 (new version)
+    HandleCount: 0  PointerCount: 2
+    Directory Object: fffff8a0000068f0  Name: Process
+</code></pre></div></div>
+
+<p>可以看到，process类型对象的类型为Type。继续查看其object header</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kd&gt; dt _OBJECT_HEADER fffffa8018d42a50
+nt!_OBJECT_HEADER
+   +0x000 PointerCount     : 0n2
+   +0x008 HandleCount      : 0n0
+   +0x008 NextToFree       : (null) 
+   +0x010 Lock             : _EX_PUSH_LOCK
+   +0x018 TypeIndex        : 0x2 ''
+   +0x019 TraceFlags       : 0 ''
+   +0x01a InfoMask         : 0x3 ''
+   +0x01b Flags            : 0x13 ''
+   +0x020 ObjectCreateInfo : (null) 
+   +0x020 QuotaBlockCharged : (null) 
+   +0x028 SecurityDescriptor : (null) 
+   +0x030 Body             : _QUAD
+</code></pre></div></div>
+
+<p>可以看到其TypeIndex为2，说明Type类型同样也存在nt!ObTypeIndexTable中</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>kd&gt; dt nt!_OBJECT_TYPE poi(nt!ObTypeIndexTable + ( 2 * @$ptrsize ))
+   +0x000 TypeList         : _LIST_ENTRY [ 0xfffffa80`18d41bb0 - 0xfffffa80`1b524d60 ]
+   +0x010 Name             : _UNICODE_STRING "Type"
+   +0x020 DefaultObject    : 0xfffff800`040839e0 Void
+   +0x028 Index            : 0x2 ''
+   +0x02c TotalNumberOfObjects : 0x2a
+   +0x030 TotalNumberOfHandles : 0
+   +0x034 HighWaterNumberOfObjects : 0x2a
+   +0x038 HighWaterNumberOfHandles : 0
+   +0x040 TypeInfo         : _OBJECT_TYPE_INITIALIZER
+   +0x0b0 TypeLock         : _EX_PUSH_LOCK
+   +0x0b8 Key              : 0x546a624f
+   +0x0c0 CallbackList     : _LIST_ENTRY [ 0xfffffa80`18d41cc0 - 0xfffffa80`18d41cc0 ]
+</code></pre></div></div>
+
+<p>回到ProcessType的object header上，其InfoMask值为3，说明它具有_OBJECT_HEADER_CREATOR_INFO与_OBJECT_HEADER_NAME_INFO两个可选头，其中_OBJECT_HEADER_CREATOR_INFO具有一个双向链表，通过这个链表我们可以遍历所有的Type</p>
+
+<h2 id="windows-kernel-object存在哪">Windows Kernel Object存在哪</h2>
+
+<p>所有的对象都由windows对象管理器（Object Manager）统一管理并以namespace进行分类，每个named kernel object有一个类似路径一样的名字，例如表示C盘驱动器的对象名为<strong>\DosDevices\C:</strong>，其中\DosDevice就是该对象的namespace。</p>
+
+<h2 id="打印所有内核对象">打印所有内核对象</h2>
+
+<p>使用Nt函数NtOpenDirectoryObject/NtQueryDirectoryObject来遍历所有的Directory，进而遍历所有对象</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//https://github.com/adobe/chromium/blob/master/sandbox/tools/finder/finder_kernel.cc</span>
+
+<span class="cp">#include &lt;iostream&gt;
+#include &lt;Windows.h&gt;
+#include &lt;winternl.h&gt;
+</span>
+<span class="cp">#include &lt;ntstatus.h&gt;
+#define DIRECTORY_QUERY 1
+#define BUFFER_SIZE 0x800
+</span>
+<span class="k">typedef</span> <span class="k">struct</span> <span class="nc">_OBJDIR_INFORMATION</span>
+<span class="p">{</span>
+	<span class="n">UNICODE_STRING</span>          <span class="n">ObjectName</span><span class="p">;</span>
+	<span class="n">UNICODE_STRING</span>          <span class="n">ObjectTypeName</span><span class="p">;</span>
+	<span class="n">BYTE</span>                    <span class="n">Data</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">OBJDIR_INFORMATION</span><span class="p">,</span> <span class="o">*</span> <span class="n">POBJDIR_INFORMATION</span><span class="p">;</span>
+<span class="k">typedef</span> <span class="nf">NTSTATUS</span><span class="p">(</span><span class="o">*</span><span class="n">PFN_NtOpenDirectoryObject</span><span class="p">)(</span>
+	<span class="n">_Out_</span> <span class="n">PHANDLE</span>            <span class="n">DirectoryHandle</span><span class="p">,</span>
+	<span class="n">_In_</span>  <span class="n">ACCESS_MASK</span>        <span class="n">DesiredAccess</span><span class="p">,</span>
+	<span class="n">_In_</span>  <span class="n">POBJECT_ATTRIBUTES</span> <span class="n">ObjectAttributes</span>
+	<span class="p">);</span>
+<span class="k">typedef</span> <span class="nf">NTSTATUS</span><span class="p">(</span><span class="o">*</span><span class="n">PFN_NtQueryDirectoryObject</span><span class="p">)(</span>
+	<span class="n">_In_</span>      <span class="n">HANDLE</span>  <span class="n">DirectoryHandle</span><span class="p">,</span>
+	<span class="n">_Out_opt_</span> <span class="n">PVOID</span>   <span class="n">Buffer</span><span class="p">,</span>
+	<span class="n">_In_</span>      <span class="n">ULONG</span>   <span class="n">Length</span><span class="p">,</span>
+	<span class="n">_In_</span>      <span class="n">BOOLEAN</span> <span class="n">ReturnSingleEntry</span><span class="p">,</span>
+	<span class="n">_In_</span>      <span class="n">BOOLEAN</span> <span class="n">RestartScan</span><span class="p">,</span>
+	<span class="n">_Inout_</span>   <span class="n">PULONG</span>  <span class="n">Context</span><span class="p">,</span>
+	<span class="n">_Out_opt_</span> <span class="n">PULONG</span>  <span class="n">ReturnLength</span>
+	<span class="p">);</span>
+<span class="k">typedef</span> <span class="nf">ULONG</span><span class="p">(</span><span class="o">*</span><span class="n">PFN_RtlNtStatusToDosError</span><span class="p">)(</span>
+	<span class="n">NTSTATUS</span> <span class="n">Status</span>
+	<span class="p">);</span>
+<span class="kt">void</span> <span class="nf">PrintNtStatus</span><span class="p">(</span><span class="n">NTSTATUS</span> <span class="n">code</span><span class="p">)</span>
+<span class="p">{</span>
+	<span class="n">LPSTR</span> <span class="n">errmsg</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">FormatMessageA</span><span class="p">(</span><span class="n">FORMAT_MESSAGE_FROM_SYSTEM</span> <span class="o">|</span>
+		<span class="n">FORMAT_MESSAGE_FROM_HMODULE</span> <span class="o">|</span>
+		<span class="n">FORMAT_MESSAGE_ALLOCATE_BUFFER</span><span class="p">,</span>
+		<span class="n">GetModuleHandle</span><span class="p">(</span><span class="s">L"ntdll.dll"</span><span class="p">),</span> <span class="n">code</span><span class="p">,</span>
+		<span class="n">MAKELANGID</span><span class="p">(</span><span class="n">LANG_NEUTRAL</span><span class="p">,</span> <span class="n">SUBLANG_DEFAULT</span><span class="p">),</span>
+		<span class="p">(</span><span class="n">LPSTR</span><span class="p">)</span><span class="o">&amp;</span><span class="n">errmsg</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">))</span>
+	<span class="p">{</span>
+		<span class="n">printf</span><span class="p">(</span><span class="s">"%s</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">errmsg</span><span class="p">);</span>
+	<span class="p">}</span>
+
+<span class="p">}</span>
+<span class="kt">int</span> <span class="nf">wmain</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">wchar_t</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span>
+<span class="p">{</span>
+	<span class="n">std</span><span class="o">::</span><span class="n">wstring</span> <span class="n">path</span> <span class="o">=</span> <span class="s">L"</span><span class="se">\\</span><span class="s">"</span><span class="p">;</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">argc</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span>
+	<span class="p">{</span>
+		<span class="n">path</span> <span class="o">=</span> <span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span>
+
+	<span class="p">}</span>
+	<span class="n">HMODULE</span> <span class="n">hNtdll</span> <span class="o">=</span> <span class="n">GetModuleHandleA</span><span class="p">(</span><span class="s">"ntdll.dll"</span><span class="p">);</span>
+	<span class="n">PFN_NtQueryDirectoryObject</span> <span class="n">pfnNtQueryDirectoryObject</span> <span class="o">=</span> <span class="p">(</span><span class="n">PFN_NtQueryDirectoryObject</span><span class="p">)</span><span class="n">GetProcAddress</span><span class="p">(</span><span class="n">hNtdll</span><span class="p">,</span> <span class="s">"NtQueryDirectoryObject"</span><span class="p">);</span>
+	<span class="n">PFN_NtOpenDirectoryObject</span> <span class="n">pfnNtOpenDirectoryObject</span> <span class="o">=</span> <span class="p">(</span><span class="n">PFN_NtOpenDirectoryObject</span><span class="p">)</span><span class="n">GetProcAddress</span><span class="p">(</span><span class="n">hNtdll</span><span class="p">,</span> <span class="s">"NtOpenDirectoryObject"</span><span class="p">);</span>
+	<span class="n">PFN_RtlNtStatusToDosError</span> <span class="n">pfnRtlNtStatusToDosError</span> <span class="o">=</span> <span class="p">(</span><span class="n">PFN_RtlNtStatusToDosError</span><span class="p">)</span><span class="n">GetProcAddress</span><span class="p">(</span><span class="n">hNtdll</span><span class="p">,</span> <span class="s">"RtlNtStatusToDosError"</span><span class="p">);</span>
+	<span class="n">UNICODE_STRING</span> <span class="n">unicode_str</span><span class="p">;</span>
+	<span class="n">unicode_str</span><span class="p">.</span><span class="n">Length</span> <span class="o">=</span> <span class="p">(</span><span class="n">USHORT</span><span class="p">)</span><span class="n">path</span><span class="p">.</span><span class="n">length</span><span class="p">()</span> <span class="o">*</span> <span class="mi">2</span><span class="p">;</span>
+	<span class="n">unicode_str</span><span class="p">.</span><span class="n">MaximumLength</span> <span class="o">=</span> <span class="p">(</span><span class="n">USHORT</span><span class="p">)</span><span class="n">path</span><span class="p">.</span><span class="n">length</span><span class="p">()</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="mi">2</span><span class="p">;</span>
+	<span class="n">unicode_str</span><span class="p">.</span><span class="n">Buffer</span> <span class="o">=</span> <span class="p">(</span><span class="n">PWSTR</span><span class="p">)</span><span class="n">path</span><span class="p">.</span><span class="n">c_str</span><span class="p">();</span>
+	<span class="n">OBJECT_ATTRIBUTES</span> <span class="n">path_attributes</span><span class="p">;</span>
+	<span class="n">InitializeObjectAttributes</span><span class="p">(</span><span class="o">&amp;</span><span class="n">path_attributes</span><span class="p">,</span>
+		<span class="o">&amp;</span><span class="n">unicode_str</span><span class="p">,</span>
+		<span class="mi">0</span><span class="p">,</span>      <span class="c1">// No Attributes</span>
+		<span class="nb">NULL</span><span class="p">,</span>   <span class="c1">// No Root Directory</span>
+		<span class="nb">NULL</span><span class="p">);</span>  <span class="c1">// No Security Descriptor</span>
+	<span class="n">HANDLE</span> <span class="n">file_handle</span><span class="p">;</span>
+	<span class="n">NTSTATUS</span> <span class="n">ret</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+	<span class="n">ret</span> <span class="o">=</span> <span class="n">pfnNtOpenDirectoryObject</span><span class="p">(</span><span class="o">&amp;</span><span class="n">file_handle</span><span class="p">,</span>
+		<span class="n">DIRECTORY_QUERY</span><span class="p">,</span>
+		<span class="o">&amp;</span><span class="n">path_attributes</span><span class="p">);</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">!=</span> <span class="n">STATUS_SUCCESS</span><span class="p">)</span>
+	<span class="p">{</span>
+		<span class="n">PrintNtStatus</span><span class="p">(</span><span class="n">ret</span><span class="p">);</span>
+		<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+	<span class="p">}</span>
+	<span class="n">ULONG</span> <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+	<span class="n">ULONG</span> <span class="n">returnLength</span><span class="p">;</span>
+	<span class="n">POBJDIR_INFORMATION</span> <span class="n">buffer</span> <span class="o">=</span> <span class="p">(</span><span class="n">POBJDIR_INFORMATION</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="n">BUFFER_SIZE</span><span class="p">);</span>
+	<span class="k">while</span> <span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="n">ret</span> <span class="o">=</span> <span class="n">pfnNtQueryDirectoryObject</span><span class="p">(</span><span class="n">file_handle</span><span class="p">,</span> <span class="n">buffer</span><span class="p">,</span> <span class="n">BUFFER_SIZE</span><span class="p">,</span> <span class="n">TRUE</span><span class="p">,</span> <span class="n">FALSE</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">index</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">returnLength</span><span class="p">)))</span>
+	<span class="p">{</span>
+		<span class="n">wprintf</span><span class="p">(</span><span class="s">L"%d	%s	%s</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">buffer</span><span class="o">-&gt;</span><span class="n">ObjectName</span><span class="p">.</span><span class="n">Buffer</span><span class="p">,</span> <span class="n">buffer</span><span class="o">-&gt;</span><span class="n">ObjectTypeName</span><span class="p">.</span><span class="n">Buffer</span><span class="p">);</span>
+	<span class="p">}</span>
+	<span class="k">if</span> <span class="p">(</span><span class="n">ret</span> <span class="o">!=</span> <span class="n">STATUS_NO_MORE_ENTRIES</span><span class="p">)</span>
+	<span class="p">{</span>
+		<span class="n">PrintNtStatus</span><span class="p">(</span><span class="n">ret</span><span class="p">);</span>
+		<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+	<span class="p">}</span>
+	<span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>一些参考资料：</p>
+
+<p>https://codemachine.com/articles/object_headers.html</p>
+
+<p>https://stackoverflow.com/questions/2643084/sysinternals-winobj-device-listing-mechanism</p>
+
+<p>https://github.com/adobe/chromium/blob/master/sandbox/tools/finder/finder_kernel.cc</p>
+
+<p>https://rayanfam.com/topics/reversing-windows-internals-part1/</p>
+
+<hr />
+
+<p>内核路漫漫。。。</p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>

