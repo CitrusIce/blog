@@ -1,5 +1,140 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-09-11T15:45:42+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">Windows内核对象</title><link href="https://citrusice.github.io/posts/windows-kernel-object/" rel="alternate" type="text/html" title="Windows内核对象" /><published>2021-09-11T15:38:57+08:00</published><updated>2021-09-11T15:38:57+08:00</updated><id>https://citrusice.github.io/posts/windows-kernel-object</id><content type="html" xml:base="https://citrusice.github.io/posts/windows-kernel-object/">&lt;h2 id=&quot;windows-kernel-object的结构&quot;&gt;Windows Kernel Object的结构&lt;/h2&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-12-29T17:37:24+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">Windows的各种路径</title><link href="https://citrusice.github.io/posts/windows-path/" rel="alternate" type="text/html" title="Windows的各种路径" /><published>2021-12-29T17:30:17+08:00</published><updated>2021-12-29T17:30:17+08:00</updated><id>https://citrusice.github.io/posts/windows-path</id><content type="html" xml:base="https://citrusice.github.io/posts/windows-path/">&lt;p&gt;翻译整理自以下页面：&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;
+&lt;a href=&quot;https://superuser.com/questions/810609/what-does-mean-in-c-windows-system32-conhost-exe&quot;&gt;command line - What does \??\ mean in \??\C:\Windows\System32\conhost.exe? - Super User&lt;/a&gt;
+&lt;a href=&quot;https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths&quot;&gt;File path formats on Windows systems | Microsoft Docs&lt;/a&gt;
+&lt;a href=&quot;https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces&quot;&gt;Naming Files, Paths, and Namespaces - Win32 apps | Microsoft Docs&lt;/a&gt;&lt;/p&gt;
+
+&lt;h1 id=&quot;dos-path&quot;&gt;DOS path&lt;/h1&gt;
+
+&lt;p&gt;包含三部分：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;盘符加冒号 (c:)&lt;/li&gt;
+  &lt;li&gt;目录名&lt;/li&gt;
+  &lt;li&gt;文件名&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;如果这三部分都有，则为绝对路径；如果没有盘符部分但是以 &lt;strong&gt;\&lt;/strong&gt; 开头，则从当前盘符的根目录开始；如果有盘符但后面没有 &lt;strong&gt;\&lt;/strong&gt; ，则为指定盘符的相对路径，相对于在那个盘符的当前目录（每个盘符下都存在一个当前目录），否则是当前目录的相对路径。&lt;/p&gt;
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;C:\Documents\Newsletters\Summer2018.pdf 
+An absolute file path from the root of drive `C:`.
+
+\Program Files\Custom Utilities\StringFinder.exe
+An absolute path from the root of the current drive.
+
+2018\January.xlsx
+A relative path to a file in a subdirectory of the current directory.
+
+..\Publications\TravelBrochure.pdf
+A relative path to file in a directory that is a peer of the current directory.
+
+C:\Projects\apilibrary\apilibrary.sln
+An absolute path to a file from the root of drive `C:`.
+
+C:Projects\apilibrary\apilibrary.sln
+A relative path from the current directory of the `C:` drive.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;The first is that the runtime library supports per-drive working directories using conventionally ‘hidden’ environment variables such as “=C:”. For example, “C:System32” resolves to “C:\Windows\System32” if the “=C:” environment variable is set to “C:\Windows”.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;windows 使用环境变量类似 “=C:” 这种名字用于记录当前驱动器的当前目录，因此设置这个环境变量可以修改其他驱动器的当前路径，从而影响 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;C:Projects\apilibrary\apilibrary.sln&lt;/code&gt; 这种路径形式的解析位置&lt;/p&gt;
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	&lt;span class=&quot;n&quot;&gt;SetEnvironmentVariableA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;=C:&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;C:&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;Windows&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(c:system32\notepad.exe)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Also, if the last component of the path is a reserved DOS device name, including if the name has trailing colons, spaces, dots, and even a file extension, the path gets translated to a device path (e.g. “C:\Windows\nul: .txt” -&amp;gt; “\??\nul”). (DOS devices are also reserved in the final component of relative paths that have no drive.) Otherwise, the runtime library simply prepends “\??\” to the normalized path (e.g. “C:/Windows” -&amp;gt; “\??\C:\Windows”).&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;如果路径的最后一部分是一个保留的 DOS 设备名，包括如果设备名后尾随了冒号、空格和点甚至是文件扩展名，则直接转为该设备的路径 (e.g. “C:\Windows\nul: .txt” -&amp;gt; “\??\nul”)。否则 windows 则直接在进行 normalized 后的 DOS path 前增加 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\??\&lt;/code&gt;。&lt;/p&gt;
+&lt;h1 id=&quot;unc-path&quot;&gt;UNC path&lt;/h1&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;以 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\&lt;/code&gt;开始，后面接 host name，host name 可以是服务器名 (NetBIOS 机器名) 或 ip 地址&lt;/li&gt;
+  &lt;li&gt;share name，接在 host name 后面，host name 和 share name 共同构成一个 volum&lt;/li&gt;
+  &lt;li&gt;目录名字&lt;/li&gt;
+  &lt;li&gt;文件名字&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\system07\C$\&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;The root directory of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;C:&lt;/code&gt; drive on &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;system07&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\Server2\Share\Test\Foo.txt&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo.txt&lt;/code&gt; file in the Test directory of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\Server2\Share&lt;/code&gt; volume.&lt;/p&gt;
+
+&lt;h1 id=&quot;dos-device-paths&quot;&gt;DOS device paths&lt;/h1&gt;
+
+&lt;p&gt;形如
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\.\C:\Test\Foo.txt&lt;/code&gt;   &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\?\C:\Test\Foo.txt&lt;/code&gt;
+或通过卷 guid 指定盘符
+&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\.\Volume{b75e2c83-0000-0000-0000-602f00000000}\Test\Foo.txt&lt;/code&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\?\Volume{b75e2c83-0000-0000-0000-602f00000000}\Test\Foo.txt&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;DOS device path 包括：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;dos device path 指定符号 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\.\&lt;/code&gt; 或 ` \?`&lt;/li&gt;
+  &lt;li&gt;一个指向目标设备符号链接 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\?\C:\&lt;/code&gt;。同样可以使用 UNC 路径&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt; \\.\UNC\Server\Share\Test\Foo.txt &lt;/code&gt; ` \?\UNC\Server\Share\Test\Foo.txt`。
+  没看懂的部分：
+    &lt;blockquote&gt;
+      &lt;p&gt;For device UNCs, the server/share portion forms the volume. For example, in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\?\server1\e:\utilities\\filecomparer\&lt;/code&gt;, the server/share portion is ` server1\utilities`. This is significant when calling a method such as &lt;a href=&quot;https://docs.microsoft.com/en-us/dotnet/api/system.io.path.getfullpath#System_IO_Path_GetFullPath_System_String_System_String_&quot;&gt;Path.GetFullPath(String, String)&lt;/a&gt; with relative directory segments; it is never possible to navigate past the volume.&lt;/p&gt;
+    &lt;/blockquote&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;The straight-forward case is a path that’s prefixed by either “\\.\” or “\\?\”. This is a local device path, not a UNC path. (Strictly speaking it’s in the form of a UNC path, but “.” and “?” are reserved device domains.) For this case, the prefix is simply replaced by NT “\??\”.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;dos device path 严格来说属于一种 UNC path 的形式，”?”为保留设备名。这两个前缀被简单替换为 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\??\&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;有歧义的地方：&lt;/p&gt;
+
+&lt;p&gt;DOS device path 不允许使用 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.&lt;/code&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;..&lt;/code&gt;
+&lt;a href=&quot;https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths&quot;&gt;File path formats on Windows systems | Microsoft Docs&lt;/a&gt;&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;DOS device paths are fully qualified by definition. Relative directory segments (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;..&lt;/code&gt;) are not allowed. Current directories never enter into their usage.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces&quot;&gt;Naming Files, Paths, and Namespaces - Win32 apps | Microsoft Docs&lt;/a&gt;&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;For file I/O, the “\\?\” prefix to a path string tells the Windows APIs to disable all string parsing and to send the string that follows it straight to the file system. For example, if the file system supports large paths and file names, you can exceed the MAX_PATH limits that are otherwise enforced by the Windows APIs. For more information about the normal maximum path limitation, see the previous section &lt;a href=&quot;#maximum-path-length-limitation&quot;&gt;Maximum Path Length Limitation&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;Because it turns off automatic expansion of the path string, the “\?&quot; prefix also allows the use of “..” and “.” in the path names, which can be useful if you are attempting to perform operations on a file with these otherwise reserved relative path specifiers as part of the fully qualified path.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;当使用 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\?\&lt;/code&gt;的时候，windows api 不会对传入的路径做任何 normalization 处理，而使用&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt; \\.\&lt;/code&gt; 的时候会进行 normalization&lt;/p&gt;
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//失败&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(\\?\D:\.\file.txt)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;//成功&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(\\.\D:\.\file.txt)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;关于 Device path normalization：&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Device path normalization resolves “.” and “..” components, replaces forward slashes with backslashes, and strips trailing spaces and dots from the final path component. Because forward slashes are translated to backslashes, the prefix of a normalized device path can be “//./” or “//?/” or any combination of slashes and backslashes, except for exactly “\\?\”.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;normalization 会处理 “.” 和 “..”，并且将 “/” 替换为 “\“，并将尾随的 “.” 和空格删除。因为会将斜杠转为反斜杠，因此 “//./” 和 “//?/” 都是可行的，但是 “\\?\” 不行，因为这会禁止 normalization&lt;/p&gt;
+
+&lt;h1 id=&quot;-prefix&quot;&gt;\??\ Prefix&lt;/h1&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\??\&lt;/code&gt;指示对象管理器在调用者的 local device directory 搜索（也包括在 Global 中搜索），也就是&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt; \Sessions\0\DosDevices\[Logon Authentication ID] &lt;/code&gt;。当调用者为 system 时，则在&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt; \Global?? &lt;/code&gt;中搜索。每个 local device directory 下有一个 Global 符号链接链接到&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt; \Global??&lt;/code&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//以下两种均可以成功&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(\??\Global\D:\file.txt)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(\??\D:\file.txt)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\DosDevice&lt;/code&gt; 链接到 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\??&lt;/code&gt;&lt;/p&gt;</content><author><name></name></author><category term="windows" /><summary type="html">翻译整理自以下页面：</summary></entry><entry><title type="html">Windows内核对象</title><link href="https://citrusice.github.io/posts/windows-kernel-object/" rel="alternate" type="text/html" title="Windows内核对象" /><published>2021-09-11T15:38:57+08:00</published><updated>2021-09-11T15:38:57+08:00</updated><id>https://citrusice.github.io/posts/windows-kernel-object</id><content type="html" xml:base="https://citrusice.github.io/posts/windows-kernel-object/">&lt;h2 id=&quot;windows-kernel-object的结构&quot;&gt;Windows Kernel Object的结构&lt;/h2&gt;
 
 &lt;p&gt;从_OBJECT_HEADER看起&lt;/p&gt;
 
@@ -1418,34 +1553,4 @@ r10=fffff8023a2b3428
 &lt;p&gt;语言选择需要根据当前红队的开发能力来做，目前比较流行的有python、c#、c/c++，还有最近很火的nim。对于木马开发来讲，我比较倾向于c/c++。python与c#最大的问题是依赖，python打包后体积太大不利于传输或捆绑。c#得益于大部分系统都已经安装了.net，在体积上没有那么劣势，但是.net版本难以协调。有些lib不兼容.net2.0，而有些lib太老早已不维护。并且4.0比2.0多太多新的东西，要想写出兼容性好的代就要放弃这些特性，这又与“便捷”走远了。之前用过一段c#做木马开发，一个组件要维护两个版本，感觉很麻烦，因此我个人不是很喜欢用c#。nim这个语言很好，他实际上是一个代码转译器，将nim代码转为其他代码再通过编译器去编译，它是一个更好的c，因此不存在依赖问题，同时又兼顾了开发的便捷性。我不选择nim其实很大一部分原因是因为我并不熟悉它，不知道它会有怎样的坑，而我在c/c++的领域已经有了一些积累，有很多可以复用的代码让我的开发速度不亚于使用其他语言。另一部分原因是因为c++的模板，它可以做的事情太多了，暂时还没有看到nim里有更好的方式来替代它。c/c++的好处是我可以去干任何事，并且c/c++的代码库很丰富，不管什么功能都可以找到对应的实现。坏处是开发者必须要去干任何事，同时它太底层了，少了很多高级语言的特性，尽管模版可以弥补，但是这就带来了一定的门槛。&lt;/p&gt;
 
 &lt;h2 id=&quot;其他&quot;&gt;其他&lt;/h2&gt;
-&lt;p&gt;两个月前写的文章，因为忙于其他事一直没有写完，这两天修修补补总算是差不多了。做这个方向感觉没什么人可以交流，大部分选手所谓的免杀都仅仅停留在使用不同的loader加载shellcode做个文件免杀，没啥意思。不过木马作为终端攻防的重点，一定会随着需求的增加有所发展，相信之后深入研究这些的人会越来越多。&lt;/p&gt;</content><author><name></name></author><category term="develop" /><summary type="html">在红队的这几个月里见识了很多，有不少的收获。如果说做红队跟渗透测试有什么不一样，有一点就是红队会运用到很多针对个人终端的攻击手法。在这其中，木马扮演了十分关键的角色。 写一点我的想法以及研究方向，不涉及具体实现。 命令与控制 木马的基本功能，即攻击者拥有控制木马行为的能力。唯一可以一提的是攻击者操纵木马的自由度，例如cs提供了object file的功能，相当于让攻击者拥有了在木马进程内执行任意代码的能力。 bypass主动防御、权限维持 在有了控制目标终端的能力之后，最重要的事情就是维持住这个权限，这一块难点主要就是在目标机器上有一些杀软的情况下去做权限维持。经过一些摸索和测试发现，对杀软来说，任何对系统关键位置进行修改的敏感操作都需要在可信的进程下去进行，否则会对这个行为进行拦截（对用户进行提示，默认拒绝）。可信的进程不单是文件需要有签名，同时需要这个进程向上的进程链上所有的进程都要有签名。 研究绕过主动防御进行权限维持的方向有 修改一些系统非关键位置来实现一些非常规的权限维持，比如针对一些系统上已有的自启动服务寻找dll劫持的漏洞 将敏感操作放到可信进程中去进行，可以利用已有的进程，也可以自己构造一个可信的进程，当然还可以直接给自己的马整个签名 关掉主动防御，看起来在r3层与r0层对抗是不可能的，但对于一些自保没做好的杀软依然可以做到直接干掉杀毒软件的进程 Fully UnDetectable - 木马的伪装与特征隐藏 一个程序打开不展示任何窗口，没有任何输出，那是个人都会觉得不对劲。而对于杀软来说，一个不创建任何窗口的Win32程序也同样是值得警惕的。因此，给木马捆绑一个正常的程序，既可以让对方放下警戒，也在一定程度上能达到免杀的效果。 大部分红队都是直接使用现成的马，比如cs，然后配合一个loader用于免杀，有些也会在别人开源项目的基础上定制自己的木马。而就算是纯自研的木马，在开发时如果没有考虑到如何快速变异，时间长了也免不了被分析、提取特征。因此对于这种就总会涉及到基于特征的各种查杀。 大体上有三种特征，流量特征、文件特征、内存特征 如何规避查杀？ 对于流量特征，例如cs提供了malleable C2的功能允许使用者将木马的流量伪装成正常的流量，配合https以及域前置就可以达到非常的好的效果。 对于文件特征，常用的手段有将shellcode、原始pe进行加密存储，或者当木马运行的时候才将真正的部分从远程加载过来以躲避杀毒软件的静态查杀，核心思想是将真正有特征的部分进行加密或与文件分离存放。 但是上面这些隐藏文件特征的手法对于内存查杀来说都没有意义，加密或者从远端获取的payload最终总会在内存里完全的暴露出来，甚至已经有蓝队开发出了针对cs的内存扫描工具，可以将beacon中的配置完全提取。怎么解决？使用自研/魔改的木马可以轻松躲避所有特征的查杀（废话），而对于使用cs这种并不开源的马的红队来讲，尽管cs提供了一些解决方案，但并不是无死角的，这就是一个很大的问题。 通用的隐藏内存中特征的解决方案是我最近在研究的项目。我把木马内存中的特征分为两类，代码段中的特征与数据段中的特征。对于代码段中的特征，可以使用一些保护商业软件防止被破解的思路，加一些代码混淆、膨胀甚至vm壳，改变了代码段的内容后特征自然就消失了。但是很不幸，大部分的特征实际上都是针对木马的数据段来提取的，因此需要想办法来保护数据段。 除此之外，为了更好的应对特征查杀，木马应具有变异的能力。 anti analysis 主要是就是反沙盒和反人工分析 反沙盒比较重要，我认为基本决定了马能活多长时间，而反人工往往只是为了给分析增加难度（当马已经进入人工分析的阶段那说明这马已经被发现有问题了）。沙盒大概可以分为两种，模拟执行pe的沙盒和完全拟真的虚拟机。前者比如火绒，当用户运行程序前它会将目标程序在它自己的沙盒里跑一遍，没有问题再放行，这种的绕过比较简单，而对于完全拟真的环境就需要去判断。 我们不能单纯的通过判断当前程序是否运行在虚拟环境中来决定是否执行恶意代码，这会造成使用云桌面、或者是一些使用虚拟化服务器的目标没法上线。比较可行的做法是尽可能小心的收集目标系统上的信息（小心是因为获取部分信息的时候会被沙箱标记上虚拟机检测行为），然后对这些信息进行打分，或者由人工来判断是否继续执行恶意代码。 为了防止这种完全拟真的环境，有时我们还可以使用基于白名单的做法，即目标中具有xx特征时才真正执行恶意代码，比如目标必须已安装xx软件，上线ip必须处于某个ip段，甚至绑定目标机器的木马，当然这些都需要与其他手段配合使用。 值得一提的还有很多沙盒与edr对程序的监控。因为内核回调对程序行为的把控有限，它们的监控多是使用r3层的hook，这也就意味着我们可以通过多种方式绕过这种监控，能够起到很好的效果。 反人工分析意义不是很大，方式也无外乎各种反调试。如果非要做的话，我认为应该把隐藏ioc作为反人工的目标，而不是尽可能的阻碍调试。 从木马到rootkit 虽然说木马的功能完全可以都在r3去做，但是我还是想进r0看看 关于语言选择 语言选择需要根据当前红队的开发能力来做，目前比较流行的有python、c#、c/c++，还有最近很火的nim。对于木马开发来讲，我比较倾向于c/c++。python与c#最大的问题是依赖，python打包后体积太大不利于传输或捆绑。c#得益于大部分系统都已经安装了.net，在体积上没有那么劣势，但是.net版本难以协调。有些lib不兼容.net2.0，而有些lib太老早已不维护。并且4.0比2.0多太多新的东西，要想写出兼容性好的代就要放弃这些特性，这又与“便捷”走远了。之前用过一段c#做木马开发，一个组件要维护两个版本，感觉很麻烦，因此我个人不是很喜欢用c#。nim这个语言很好，他实际上是一个代码转译器，将nim代码转为其他代码再通过编译器去编译，它是一个更好的c，因此不存在依赖问题，同时又兼顾了开发的便捷性。我不选择nim其实很大一部分原因是因为我并不熟悉它，不知道它会有怎样的坑，而我在c/c++的领域已经有了一些积累，有很多可以复用的代码让我的开发速度不亚于使用其他语言。另一部分原因是因为c++的模板，它可以做的事情太多了，暂时还没有看到nim里有更好的方式来替代它。c/c++的好处是我可以去干任何事，并且c/c++的代码库很丰富，不管什么功能都可以找到对应的实现。坏处是开发者必须要去干任何事，同时它太底层了，少了很多高级语言的特性，尽管模版可以弥补，但是这就带来了一定的门槛。 其他 两个月前写的文章，因为忙于其他事一直没有写完，这两天修修补补总算是差不多了。做这个方向感觉没什么人可以交流，大部分选手所谓的免杀都仅仅停留在使用不同的loader加载shellcode做个文件免杀，没啥意思。不过木马作为终端攻防的重点，一定会随着需求的增加有所发展，相信之后深入研究这些的人会越来越多。</summary></entry><entry><title type="html">wdigest逆向</title><link href="https://citrusice.github.io/posts/wdigest-reverse/" rel="alternate" type="text/html" title="wdigest逆向" /><published>2020-12-11T17:28:20+08:00</published><updated>2020-12-11T17:28:20+08:00</updated><id>https://citrusice.github.io/posts/wdigest-reverse</id><content type="html" xml:base="https://citrusice.github.io/posts/wdigest-reverse/">&lt;p&gt;逆向从wdigest的SpAcceptCredentials开始，当使用windows账户凭据做认证时lsass将会调用这个函数。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211161323616.png&quot; alt=&quot;image-20201211161323616&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;第二个参数是用户名，第三个结构是一个指向未知结构体的指针，其中包含用户名，主机名，以及明文的密码&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211161700795.png&quot; alt=&quot;image-20201211161700795&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;之后会根据传入的参数，开辟一块buffer，将数据写入，实际上这里是一个未公开的结构&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211162019658.png&quot; alt=&quot;image-20201211162019658&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;可以看到写入了用户名、主机名等信息&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211162321781.png&quot; alt=&quot;image-20201211162321781&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;将刚刚的结构体放入了l_LogSessList双向链表中&lt;/p&gt;
-
-&lt;p&gt;wdigest同样也会将密码写入这个buffer，以加密形式存储。这意味着我们可以通过获取密钥的方式来解密这块内存来获得wdigest中存储的密码。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211162435396.png&quot; alt=&quot;image-20201211162435396&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;经过调试发现使用的加密函数是位于lsasrv.dll中的LsaProtectMemory&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211162648348.png&quot; alt=&quot;image-20201211162648348&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;可以看出根据输入的密钥长度不同，LsaEncryptMemory会使用aes加密或3des加密，最终调用的函数都是BCrypt&lt;/p&gt;
-
-&lt;p&gt;因此只要找到lsasrv.dll存储于内存中的key我们就能够解密出wdigest中存储的用户密码&lt;/p&gt;
-
-&lt;p&gt;想要更好的使用工具或者开发自己的工具就需要深入了解其内部的机制&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">逆向从wdigest的SpAcceptCredentials开始，当使用windows账户凭据做认证时lsass将会调用这个函数。</summary></entry></feed>
+&lt;p&gt;两个月前写的文章，因为忙于其他事一直没有写完，这两天修修补补总算是差不多了。做这个方向感觉没什么人可以交流，大部分选手所谓的免杀都仅仅停留在使用不同的loader加载shellcode做个文件免杀，没啥意思。不过木马作为终端攻防的重点，一定会随着需求的增加有所发展，相信之后深入研究这些的人会越来越多。&lt;/p&gt;</content><author><name></name></author><category term="develop" /><summary type="html">在红队的这几个月里见识了很多，有不少的收获。如果说做红队跟渗透测试有什么不一样，有一点就是红队会运用到很多针对个人终端的攻击手法。在这其中，木马扮演了十分关键的角色。 写一点我的想法以及研究方向，不涉及具体实现。 命令与控制 木马的基本功能，即攻击者拥有控制木马行为的能力。唯一可以一提的是攻击者操纵木马的自由度，例如cs提供了object file的功能，相当于让攻击者拥有了在木马进程内执行任意代码的能力。 bypass主动防御、权限维持 在有了控制目标终端的能力之后，最重要的事情就是维持住这个权限，这一块难点主要就是在目标机器上有一些杀软的情况下去做权限维持。经过一些摸索和测试发现，对杀软来说，任何对系统关键位置进行修改的敏感操作都需要在可信的进程下去进行，否则会对这个行为进行拦截（对用户进行提示，默认拒绝）。可信的进程不单是文件需要有签名，同时需要这个进程向上的进程链上所有的进程都要有签名。 研究绕过主动防御进行权限维持的方向有 修改一些系统非关键位置来实现一些非常规的权限维持，比如针对一些系统上已有的自启动服务寻找dll劫持的漏洞 将敏感操作放到可信进程中去进行，可以利用已有的进程，也可以自己构造一个可信的进程，当然还可以直接给自己的马整个签名 关掉主动防御，看起来在r3层与r0层对抗是不可能的，但对于一些自保没做好的杀软依然可以做到直接干掉杀毒软件的进程 Fully UnDetectable - 木马的伪装与特征隐藏 一个程序打开不展示任何窗口，没有任何输出，那是个人都会觉得不对劲。而对于杀软来说，一个不创建任何窗口的Win32程序也同样是值得警惕的。因此，给木马捆绑一个正常的程序，既可以让对方放下警戒，也在一定程度上能达到免杀的效果。 大部分红队都是直接使用现成的马，比如cs，然后配合一个loader用于免杀，有些也会在别人开源项目的基础上定制自己的木马。而就算是纯自研的木马，在开发时如果没有考虑到如何快速变异，时间长了也免不了被分析、提取特征。因此对于这种就总会涉及到基于特征的各种查杀。 大体上有三种特征，流量特征、文件特征、内存特征 如何规避查杀？ 对于流量特征，例如cs提供了malleable C2的功能允许使用者将木马的流量伪装成正常的流量，配合https以及域前置就可以达到非常的好的效果。 对于文件特征，常用的手段有将shellcode、原始pe进行加密存储，或者当木马运行的时候才将真正的部分从远程加载过来以躲避杀毒软件的静态查杀，核心思想是将真正有特征的部分进行加密或与文件分离存放。 但是上面这些隐藏文件特征的手法对于内存查杀来说都没有意义，加密或者从远端获取的payload最终总会在内存里完全的暴露出来，甚至已经有蓝队开发出了针对cs的内存扫描工具，可以将beacon中的配置完全提取。怎么解决？使用自研/魔改的木马可以轻松躲避所有特征的查杀（废话），而对于使用cs这种并不开源的马的红队来讲，尽管cs提供了一些解决方案，但并不是无死角的，这就是一个很大的问题。 通用的隐藏内存中特征的解决方案是我最近在研究的项目。我把木马内存中的特征分为两类，代码段中的特征与数据段中的特征。对于代码段中的特征，可以使用一些保护商业软件防止被破解的思路，加一些代码混淆、膨胀甚至vm壳，改变了代码段的内容后特征自然就消失了。但是很不幸，大部分的特征实际上都是针对木马的数据段来提取的，因此需要想办法来保护数据段。 除此之外，为了更好的应对特征查杀，木马应具有变异的能力。 anti analysis 主要是就是反沙盒和反人工分析 反沙盒比较重要，我认为基本决定了马能活多长时间，而反人工往往只是为了给分析增加难度（当马已经进入人工分析的阶段那说明这马已经被发现有问题了）。沙盒大概可以分为两种，模拟执行pe的沙盒和完全拟真的虚拟机。前者比如火绒，当用户运行程序前它会将目标程序在它自己的沙盒里跑一遍，没有问题再放行，这种的绕过比较简单，而对于完全拟真的环境就需要去判断。 我们不能单纯的通过判断当前程序是否运行在虚拟环境中来决定是否执行恶意代码，这会造成使用云桌面、或者是一些使用虚拟化服务器的目标没法上线。比较可行的做法是尽可能小心的收集目标系统上的信息（小心是因为获取部分信息的时候会被沙箱标记上虚拟机检测行为），然后对这些信息进行打分，或者由人工来判断是否继续执行恶意代码。 为了防止这种完全拟真的环境，有时我们还可以使用基于白名单的做法，即目标中具有xx特征时才真正执行恶意代码，比如目标必须已安装xx软件，上线ip必须处于某个ip段，甚至绑定目标机器的木马，当然这些都需要与其他手段配合使用。 值得一提的还有很多沙盒与edr对程序的监控。因为内核回调对程序行为的把控有限，它们的监控多是使用r3层的hook，这也就意味着我们可以通过多种方式绕过这种监控，能够起到很好的效果。 反人工分析意义不是很大，方式也无外乎各种反调试。如果非要做的话，我认为应该把隐藏ioc作为反人工的目标，而不是尽可能的阻碍调试。 从木马到rootkit 虽然说木马的功能完全可以都在r3去做，但是我还是想进r0看看 关于语言选择 语言选择需要根据当前红队的开发能力来做，目前比较流行的有python、c#、c/c++，还有最近很火的nim。对于木马开发来讲，我比较倾向于c/c++。python与c#最大的问题是依赖，python打包后体积太大不利于传输或捆绑。c#得益于大部分系统都已经安装了.net，在体积上没有那么劣势，但是.net版本难以协调。有些lib不兼容.net2.0，而有些lib太老早已不维护。并且4.0比2.0多太多新的东西，要想写出兼容性好的代就要放弃这些特性，这又与“便捷”走远了。之前用过一段c#做木马开发，一个组件要维护两个版本，感觉很麻烦，因此我个人不是很喜欢用c#。nim这个语言很好，他实际上是一个代码转译器，将nim代码转为其他代码再通过编译器去编译，它是一个更好的c，因此不存在依赖问题，同时又兼顾了开发的便捷性。我不选择nim其实很大一部分原因是因为我并不熟悉它，不知道它会有怎样的坑，而我在c/c++的领域已经有了一些积累，有很多可以复用的代码让我的开发速度不亚于使用其他语言。另一部分原因是因为c++的模板，它可以做的事情太多了，暂时还没有看到nim里有更好的方式来替代它。c/c++的好处是我可以去干任何事，并且c/c++的代码库很丰富，不管什么功能都可以找到对应的实现。坏处是开发者必须要去干任何事，同时它太底层了，少了很多高级语言的特性，尽管模版可以弥补，但是这就带来了一定的门槛。 其他 两个月前写的文章，因为忙于其他事一直没有写完，这两天修修补补总算是差不多了。做这个方向感觉没什么人可以交流，大部分选手所谓的免杀都仅仅停留在使用不同的loader加载shellcode做个文件免杀，没啥意思。不过木马作为终端攻防的重点，一定会随着需求的增加有所发展，相信之后深入研究这些的人会越来越多。</summary></entry></feed>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>Windows的各种路径</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"></div><div class="container">
+	<h1>Windows的各种路径</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Dec 29, 2021
+	</div>
+	<ul class="post-tags"><li>windows</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>翻译整理自以下页面：</p>
+
+<p><a href="https://stackoverflow.com/questions/23041983/path-prefixes-and">windows - Path prefixes \??\ and \?\ - Stack Overflow</a>
+<a href="https://superuser.com/questions/810609/what-does-mean-in-c-windows-system32-conhost-exe">command line - What does \??\ mean in \??\C:\Windows\System32\conhost.exe? - Super User</a>
+<a href="https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths">File path formats on Windows systems | Microsoft Docs</a>
+<a href="https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces">Naming Files, Paths, and Namespaces - Win32 apps | Microsoft Docs</a></p>
+
+<h1 id="dos-path">DOS path</h1>
+
+<p>包含三部分：</p>
+
+<ul>
+  <li>盘符加冒号 (c:)</li>
+  <li>目录名</li>
+  <li>文件名</li>
+</ul>
+
+<p>如果这三部分都有，则为绝对路径；如果没有盘符部分但是以 <strong>\</strong> 开头，则从当前盘符的根目录开始；如果有盘符但后面没有 <strong>\</strong> ，则为指定盘符的相对路径，相对于在那个盘符的当前目录（每个盘符下都存在一个当前目录），否则是当前目录的相对路径。</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>C:\Documents\Newsletters\Summer2018.pdf 
+An absolute file path from the root of drive `C:`.
+
+\Program Files\Custom Utilities\StringFinder.exe
+An absolute path from the root of the current drive.
+
+2018\January.xlsx
+A relative path to a file in a subdirectory of the current directory.
+
+..\Publications\TravelBrochure.pdf
+A relative path to file in a directory that is a peer of the current directory.
+
+C:\Projects\apilibrary\apilibrary.sln
+An absolute path to a file from the root of drive `C:`.
+
+C:Projects\apilibrary\apilibrary.sln
+A relative path from the current directory of the `C:` drive.
+</code></pre></div></div>
+
+<p><a href="https://stackoverflow.com/questions/23041983/path-prefixes-and">windows - Path prefixes \??\ and \?\ - Stack Overflow</a></p>
+<ul>
+  <li>The first is that the runtime library supports per-drive working directories using conventionally ‘hidden’ environment variables such as “=C:”. For example, “C:System32” resolves to “C:\Windows\System32” if the “=C:” environment variable is set to “C:\Windows”.</li>
+</ul>
+
+<p>windows 使用环境变量类似 “=C:” 这种名字用于记录当前驱动器的当前目录，因此设置这个环境变量可以修改其他驱动器的当前路径，从而影响 <code class="language-plaintext highlighter-rouge">C:Projects\apilibrary\apilibrary.sln</code> 这种路径形式的解析位置</p>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	<span class="n">SetEnvironmentVariableA</span><span class="p">(</span><span class="s">"=C:"</span><span class="p">,</span> <span class="s">"C:</span><span class="se">\\</span><span class="s">Windows"</span><span class="p">);</span>
+	<span class="n">HANDLE</span> <span class="n">hFile</span> <span class="o">=</span> <span class="n">CreateFileA</span><span class="p">(</span><span class="s">R"(c:system32\notepad.exe)"</span><span class="p">,</span> <span class="n">GENERIC_READ</span><span class="p">,</span> <span class="n">FILE_SHARE_READ</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">OPEN_EXISTING</span><span class="p">,</span> <span class="n">FILE_ATTRIBUTE_NORMAL</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p><a href="https://stackoverflow.com/questions/23041983/path-prefixes-and">windows - Path prefixes \??\ and \?\ - Stack Overflow</a></p>
+<ul>
+  <li>Also, if the last component of the path is a reserved DOS device name, including if the name has trailing colons, spaces, dots, and even a file extension, the path gets translated to a device path (e.g. “C:\Windows\nul: .txt” -&gt; “\??\nul”). (DOS devices are also reserved in the final component of relative paths that have no drive.) Otherwise, the runtime library simply prepends “\??\” to the normalized path (e.g. “C:/Windows” -&gt; “\??\C:\Windows”).</li>
+</ul>
+
+<p>如果路径的最后一部分是一个保留的 DOS 设备名，包括如果设备名后尾随了冒号、空格和点甚至是文件扩展名，则直接转为该设备的路径 (e.g. “C:\Windows\nul: .txt” -&gt; “\??\nul”)。否则 windows 则直接在进行 normalized 后的 DOS path 前增加 <code class="language-plaintext highlighter-rouge">\??\</code>。</p>
+<h1 id="unc-path">UNC path</h1>
+
+<ul>
+  <li>以 <code class="language-plaintext highlighter-rouge">\\</code>开始，后面接 host name，host name 可以是服务器名 (NetBIOS 机器名) 或 ip 地址</li>
+  <li>share name，接在 host name 后面，host name 和 share name 共同构成一个 volum</li>
+  <li>目录名字</li>
+  <li>文件名字</li>
+</ul>
+
+<p><code class="language-plaintext highlighter-rouge">\\system07\C$\</code></p>
+
+<p>The root directory of the <code class="language-plaintext highlighter-rouge">C:</code> drive on <code class="language-plaintext highlighter-rouge">system07</code>.</p>
+
+<p><code class="language-plaintext highlighter-rouge">\\Server2\Share\Test\Foo.txt</code></p>
+
+<p>The <code class="language-plaintext highlighter-rouge">Foo.txt</code> file in the Test directory of the <code class="language-plaintext highlighter-rouge">\\Server2\Share</code> volume.</p>
+
+<h1 id="dos-device-paths">DOS device paths</h1>
+
+<p>形如
+<code class="language-plaintext highlighter-rouge">\\.\C:\Test\Foo.txt</code>   <code class="language-plaintext highlighter-rouge">\\?\C:\Test\Foo.txt</code>
+或通过卷 guid 指定盘符
+<code class="language-plaintext highlighter-rouge">\\.\Volume{b75e2c83-0000-0000-0000-602f00000000}\Test\Foo.txt</code> <code class="language-plaintext highlighter-rouge">\\?\Volume{b75e2c83-0000-0000-0000-602f00000000}\Test\Foo.txt</code></p>
+
+<p>DOS device path 包括：</p>
+
+<ul>
+  <li>dos device path 指定符号 <code class="language-plaintext highlighter-rouge">\\.\</code> 或 ` \?`</li>
+  <li>一个指向目标设备符号链接 <code class="language-plaintext highlighter-rouge">\\?\C:\</code>。同样可以使用 UNC 路径<code class="language-plaintext highlighter-rouge"> \\.\UNC\Server\Share\Test\Foo.txt </code> ` \?\UNC\Server\Share\Test\Foo.txt`。
+  没看懂的部分：
+    <blockquote>
+      <p>For device UNCs, the server/share portion forms the volume. For example, in <code class="language-plaintext highlighter-rouge">\\?\server1\e:\utilities\\filecomparer\</code>, the server/share portion is ` server1\utilities`. This is significant when calling a method such as <a href="https://docs.microsoft.com/en-us/dotnet/api/system.io.path.getfullpath#System_IO_Path_GetFullPath_System_String_System_String_">Path.GetFullPath(String, String)</a> with relative directory segments; it is never possible to navigate past the volume.</p>
+    </blockquote>
+  </li>
+</ul>
+
+<p><a href="https://stackoverflow.com/questions/23041983/path-prefixes-and">windows - Path prefixes \??\ and \?\ - Stack Overflow</a></p>
+<ul>
+  <li>The straight-forward case is a path that’s prefixed by either “\\.\” or “\\?\”. This is a local device path, not a UNC path. (Strictly speaking it’s in the form of a UNC path, but “.” and “?” are reserved device domains.) For this case, the prefix is simply replaced by NT “\??\”.</li>
+</ul>
+
+<p>dos device path 严格来说属于一种 UNC path 的形式，”?”为保留设备名。这两个前缀被简单替换为 <code class="language-plaintext highlighter-rouge">\??\</code></p>
+
+<p>有歧义的地方：</p>
+
+<p>DOS device path 不允许使用 <code class="language-plaintext highlighter-rouge">.</code> <code class="language-plaintext highlighter-rouge">..</code>
+<a href="https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths">File path formats on Windows systems | Microsoft Docs</a></p>
+<ul>
+  <li>DOS device paths are fully qualified by definition. Relative directory segments (<code class="language-plaintext highlighter-rouge">.</code> and <code class="language-plaintext highlighter-rouge">..</code>) are not allowed. Current directories never enter into their usage.</li>
+</ul>
+
+<p><a href="https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces">Naming Files, Paths, and Namespaces - Win32 apps | Microsoft Docs</a></p>
+<ul>
+  <li>For file I/O, the “\\?\” prefix to a path string tells the Windows APIs to disable all string parsing and to send the string that follows it straight to the file system. For example, if the file system supports large paths and file names, you can exceed the MAX_PATH limits that are otherwise enforced by the Windows APIs. For more information about the normal maximum path limitation, see the previous section <a href="#maximum-path-length-limitation">Maximum Path Length Limitation</a>.</li>
+  <li>Because it turns off automatic expansion of the path string, the “\?" prefix also allows the use of “..” and “.” in the path names, which can be useful if you are attempting to perform operations on a file with these otherwise reserved relative path specifiers as part of the fully qualified path.</li>
+</ul>
+
+<p>当使用 <code class="language-plaintext highlighter-rouge">\\?\</code>的时候，windows api 不会对传入的路径做任何 normalization 处理，而使用<code class="language-plaintext highlighter-rouge"> \\.\</code> 的时候会进行 normalization</p>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//失败</span>
+	<span class="n">HANDLE</span> <span class="n">hFile</span> <span class="o">=</span> <span class="n">CreateFileA</span><span class="p">(</span><span class="s">R"(\\?\D:\.\file.txt)"</span><span class="p">,</span> <span class="n">GENERIC_READ</span><span class="p">,</span> <span class="n">FILE_SHARE_READ</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">OPEN_EXISTING</span><span class="p">,</span> <span class="n">FILE_ATTRIBUTE_NORMAL</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+<span class="c1">//成功</span>
+	<span class="n">HANDLE</span> <span class="n">hFile</span> <span class="o">=</span> <span class="n">CreateFileA</span><span class="p">(</span><span class="s">R"(\\.\D:\.\file.txt)"</span><span class="p">,</span> <span class="n">GENERIC_READ</span><span class="p">,</span> <span class="n">FILE_SHARE_READ</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">OPEN_EXISTING</span><span class="p">,</span> <span class="n">FILE_ATTRIBUTE_NORMAL</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>关于 Device path normalization：</p>
+
+<p><a href="https://stackoverflow.com/questions/23041983/path-prefixes-and">windows - Path prefixes \??\ and \?\ - Stack Overflow</a></p>
+<ul>
+  <li>Device path normalization resolves “.” and “..” components, replaces forward slashes with backslashes, and strips trailing spaces and dots from the final path component. Because forward slashes are translated to backslashes, the prefix of a normalized device path can be “//./” or “//?/” or any combination of slashes and backslashes, except for exactly “\\?\”.</li>
+</ul>
+
+<p>normalization 会处理 “.” 和 “..”，并且将 “/” 替换为 “\“，并将尾随的 “.” 和空格删除。因为会将斜杠转为反斜杠，因此 “//./” 和 “//?/” 都是可行的，但是 “\\?\” 不行，因为这会禁止 normalization</p>
+
+<h1 id="-prefix">\??\ Prefix</h1>
+
+<p><code class="language-plaintext highlighter-rouge">\??\</code>指示对象管理器在调用者的 local device directory 搜索（也包括在 Global 中搜索），也就是<code class="language-plaintext highlighter-rouge"> \Sessions\0\DosDevices\[Logon Authentication ID] </code>。当调用者为 system 时，则在<code class="language-plaintext highlighter-rouge"> \Global?? </code>中搜索。每个 local device directory 下有一个 Global 符号链接链接到<code class="language-plaintext highlighter-rouge"> \Global??</code></p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//以下两种均可以成功</span>
+	<span class="n">HANDLE</span> <span class="n">hFile</span> <span class="o">=</span> <span class="n">CreateFileA</span><span class="p">(</span><span class="s">R"(\??\Global\D:\file.txt)"</span><span class="p">,</span> <span class="n">GENERIC_READ</span><span class="p">,</span> <span class="n">FILE_SHARE_READ</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">OPEN_EXISTING</span><span class="p">,</span> <span class="n">FILE_ATTRIBUTE_NORMAL</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+	<span class="n">HANDLE</span> <span class="n">hFile</span> <span class="o">=</span> <span class="n">CreateFileA</span><span class="p">(</span><span class="s">R"(\??\D:\file.txt)"</span><span class="p">,</span> <span class="n">GENERIC_READ</span><span class="p">,</span> <span class="n">FILE_SHARE_READ</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">OPEN_EXISTING</span><span class="p">,</span> <span class="n">FILE_ATTRIBUTE_NORMAL</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p><code class="language-plaintext highlighter-rouge">\DosDevice</code> 链接到 <code class="language-plaintext highlighter-rouge">\??</code></p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
