@@ -1,10 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-12-29T17:37:24+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2021-12-29T17:42:09+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
 </subtitle><entry><title type="html">Windows的各种路径</title><link href="https://citrusice.github.io/posts/windows-path/" rel="alternate" type="text/html" title="Windows的各种路径" /><published>2021-12-29T17:30:17+08:00</published><updated>2021-12-29T17:30:17+08:00</updated><id>https://citrusice.github.io/posts/windows-path</id><content type="html" xml:base="https://citrusice.github.io/posts/windows-path/">&lt;p&gt;翻译整理自以下页面：&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;
-&lt;a href=&quot;https://superuser.com/questions/810609/what-does-mean-in-c-windows-system32-conhost-exe&quot;&gt;command line - What does \??\ mean in \??\C:\Windows\System32\conhost.exe? - Super User&lt;/a&gt;
-&lt;a href=&quot;https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths&quot;&gt;File path formats on Windows systems | Microsoft Docs&lt;/a&gt;
-&lt;a href=&quot;https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces&quot;&gt;Naming Files, Paths, and Namespaces - Win32 apps | Microsoft Docs&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://superuser.com/questions/810609/what-does-mean-in-c-windows-system32-conhost-exe&quot;&gt;command line - What does \??\ mean in \??\C:\Windows\System32\conhost.exe? - Super User&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths&quot;&gt;File path formats on Windows systems&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces&quot;&gt;Naming Files, Paths, and Namespaces - Win32 apps&lt;/a&gt;&lt;/p&gt;
 
 &lt;h1 id=&quot;dos-path&quot;&gt;DOS path&lt;/h1&gt;
 
