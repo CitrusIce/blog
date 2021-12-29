@@ -8,9 +8,12 @@ categories: windows
 翻译整理自以下页面：
 
 [windows - Path prefixes \??\ and \\?\ - Stack Overflow](https://stackoverflow.com/questions/23041983/path-prefixes-and)
+
 [command line - What does \??\ mean in \??\C:\Windows\System32\conhost.exe? - Super User](https://superuser.com/questions/810609/what-does-mean-in-c-windows-system32-conhost-exe)
-[File path formats on Windows systems | Microsoft Docs](https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths)
-[Naming Files, Paths, and Namespaces - Win32 apps | Microsoft Docs](https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces)
+
+[File path formats on Windows systems](https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths)
+
+[Naming Files, Paths, and Namespaces - Win32 apps](https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces)
 
 # DOS path
 
