@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>壳</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"></div><div class="container">
+	<h1>壳</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Jan 12, 2022
+	</div>
+	<ul class="post-tags"><li>PEPacker</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>壳是一个老生常谈的话题，但在各种shellcode loader横行的今天，好像已经没有人提起壳了。但因为我最近正好写了壳，所以今天我就要提一提。</p>
+
+<p>壳的功能主要有三种</p>
+
+<ul>
+  <li>代码保护</li>
+  <li>压缩体积</li>
+  <li>免杀</li>
+</ul>
+
+<p>免杀其实更像是前两种功能的副产品，当原有代码加密/压缩后，其原始特征不见了，因此达到了一定的免杀效果。因此，shellcode loader横行之前，对程序加壳/壳上壳/简单自写壳是使用比较多的自动化免杀手法。直到shellcode这种东西越来越普及，以及杀软对壳的检测越来越严（自动脱壳引擎、甚至是检测到有壳就杀）。</p>
+
+<p>关于壳的一些基础的东西就不写了，主要写我为什么要写壳而不写shellcode loader（实际上也写过），以及壳在免杀这个方向上怎样才能做得更好。</p>
+
+<p>先看看我心中一个比较完善的shellcode loader实现是怎样的：</p>
+
+<ul>
+  <li>一份代码模版，里面包含各种功能（如unhook、direct system call、反沙箱等）</li>
+  <li>生成前将shellcode加密（加载exe或dll就先做一个pe2shellcode的操作），根据用户需要的功能配置模版</li>
+  <li>调用编译器进行编译——最好是有代码混淆的，保证每次生成不一样，比如可以用ollvm</li>
+</ul>
+
+<p>这样的实现可以保证每次编译出来都不存在固定特征，配合内置的功能可以达到一个比较好的免杀效果。</p>
+
+<p>但这样的实现有两点不够好</p>
+
+<ul>
+  <li>工具体积大</li>
+  <li>对最终生成的文件掌控不完全</li>
+</ul>
+
+<p>这两点问题都是因为所有shellcode loader最终都是依赖编译器去生成最终的pe文件，一旦编译器参与其中，就要带上整个编译环境，体积是很大的（尤其是像ollvm，我自己编译出来的一套有1g多）。体积大倒也不是啥大问题，谁电脑上还没个1g空间，就是不够优雅，当然做成云平台之类的也可以。</p>
+
+<p>在说另一个问题之前我要先嘲笑很多做免杀的，拿个其他语言比如python/go/nim之类的写个shellcode loader然后就开始吹牛逼了 。不是说不能用这些语言，主要是你不懂为啥要用这些语言，你只是随便换个新语言试试，写完发现“哟不杀了，牛逼”。</p>
+
+<p>上面说的这些语言生成的代码能免杀的主要原因就是他们都很大，自带runtime让他们编译/打包后的体积有1mb以上，这跟早些年看见有人写shellcode loader往里面插控制台贪吃蛇代码的原理是一样的，杂乱的信息干扰了引擎的判断，再加上反沙箱等功能以及加密原有的特征，让杀软看不到明确的特征，因此有了比较好的免杀效果。然而这些runtime的信息是固定不变的，随着杀软更新，这些信息会渐渐被杀软识别，这也是为什么这些语言慢慢又变得不免杀的原因。</p>
+
+<p>如果要在shellcode loader里加一些杂乱信息也很简单，比如生成一些垃圾代码，然后再加一些乱七八糟的字符串，再把优化一关就行了。但如果是这种需求：</p>
+
+<ul>
+  <li>在导入表中加入特定函数的表项（如加入<strong>CreateWindowExA</strong>函数的导入表表项来让杀软认为是个普通的带窗口的程序）</li>
+  <li>复制其他程序的资源信息，如manifest，ico等</li>
+</ul>
+
+<p>则上述shellcode loader的实现在代码层面上无能为力。</p>
+
+<p>传统壳的主要目的就是代码保护和压缩代码，壳的特征是非常明显的，并没有为免杀做考虑。而自写的简单壳尽管没有代码特征，但是程序加壳后的样子一下就能看出是加过壳的。因此慢慢的也就有“壳没有用，杀软见壳就杀”的观点。</p>
+
+<p>一个免杀壳应该有哪些设计：</p>
+
+<ul>
+  <li>壳代码可变异，保证每次加壳后的程序的壳代码都不同</li>
+  <li>无任何加壳特征</li>
+  <li>不提高熵值的加密/编码算法</li>
+  <li>完美的操纵pe的能力，用于模拟其他程序的信息或加入一些垃圾信息</li>
+</ul>
+
+<p>主要说一下第二个和第四个：</p>
+
+<p>常见的壳特征：</p>
+
+<ul>
+  <li>两个可执行区段</li>
+  <li>末尾多一个莫名其妙的区段</li>
+  <li>程序熵值高</li>
+  <li>缺各种表（exception、load_config甚至重定位表和导入表都没有）</li>
+  <li>程序入口点不指向第一个区段</li>
+  <li>程序可执行区段有可修改权限</li>
+</ul>
+
+<p>等。</p>
+
+<p>区段以及熵值的问题都容易解决，但是重建各种表则很难，这也是第四点要求的，加壳程序要可以完美操纵pe。</p>
+
+<p>举一个例子，load_config table中一项叫security cookie，这里面存放的是一个地址，指向代码段的4/8字节数据，这块数据初始必须为一个特定值，否则只要pe头中版本大于6则pe加载就会报错。详情看之前的文章：<a href="https://citrusice.github.io/posts/debugging-error-code-0xc000007b/">调试PE装载过程——0xC000007B</a></p>
+
+<p>由于要规避所有区段问题，需要把stub段代码放在.text段，这导致第一区段增大，之后所有区段的VirtualAddress都会改变。改变后这个load_config中的security cookie指向的位置就错了，因此就需要写代码去修复这一项。实际上类似security cookie这样需要修正的项特别多（你说自己是win7程序不要load_config，那总得要导入表吧，导入表那么多指向字符串的rva同样要修）。除了修各种表，往pe里加入各种信息（资源、图标等），同样需要开发者能随意操纵pe文件，同时保证pe可以被windows加载。要让壳有这种能力，不单单需要开发者对pe格式有深入的理解，还需要有良好的代码功底。</p>
+
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
