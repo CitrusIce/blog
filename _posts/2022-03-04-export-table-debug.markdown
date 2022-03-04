@@ -1,0 +1,111 @@
+---
+layout: post
+title: "PE导出表Debug"
+date: 2022-03-04 11:18:33 +0800
+categories: windows 逆向
+
+---
+
+最近实现了一个自动对任何 pe 重构导出表，添加任意导出函数的功能。使用后发现重构的 pe 的导出表无法找到新添加的函数，于是开始 debug。
+
+由于 dll 可以正常被加载，所以问题肯定是出在 getprocaddress 函数没有找到导出表新添加的函数。
+
+对 dll 中新添加的函数进行 getprocaddress
+
+trace 其执行流程
+
+```
+0:000> wt
+Tracing KERNEL32!GetProcAddressStub to return address 009f83f4
+    7     0 [  0] KERNEL32!GetProcAddressStub
+   13     0 [  1]   KERNELBASE!GetProcAddressForCaller
+   41     0 [  2]     ntdll!RtlInitString
+   32    41 [  1]   KERNELBASE!GetProcAddressForCaller
+   45     0 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   18     0 [  3]       ntdll!RtlAcquireSRWLockExclusive
+  122    18 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   10     0 [  3]       ntdll!LdrpFindLoadedDllByAddress
+   18     0 [  4]         ntdll!RtlAcquireSRWLockExclusive
+   53    18 [  3]       ntdll!LdrpFindLoadedDllByAddress
+   18     0 [  4]         ntdll!RtlReleaseSRWLockExclusive
+   62    36 [  3]       ntdll!LdrpFindLoadedDllByAddress
+  136   116 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   28     0 [  3]       ntdll!LdrpResolveProcedureAddress
+   13     0 [  4]         ntdll!LdrpInitializeDllPath
+   48     0 [  5]           ntdll!memset
+   24    48 [  4]         ntdll!LdrpInitializeDllPath
+   30    72 [  3]       ntdll!LdrpResolveProcedureAddress
+    7     0 [  4]         ntdll!LdrpShouldModuleImportBeRedirected
+   40    79 [  3]       ntdll!LdrpResolveProcedureAddress
+   16     0 [  4]         ntdll!LdrpGetProcedureAddress
+   11     0 [  5]           ntdll!RtlImageDirectoryEntryToData
+   20     0 [  6]             ntdll!RtlpImageDirectoryEntryToDataEx
+   69     0 [  7]               ntdll!RtlImageNtHeaderEx
+   48    69 [  6]             ntdll!RtlpImageDirectoryEntryToDataEx
+   16   117 [  5]           ntdll!RtlImageDirectoryEntryToData
+   34   133 [  4]         ntdll!LdrpGetProcedureAddress
+   55     0 [  5]           ntdll!LdrpNameToOrdinal
+   45   188 [  4]         ntdll!LdrpGetProcedureAddress
+   49   312 [  3]       ntdll!LdrpResolveProcedureAddress
+    6     0 [  4]         ntdll!LdrpReleaseDllPath
+   59   318 [  3]       ntdll!LdrpResolveProcedureAddress
+    3     0 [  4]         ntdll!__security_check_cookie
+   62   321 [  3]       ntdll!LdrpResolveProcedureAddress
+  141   499 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   12     0 [  3]       ntdll!LdrpDereferenceModule
+  149   511 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   18     0 [  3]       ntdll!LdrpDereferenceModule
+  162   529 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   19     0 [  3]       ntdll!LdrpReportError
+   27     0 [  4]         ntdll!RtlInitUnicodeString
+   29    27 [  3]       ntdll!LdrpReportError
+   41     0 [  4]         ntdll!RtlInitAnsiString
+   39    68 [  3]       ntdll!LdrpReportError
+  798     0 [  4]         ntdll!RtlAnsiStringToUnicodeString
+    5     0 [  5]           ntdll!RtlAnsiStringToUnicodeString
+  808     5 [  4]         ntdll!RtlAnsiStringToUnicodeString
+   73   881 [  3]       ntdll!LdrpReportError
+    3     0 [  4]         ntdll!__security_check_cookie
+   75   884 [  3]       ntdll!LdrpReportError
+  177  1488 [  2]     ntdll!LdrGetProcedureAddressForCaller
+    3     0 [  3]       ntdll!__security_check_cookie
+  180  1491 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   36  1712 [  1]   KERNELBASE!GetProcAddressForCaller
+    4     0 [  2]     KERNELBASE!BaseSetLastNTError
+  125     0 [  3]       ntdll!RtlNtStatusToDosError
+    7   125 [  2]     KERNELBASE!BaseSetLastNTError
+   24     0 [  3]       ntdll!RtlSetLastWin32Error
+    3     0 [  4]         ntdll!__security_check_cookie
+   27     3 [  3]       ntdll!RtlSetLastWin32Error
+   10   155 [  2]     KERNELBASE!BaseSetLastNTError
+   42  1877 [  1]   KERNELBASE!GetProcAddressForCaller
+    9  1919 [  0] KERNEL32!GetProcAddressStub
+```
+
+ 可以通过调用关系和函数名看出 ntdll!LdrpGetProcedureAddress 是真正去寻到导出函数的函数，ntdll!LdrpNameToOrdinal 则是根据传入 getprocaddress 的函数名查找导出序号的函数。
+
+ ```c
+    v7 = LdrpNameToOrdinal(
+           a2,
+           0xFFFFFFFF,
+           a1,
+           *((_DWORD *)v6 + 6),
+           (int)&a1[*((_DWORD *)v6 + 8)],
+           (int)&a1[*((_DWORD *)v6 + 9)]);
+    if ( v7 >= 0 )
+      goto LABEL_6;
+    return 0xC000007A;
+ ```
+
+结合 ida 中对 ntdll!LdrpGetProcedureAddress 的反编译可以看出 v7 返回值如果小于 0 则查找失败，那么 LdrpNameToOrdinal 的返回值应该是获取到的函数的 ordinal 。
+
+而程序实际上调用 LdrpNameToOrdinal 返回了 0xFFFFFFFF，因此调用失败。
+
+继续跟进 LdrpNameToOrdinal ，分析之后发现 windows 在查找导出表函数时使用了二分查找的方式，首先用目标函数比较导出表最中间的函数，通过比较每个字符的大小决定向上查询还是向下查询。而我的代码在添加新的导出函数时没有按照函数名对导出函数进行排序，只是加入到末尾，因此导致无法找到新添加的导出函数。
+
+
+
+PS：
+
+文章比较简短，但是debug的过程确实耗费我了一段时间。最近做了很多工程化的东西，深刻感受到一个demo与一个真正可以用的产品其实存在着巨大的差异，在拥有达成目的的技术之后，如何保证在不同环境快速、稳定地达成目的是一个更大的挑战。
+
