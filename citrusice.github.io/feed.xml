@@ -1,5 +1,102 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-02-12T14:03:27+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">逛mj博客摘录的两段话</title><link href="https://citrusice.github.io/posts/mj-blog-extract/" rel="alternate" type="text/html" title="逛mj博客摘录的两段话" /><published>2022-01-27T14:00:55+08:00</published><updated>2022-01-27T14:00:55+08:00</updated><id>https://citrusice.github.io/posts/mj-blog-extract</id><content type="html" xml:base="https://citrusice.github.io/posts/mj-blog-extract/">&lt;p&gt;昨天无心上班，于是在看雪上考古，看着看着就摸到的mj的blog，看到两段话深得我心，于是摘录下来，也不枉我摸这一下午的鱼了。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-03-04T11:27:05+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">PE导出表Debug</title><link href="https://citrusice.github.io/posts/export-table-debug/" rel="alternate" type="text/html" title="PE导出表Debug" /><published>2022-03-04T11:18:33+08:00</published><updated>2022-03-04T11:18:33+08:00</updated><id>https://citrusice.github.io/posts/export-table-debug</id><content type="html" xml:base="https://citrusice.github.io/posts/export-table-debug/">&lt;p&gt;最近实现了一个自动对任何 pe 重构导出表，添加任意导出函数的功能。使用后发现重构的 pe 的导出表无法找到新添加的函数，于是开始 debug。&lt;/p&gt;
+
+&lt;p&gt;由于 dll 可以正常被加载，所以问题肯定是出在 getprocaddress 函数没有找到导出表新添加的函数。&lt;/p&gt;
+
+&lt;p&gt;对 dll 中新添加的函数进行 getprocaddress&lt;/p&gt;
+
+&lt;p&gt;trace 其执行流程&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0:000&amp;gt; wt
+Tracing KERNEL32!GetProcAddressStub to return address 009f83f4
+    7     0 [  0] KERNEL32!GetProcAddressStub
+   13     0 [  1]   KERNELBASE!GetProcAddressForCaller
+   41     0 [  2]     ntdll!RtlInitString
+   32    41 [  1]   KERNELBASE!GetProcAddressForCaller
+   45     0 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   18     0 [  3]       ntdll!RtlAcquireSRWLockExclusive
+  122    18 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   10     0 [  3]       ntdll!LdrpFindLoadedDllByAddress
+   18     0 [  4]         ntdll!RtlAcquireSRWLockExclusive
+   53    18 [  3]       ntdll!LdrpFindLoadedDllByAddress
+   18     0 [  4]         ntdll!RtlReleaseSRWLockExclusive
+   62    36 [  3]       ntdll!LdrpFindLoadedDllByAddress
+  136   116 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   28     0 [  3]       ntdll!LdrpResolveProcedureAddress
+   13     0 [  4]         ntdll!LdrpInitializeDllPath
+   48     0 [  5]           ntdll!memset
+   24    48 [  4]         ntdll!LdrpInitializeDllPath
+   30    72 [  3]       ntdll!LdrpResolveProcedureAddress
+    7     0 [  4]         ntdll!LdrpShouldModuleImportBeRedirected
+   40    79 [  3]       ntdll!LdrpResolveProcedureAddress
+   16     0 [  4]         ntdll!LdrpGetProcedureAddress
+   11     0 [  5]           ntdll!RtlImageDirectoryEntryToData
+   20     0 [  6]             ntdll!RtlpImageDirectoryEntryToDataEx
+   69     0 [  7]               ntdll!RtlImageNtHeaderEx
+   48    69 [  6]             ntdll!RtlpImageDirectoryEntryToDataEx
+   16   117 [  5]           ntdll!RtlImageDirectoryEntryToData
+   34   133 [  4]         ntdll!LdrpGetProcedureAddress
+   55     0 [  5]           ntdll!LdrpNameToOrdinal
+   45   188 [  4]         ntdll!LdrpGetProcedureAddress
+   49   312 [  3]       ntdll!LdrpResolveProcedureAddress
+    6     0 [  4]         ntdll!LdrpReleaseDllPath
+   59   318 [  3]       ntdll!LdrpResolveProcedureAddress
+    3     0 [  4]         ntdll!__security_check_cookie
+   62   321 [  3]       ntdll!LdrpResolveProcedureAddress
+  141   499 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   12     0 [  3]       ntdll!LdrpDereferenceModule
+  149   511 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   18     0 [  3]       ntdll!LdrpDereferenceModule
+  162   529 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   19     0 [  3]       ntdll!LdrpReportError
+   27     0 [  4]         ntdll!RtlInitUnicodeString
+   29    27 [  3]       ntdll!LdrpReportError
+   41     0 [  4]         ntdll!RtlInitAnsiString
+   39    68 [  3]       ntdll!LdrpReportError
+  798     0 [  4]         ntdll!RtlAnsiStringToUnicodeString
+    5     0 [  5]           ntdll!RtlAnsiStringToUnicodeString
+  808     5 [  4]         ntdll!RtlAnsiStringToUnicodeString
+   73   881 [  3]       ntdll!LdrpReportError
+    3     0 [  4]         ntdll!__security_check_cookie
+   75   884 [  3]       ntdll!LdrpReportError
+  177  1488 [  2]     ntdll!LdrGetProcedureAddressForCaller
+    3     0 [  3]       ntdll!__security_check_cookie
+  180  1491 [  2]     ntdll!LdrGetProcedureAddressForCaller
+   36  1712 [  1]   KERNELBASE!GetProcAddressForCaller
+    4     0 [  2]     KERNELBASE!BaseSetLastNTError
+  125     0 [  3]       ntdll!RtlNtStatusToDosError
+    7   125 [  2]     KERNELBASE!BaseSetLastNTError
+   24     0 [  3]       ntdll!RtlSetLastWin32Error
+    3     0 [  4]         ntdll!__security_check_cookie
+   27     3 [  3]       ntdll!RtlSetLastWin32Error
+   10   155 [  2]     KERNELBASE!BaseSetLastNTError
+   42  1877 [  1]   KERNELBASE!GetProcAddressForCaller
+    9  1919 [  0] KERNEL32!GetProcAddressStub
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;可以通过调用关系和函数名看出 ntdll!LdrpGetProcedureAddress 是真正去寻到导出函数的函数，ntdll!LdrpNameToOrdinal 则是根据传入 getprocaddress 的函数名查找导出序号的函数。&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;n&quot;&gt;v7&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LdrpNameToOrdinal&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+           &lt;span class=&quot;n&quot;&gt;a2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+           &lt;span class=&quot;mh&quot;&gt;0xFFFFFFFF&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+           &lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+           &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_DWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v6&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+           &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_DWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v6&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)],&lt;/span&gt;
+           &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_DWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v6&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;9&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)]);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v7&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LABEL_6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xC000007A&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;结合 ida 中对 ntdll!LdrpGetProcedureAddress 的反编译可以看出 v7 返回值如果小于 0 则查找失败，那么 LdrpNameToOrdinal 的返回值应该是获取到的函数的 ordinal 。&lt;/p&gt;
+
+&lt;p&gt;而程序实际上调用 LdrpNameToOrdinal 返回了 0xFFFFFFFF，因此调用失败。&lt;/p&gt;
+
+&lt;p&gt;继续跟进 LdrpNameToOrdinal ，分析之后发现 windows 在查找导出表函数时使用了二分查找的方式，首先用目标函数比较导出表最中间的函数，通过比较每个字符的大小决定向上查询还是向下查询。而我的代码在添加新的导出函数时没有按照函数名对导出函数进行排序，只是加入到末尾，因此导致无法找到新添加的导出函数。&lt;/p&gt;
+
+&lt;p&gt;PS：&lt;/p&gt;
+
+&lt;p&gt;文章比较简短，但是debug的过程确实耗费我了一段时间。最近做了很多工程化的东西，深刻感受到一个demo与一个真正可以用的产品其实存在着巨大的差异，在拥有达成目的的技术之后，如何保证在不同环境快速、稳定地达成目的是一个更大的挑战。&lt;/p&gt;</content><author><name></name></author><category term="windows" /><category term="逆向" /><summary type="html">最近实现了一个自动对任何 pe 重构导出表，添加任意导出函数的功能。使用后发现重构的 pe 的导出表无法找到新添加的函数，于是开始 debug。</summary></entry><entry><title type="html">逛mj博客摘录的两段话</title><link href="https://citrusice.github.io/posts/mj-blog-extract/" rel="alternate" type="text/html" title="逛mj博客摘录的两段话" /><published>2022-01-27T14:00:55+08:00</published><updated>2022-01-27T14:00:55+08:00</updated><id>https://citrusice.github.io/posts/mj-blog-extract</id><content type="html" xml:base="https://citrusice.github.io/posts/mj-blog-extract/">&lt;p&gt;昨天无心上班，于是在看雪上考古，看着看着就摸到的mj的blog，看到两段话深得我心，于是摘录下来，也不枉我摸这一下午的鱼了。&lt;/p&gt;
 
 &lt;hr /&gt;
 
@@ -1229,62 +1326,4 @@ KERNELBASE!CreateProcessW:
   &lt;/li&gt;
   &lt;li&gt;终于向内网前进了一点&lt;/li&gt;
   &lt;li&gt;还是那句话，想要更好的使用工具或者开发自己的工具就需要深入了解其内部的机制&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">psexec是后渗透的常用工具，拥有一个目标系统的账户后我们可以通过它在目标系统执行命令。但是它是如何工作的？这篇文章将记录我的研究过程。</summary></entry><entry><title type="html">COM学习</title><link href="https://citrusice.github.io/posts/studying-com/" rel="alternate" type="text/html" title="COM学习" /><published>2021-02-12T18:21:48+08:00</published><updated>2021-02-12T18:21:48+08:00</updated><id>https://citrusice.github.io/posts/studying-com</id><content type="html" xml:base="https://citrusice.github.io/posts/studying-com/">&lt;p&gt;com不是什么新的东西，主要是写一下学习路径&lt;/p&gt;
-
-&lt;h2 id=&quot;类&quot;&gt;类&lt;/h2&gt;
-
-&lt;p&gt;回答以下几个问题&lt;/p&gt;
-
-&lt;p&gt;类在内存中的样子？&lt;/p&gt;
-
-&lt;p&gt;类对象在内存中的样子？&lt;/p&gt;
-
-&lt;p&gt;多态底层怎么实现？为什么基类指针指向派生类对象就能实现多态？底层是怎么做的？&lt;/p&gt;
-
-&lt;p&gt;构造函数可以为虚函数吗？如果构造函数为虚函数，能够实现多态吗？为什么？&lt;/p&gt;
-
-&lt;p&gt;析构函数可以为虚函数吗？为什么？&lt;/p&gt;
-
-&lt;p&gt;如果派生类不重写虚函数， 基类指针指向派生类对象，调用的是谁的虚函数？&lt;/p&gt;
-
-&lt;h2 id=&quot;认识com组件&quot;&gt;认识COM组件&lt;/h2&gt;
-
-&lt;p&gt;com有in-proc与out-proc两种形态&lt;/p&gt;
-
-&lt;p&gt;使用c/c++编写inproc com组件&lt;/p&gt;
-
-&lt;p&gt;编写outproc组件&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;了解idl、alt&lt;/li&gt;
-  &lt;li&gt;使用alt实现out-proc com&lt;/li&gt;
-  &lt;li&gt;不使用alt实现out-proc com&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;localserver-com如何通信&quot;&gt;localserver com如何通信&lt;/h2&gt;
-
-&lt;p&gt;基于rpc&lt;/p&gt;
-
-&lt;p&gt;编写RPC helloworld&lt;/p&gt;
-
-&lt;h2 id=&quot;vbs如何获取到类函数地址&quot;&gt;vbs如何获取到类函数地址&lt;/h2&gt;
-
-&lt;p&gt;对于脚本语言来说，他无法获取到目标类函数在虚表中的位置，那么com组件通过什么样的方式来实现”语言无关”呢？&lt;/p&gt;
-
-&lt;p&gt;了解IDispatch&lt;/p&gt;
-
-&lt;p&gt;了解typelib&lt;/p&gt;
-
-&lt;h2 id=&quot;marshaling&quot;&gt;Marshaling&lt;/h2&gt;
-
-&lt;h2 id=&quot;dcom&quot;&gt;DCOM&lt;/h2&gt;
-
-&lt;p&gt;https://saravanesh.files.wordpress.com/2007/09/understanding-com.pdf&lt;/p&gt;
-
-&lt;h2 id=&quot;dll-surrogate&quot;&gt;dll surrogate&lt;/h2&gt;
-
-&lt;p&gt;https://docs.microsoft.com/en-us/windows/win32/com/registering-the-dll-server-for-surrogate-activation&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;ole、activex、winrt、.net，com是这些东西的基础，在了解了com之后再去学习这些微软的技术、框架会变得更加轻松&lt;/p&gt;</content><author><name></name></author><category term="develop" /><summary type="html">com不是什么新的东西，主要是写一下学习路径</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">psexec是后渗透的常用工具，拥有一个目标系统的账户后我们可以通过它在目标系统执行命令。但是它是如何工作的？这篇文章将记录我的研究过程。</summary></entry></feed>
