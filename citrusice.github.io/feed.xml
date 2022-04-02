@@ -1,5 +1,84 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-03-04T11:27:05+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">PE导出表Debug</title><link href="https://citrusice.github.io/posts/export-table-debug/" rel="alternate" type="text/html" title="PE导出表Debug" /><published>2022-03-04T11:18:33+08:00</published><updated>2022-03-04T11:18:33+08:00</updated><id>https://citrusice.github.io/posts/export-table-debug</id><content type="html" xml:base="https://citrusice.github.io/posts/export-table-debug/">&lt;p&gt;最近实现了一个自动对任何 pe 重构导出表，添加任意导出函数的功能。使用后发现重构的 pe 的导出表无法找到新添加的函数，于是开始 debug。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-04-02T20:37:14+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">UAC Bypass与COM劫持</title><link href="https://citrusice.github.io/posts/uac-bypass-and-com-hijack/" rel="alternate" type="text/html" title="UAC Bypass与COM劫持" /><published>2022-04-02T20:29:18+08:00</published><updated>2022-04-02T20:29:18+08:00</updated><id>https://citrusice.github.io/posts/uac-bypass-and-com-hijack</id><content type="html" xml:base="https://citrusice.github.io/posts/uac-bypass-and-com-hijack/">&lt;p&gt;事情的起因源于朋友问我关于 com 劫持能否用于过 uac，在我的认知里，无论是注册 com、修改 com 相关注册表都需要管理员权限，因为那些项一般都是在 HKLM 中的，因此 com 劫持肯定无法用于过 UAC。然而第二天他就丢来了一个文章 &lt;a href=&quot;http://payloads.online/archivers/2018-10-14/1/&quot;&gt;COM Hijacking « 倾旋的博客&lt;/a&gt;，文章的最后写了利用 eventvwr.exe 进行 com 劫持的利用。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/Pasted%20image%2020220331205325.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;首先这打破了我认知上的误区，注册 com 其实并不一定需要管理员，将 com 组件注册到 HKLM 下面确实是需要管理员权限的，但是我们还可以将 com 组件注册在 HKCU 下面，这样这个 com 组件只有当前用户可以使用。&lt;/p&gt;
+
+&lt;p&gt;这个过 uac 的原理似乎很简单，浏览相关文章后，大概了解了原因&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;在 windows 注册表中， HKCR 只是 HKLM\Software\Classes 与 HKCU\Software\Classes 的组合。在 HKCU 中写的键值会被合并到 HKCR 中。程序在读取 HKCR 中的内容时会先读取 HKCU 中的项，如果没有再读取 HKLM 中的项。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;所以可以往 HKCU 中添加 eventvwr 用到的一个 com 组件的项，eventvwr 在加载 com 访问 HKCR 的过程中，会先查找 HKCU 中的项，然后才是 HKLM 中的项，进而进行劫持。&lt;/p&gt;
+
+&lt;p&gt;但事实似乎又不是这样，如果对于任意 com 组件，都可以通过 hkcu 中写相应的项进行劫持，那样引起的安全问题是巨大的，在浏览文章的过程中，我也看到了微软早已对这种劫持思路有所防范：&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://docs.microsoft.com/en-us/previous-versions/bb756926(v=msdn.10)&quot;&gt;Application Compatibility: UAC: COM Per-User Configuration | Microsoft Docs&lt;/a&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Beginning with Windows Vista® and Windows Server® 2008, if the integrity level of a process is higher than Medium, the COM runtime ignores per-user COM configuration and accesses only per-machine COM configuration. This action reduces the surface area for elevation of privilege attacks, preventing a process with standard user privileges from configuring a COM object with arbitrary code and having this code called from an elevated process.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;大意是 elevated 的进程只会根据 HKLM 中的 com 配置去调用 com 对象而不会根据 HCKU 中的 com 配置去调用对象。&lt;/p&gt;
+
+&lt;p&gt;这与上面的 com 劫持案例有明显的冲突，于是我决定写个 com 组件注册到 HKCU 下，然后以管理权限运行一个 loader 尝试加载自己的 com 组件试验一下。&lt;/p&gt;
+
+&lt;p&gt;结论：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/Pasted%20image%2020220331213409.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;那么为什么 eventvwr 又可以进行 uac bypass 呢？&lt;/p&gt;
+
+&lt;p&gt;eventvwr 实际上会去直接调用 mmc 打开事件查看器，mmc 加载 com 时会去读取相应的注册表项，其调用栈如下：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/Pasted%20image%2020220402151116.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;ida 分析其读取注册表加载 com 组件的代码，其流程大致如下&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;_snwprintf_s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x400u&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xFFFFFFFFFFFFFFFFu&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;L&quot;CLSID&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;InprocServer32&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;v6&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RegOpenKeyExW&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;HKEY_CLASSES_ROOT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x20019u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;v7&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RegQueryValueExW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cbData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;v10&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadLibraryExW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;v11&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GetProcAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;DllGetClassObject&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; 
+&lt;span class=&quot;n&quot;&gt;v12&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__int64&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kr&quot;&gt;__fastcall&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__m128i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GUID&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v11&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IID_IClassFactory&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lpcbData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;正与我猜测的一致，clr 调用 com 模块并不是通过 CoCreateInstance 加载的，而是自己重新实现了 com 加载，导致了可以被 com 劫持。&lt;/p&gt;
+
+&lt;p&gt;那么在正常的 com 加载流程中为什么不能进行劫持呢？&lt;/p&gt;
+
+&lt;p&gt;用 procmon 观察普通的 com 加载流程，发现在 combase.dll 中，通过调用 CComRegCatalog :: GetClassInfoW 获取 com 信息，然后进行加载。使用 RegOpenKeyExW 打开相应注册表项时，并非直接使用 HKEY_CLASSES_ROOT 读取对应注册表项，而是从使用了对象中存储的一个注册表句柄。&lt;/p&gt;
+
+&lt;p&gt;伪代码&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;m_hkeyClassesRoot&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;RegOpenKeyExW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SubKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x20019&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hkey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;而这个句柄则是通过 OpenClassesRootKeyExW 获取的。&lt;/p&gt;
+
+&lt;p&gt;OpenClassesRootKeyExW 根据用户权限打开不同的注册表项作为 HKCR 供之后 com 加载使用&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bElevated&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;v6&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RegOpenKeyExW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;HKEY_LOCAL_MACHINE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;L&quot;Software&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;Classes&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x2000000u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;v15&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RegOpenUserClassesRoot&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TokenHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x2000000u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;至此所有疑问全部解决&lt;/p&gt;
+
+&lt;p&gt;ps:
+尽管这种 uac 绕过的方式已经有四五年之久，但是网上真正深入去分析这个绕过成因的文章却少之又少，谈到为什么可以绕过，仅仅简单提到了 HKCU 与 HKLM 键值读取的先后顺序，其底层的真正逻辑又有多少人关注呢？单纯学会绕过技术本身是没有意义的。最近拜读了一下四哥早年那篇《你尽力了吗？》的文章，我觉得里面很多话都说的相当有价值，也说出了我的心声，我摘录一小段作为本文的结尾，希望大家都能有所收获。&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;我一直都希望大家从这里学到的不是技术本身，而是学习方法和一种不再狂热的淡然。很多技术，明天就会过时，如果你掌握的是学习方法，那你还有下一个机会，如果你掌握的仅仅是这个技术本身，你就没有机会了。&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name></name></author><category term="reverse-engineering" /><category term="uac-bypass" /><category term="com-hijack" /><category term="windows" /><summary type="html">事情的起因源于朋友问我关于 com 劫持能否用于过 uac，在我的认知里，无论是注册 com、修改 com 相关注册表都需要管理员权限，因为那些项一般都是在 HKLM 中的，因此 com 劫持肯定无法用于过 UAC。然而第二天他就丢来了一个文章 COM Hijacking « 倾旋的博客，文章的最后写了利用 eventvwr.exe 进行 com 劫持的利用。</summary></entry><entry><title type="html">PE导出表Debug</title><link href="https://citrusice.github.io/posts/export-table-debug/" rel="alternate" type="text/html" title="PE导出表Debug" /><published>2022-03-04T11:18:33+08:00</published><updated>2022-03-04T11:18:33+08:00</updated><id>https://citrusice.github.io/posts/export-table-debug</id><content type="html" xml:base="https://citrusice.github.io/posts/export-table-debug/">&lt;p&gt;最近实现了一个自动对任何 pe 重构导出表，添加任意导出函数的功能。使用后发现重构的 pe 的导出表无法找到新添加的函数，于是开始 debug。&lt;/p&gt;
 
 &lt;p&gt;由于 dll 可以正常被加载，所以问题肯定是出在 getprocaddress 函数没有找到导出表新添加的函数。&lt;/p&gt;
 
@@ -1272,58 +1351,4 @@ KERNELBASE!CreateProcessW:
 
 &lt;p&gt;将令牌写回到appinfo的进程中去&lt;/p&gt;
 
-&lt;p&gt;文章写得有些简略，只是大致写了部分流程。断断续续逆了快两个月，终于看到了UAC的全貌，感觉十分舒畅。&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">网上的文章关于uac的具体细节太少，大部分都是如何绕过uac，但是如果不了解uac的机制又怎么能理解那些绕过的手法呢，于是便决定去逆向uac。</summary></entry><entry><title type="html">Psexec Internal</title><link href="https://citrusice.github.io/posts/psexec-internal/" rel="alternate" type="text/html" title="Psexec Internal" /><published>2021-02-24T12:17:31+08:00</published><updated>2021-02-24T12:17:31+08:00</updated><id>https://citrusice.github.io/posts/psexec-internal</id><content type="html" xml:base="https://citrusice.github.io/posts/psexec-internal/">&lt;p&gt;psexec是后渗透的常用工具，拥有一个目标系统的账户后我们可以通过它在目标系统执行命令。但是它是如何工作的？这篇文章将记录我的研究过程。&lt;/p&gt;
-
-&lt;h2 id=&quot;psexec的登录过程&quot;&gt;psexec的登录过程&lt;/h2&gt;
-
-&lt;p&gt;https://docs.microsoft.com/en-us/troubleshoot/windows-server/networking/inter-process-communication-share-null-session&lt;/p&gt;
-
-&lt;p&gt;使用函数WNetAddConnection2W通过ipc$共享登录到目标计算机&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224110927413.png&quot; alt=&quot;image-20210224110927413&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;psexec如何在目标系统上执行命令&quot;&gt;psexec如何在目标系统上执行命令&lt;/h2&gt;
-
-&lt;p&gt;psexec自身携带了psexesvc，在登录后会将psexesvc通过admin$共享将psexesvc拷贝过去&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111039427.png&quot; alt=&quot;image-20210224111039427&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;​	查看psexec的资源表，可以发现附带的psexecsvc程序&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111153742.png&quot; alt=&quot;image-20210224111153742&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;之后打开目标系统上的服务管理器，创建psexesvc的服务并启动。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111351331.png&quot; alt=&quot;image-20210224111351331&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;之后使用命名管道来与psexesvc进行通信，向psexesvc发送指令来执行命令&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111747076.png&quot; alt=&quot;image-20210224111747076&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;psexesvc以什么身份账户在目标系统上执行&quot;&gt;psexesvc以什么身份（账户）在目标系统上执行&lt;/h2&gt;
-
-&lt;p&gt;psexecsvc是以服务的身份启动的，因此如果执行命令，那就是以服务的身份执行。可实际上使用时我们知道，我们是以通过命令行传入psexec的账户的身份执行的&lt;/p&gt;
-
-&lt;p&gt;这是如何做到的？&lt;/p&gt;
-
-&lt;p&gt;在发送指令的包中，psexec会同时将用户传入的凭据发送给psexesvc&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224112856530.png&quot; alt=&quot;image-20210224112856530&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;psexecsvc使用LogonUserExExW进行登录，获取一个目标账户的token&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224113040740.png&quot; alt=&quot;image-20210224113040740&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;接着使用CreateProcessAsUser，通过已获取的token来以目标账户的身份登录&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224113336005.png&quot; alt=&quot;image-20210224113336005&quot; /&gt;&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;在学习的时候发现了一个开源版本的psexec https://github.com/poweradminllc/PAExec&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;终于向内网前进了一点&lt;/li&gt;
-  &lt;li&gt;还是那句话，想要更好的使用工具或者开发自己的工具就需要深入了解其内部的机制&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">psexec是后渗透的常用工具，拥有一个目标系统的账户后我们可以通过它在目标系统执行命令。但是它是如何工作的？这篇文章将记录我的研究过程。</summary></entry></feed>
+&lt;p&gt;文章写得有些简略，只是大致写了部分流程。断断续续逆了快两个月，终于看到了UAC的全貌，感觉十分舒畅。&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">网上的文章关于uac的具体细节太少，大部分都是如何绕过uac，但是如果不了解uac的机制又怎么能理解那些绕过的手法呢，于是便决定去逆向uac。</summary></entry></feed>
