@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>Linux ELF权威指南</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"></div><div class="container">
+	<h1>Linux ELF权威指南</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Apr 9, 2022
+	</div>
+	<ul class="post-tags"><li>linux</li><li>elf</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>本文不是指南，也并不权威。起这个标题只是想模仿《Window PE 权威指南》这本在我 Windows 入门过程中起到十分重要作用的书。而现在我需要研究研究 linux 相关的技术，因此就起了对应的标题。另外，如果你想要入门 Windows 相关知识用于逆向、开发、武器化等方向，我同样推荐这本书。</p>
+
+<h1 id="文件头">文件头</h1>
+
+<p>同样是由 coff 格式发展而来的 elf 与 pe 一样，一切都是从文件头开始。</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">struct</span>
+<span class="p">{</span>
+  <span class="kt">unsigned</span> <span class="kt">char</span>	<span class="n">e_ident</span><span class="p">[</span><span class="n">EI_NIDENT</span><span class="p">];</span>	<span class="cm">/* Magic number and other info */</span>
+  <span class="n">Elf64_Half</span>	<span class="n">e_type</span><span class="p">;</span>			<span class="cm">/* Object file type */</span>
+  <span class="n">Elf64_Half</span>	<span class="n">e_machine</span><span class="p">;</span>		<span class="cm">/* Architecture */</span>
+  <span class="n">Elf64_Word</span>	<span class="n">e_version</span><span class="p">;</span>		<span class="cm">/* Object file version */</span>
+  <span class="n">Elf64_Addr</span>	<span class="n">e_entry</span><span class="p">;</span>		<span class="cm">/* Entry point virtual address */</span>
+  <span class="n">Elf64_Off</span>	<span class="n">e_phoff</span><span class="p">;</span>		<span class="cm">/* Program header table file offset */</span>
+  <span class="n">Elf64_Off</span>	<span class="n">e_shoff</span><span class="p">;</span>		<span class="cm">/* Section header table file offset */</span>
+  <span class="n">Elf64_Word</span>	<span class="n">e_flags</span><span class="p">;</span>		<span class="cm">/* Processor-specific flags */</span>
+  <span class="n">Elf64_Half</span>	<span class="n">e_ehsize</span><span class="p">;</span>		<span class="cm">/* ELF header size in bytes */</span>
+  <span class="n">Elf64_Half</span>	<span class="n">e_phentsize</span><span class="p">;</span>		<span class="cm">/* Program header table entry size */</span>
+  <span class="n">Elf64_Half</span>	<span class="n">e_phnum</span><span class="p">;</span>		<span class="cm">/* Program header table entry count */</span>
+  <span class="n">Elf64_Half</span>	<span class="n">e_shentsize</span><span class="p">;</span>		<span class="cm">/* Section header table entry size */</span>
+  <span class="n">Elf64_Half</span>	<span class="n">e_shnum</span><span class="p">;</span>		<span class="cm">/* Section header table entry count */</span>
+  <span class="n">Elf64_Half</span>	<span class="n">e_shstrndx</span><span class="p">;</span>		<span class="cm">/* Section header string table index */</span>
+<span class="p">}</span> <span class="n">Elf64_Ehdr</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>相比于 pe 的复杂文件头，elf 的文件头简单许多。比较重要的几个项：</p>
+<ul>
+  <li>e_entry 入口点地址</li>
+  <li>e_phoff program header FOA</li>
+  <li>e_shoff section header FOA</li>
+</ul>
+
+<p>program header 描述了文件装载到内存后的布局，每一个 entry 描述一个 segment 或其他信息用于文件的执行；section header 则描述了文件中各个 section 的信息，在 elf 装在过程中，文件中的 section 会被载入到内存中可执行文件的各个 segment 中。</p>
+
+<p>使用 readelf 可以看到 elf 中 section 与 segment 的对应关系</p>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>readelf <span class="nt">-l</span> a.out
+
+Elf file <span class="nb">type </span>is DYN <span class="o">(</span>Shared object file<span class="o">)</span>
+Entry point 0x1060
+There are 13 program headers, starting at offset 64
+
+Program Headers:
+  Type           Offset             VirtAddr           PhysAddr
+                 FileSiz            MemSiz              Flags  Align
+  PHDR           0x0000000000000040 0x0000000000000040 0x0000000000000040
+                 0x00000000000002d8 0x00000000000002d8  R      0x8
+  INTERP         0x0000000000000318 0x0000000000000318 0x0000000000000318
+                 0x000000000000001c 0x000000000000001c  R      0x1
+      <span class="o">[</span>Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+  LOAD           0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x00000000000005f8 0x00000000000005f8  R      0x1000
+  LOAD           0x0000000000001000 0x0000000000001000 0x0000000000001000
+                 0x00000000000001f5 0x00000000000001f5  R E    0x1000
+  LOAD           0x0000000000002000 0x0000000000002000 0x0000000000002000
+                 0x0000000000000160 0x0000000000000160  R      0x1000
+  LOAD           0x0000000000002db8 0x0000000000003db8 0x0000000000003db8
+                 0x0000000000000258 0x0000000000000260  RW     0x1000
+  DYNAMIC        0x0000000000002dc8 0x0000000000003dc8 0x0000000000003dc8
+                 0x00000000000001f0 0x00000000000001f0  RW     0x8
+  NOTE           0x0000000000000338 0x0000000000000338 0x0000000000000338
+                 0x0000000000000020 0x0000000000000020  R      0x8
+  NOTE           0x0000000000000358 0x0000000000000358 0x0000000000000358
+                 0x0000000000000044 0x0000000000000044  R      0x4
+  GNU_PROPERTY   0x0000000000000338 0x0000000000000338 0x0000000000000338
+                 0x0000000000000020 0x0000000000000020  R      0x8
+  GNU_EH_FRAME   0x0000000000002010 0x0000000000002010 0x0000000000002010
+                 0x0000000000000044 0x0000000000000044  R      0x4
+  GNU_STACK      0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x0000000000000000 0x0000000000000000  RW     0x10
+  GNU_RELRO      0x0000000000002db8 0x0000000000003db8 0x0000000000003db8
+                 0x0000000000000248 0x0000000000000248  R      0x1
+
+ Section to Segment mapping:
+  Segment Sections...
+   00
+   01     .interp
+   02     .interp .note.gnu.property .note.gnu.build-id .note.ABI-tag .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rela.dyn .rela.plt
+   03     .init .plt .plt.got .plt.sec .text .fini
+   04     .rodata .eh_frame_hdr .eh_frame
+   05     .init_array .fini_array .dynamic .got .data .bss
+   06     .dynamic
+   07     .note.gnu.property
+   08     .note.gnu.build-id .note.ABI-tag
+   09     .note.gnu.property
+   10     .eh_frame_hdr
+   11
+   12     .init_array .fini_array .dynamic .got
+</code></pre></div></div>
+
+<h1 id="导入表">导入表</h1>
+
+<p>elf 其实没有导入表，相对的，它直接使用符号的概念来替代导入函数。elf 中有两个符号表，分别为.dynsym section 和.symtab sectio，.dynsym 只包含动态链接所需要的符号，.symtab 则包含程序中的所有符号，.dynsym 为.symtab 的子集。在 elf 装载的过程中，.dynsym 需要被装载到内存中，而.symtab 则无需装载到内存。对于程序的运行来说，.symtab 是不必要的，因此可以使用 strip 来删去 elf 中的.symtab。你可以把.dynsym 理解为 pe 中的导入导出表，而 symtab 则是程序编译出来所产生的 pdb 文件。</p>
+
+<h2 id="导入与导出">导入与导出：</h2>
+
+<p>在符号表的每项中字段 st_shndx 表示了符号的类型，如果符号类型为 SHN_UNDEF (0) 则代表这个符号在当前文件中没有定义，是需要导入的符号。同时符号具有可见性级别，在 st_other 字段的低 3 位有对于符号可见性的定义，分别是：</p>
+<ul>
+  <li>STB_LOCAL 本地可见，只有当前文件可见的符号</li>
+  <li>STB_GLOBAL 全局可见，设置此项意味着这个符号是导出的</li>
+  <li>STB_WEAK 类似全局可见，但是具有低优先级</li>
+</ul>
+
+<h2 id="got-elf-中的-iat-表">.got: elf 中的 iat 表</h2>
+
+<p>装载器在获取到程序需要的函数地址后，将地址写入到 got 表中。got 表中的第一项为.dynamic section 的偏移，在有 plt 的情况下，第二项为 link_map ，第三项为_dl_runtime_resolver，之后则是各个符号的地址。</p>
+
+<h2 id="填充-got-表">填充 got 表：</h2>
+
+<p>值得注意的是，.dynsym 与 .got 并没有明确的对应关系，也就是说单单从这两张表无法得知 got 表中的某项是哪个符号的地址。而其对应关系存在 elf 的.rela section，是重定位相关的 section 。因此符号的地址的填充就被放在了重定位相关的过程中，这个放到下一段说。</p>
+
+<h1 id="重定位">重定位</h1>
+
+<p>在说重定位之前首先要说 linux 的 pic 技术，而在说 pic 技术之前还要先说 x86 的指令架构以及 aslr。x86 指令中对于内存数据的读写往往是通过绝对地址来寻址的。举一个例子</p>
+<pre><code class="language-asm">;833D BC69BB77 00
+cmp dword ptr ds:[0x77BB69BC], 0x0;
+</code></pre>
+<p>这条指令访问了内存 0x77BB69BC ，我们可以看到其地址是直接写在字节码中的。而在 x64 中，这个地址则会被转换为相对于下一条指令地址的偏移。如果使用绝对地址寻址，那就代表这个程序在内存中加载的位置必须是固定的，如果改变了位置，那么就会找不到相应的数据。而 aslr 机制则会让程序在不同的地址上加载，这就使程序无法正常运行。windows 的解决方案是重定位表，即在程序在内存装载后，通过程序中的重定位表对程序进行修补让程序可以正常运行。在 linux 中，不光有重定位表，还有 pic 技术。</p>
+
+<p>pic 由编译器实现，即通过生成地址无关代码来使程序可以在不同地址下运行。其中对数据的访问部分，编译器将需要绝对地址寻址的部分改为间接地址寻址。看一个例子</p>
+
+<pre><code class="language-asm">endbr32
+lea     ecx, [esp+4]
+and     esp, 0FFFFFFF0h
+push    dword ptr [ecx-4]
+push    ebp
+mov     ebp, esp
+push    ebx
+push    ecx
+call    __x86_get_pc_thunk_ax; 获取eip
+add     eax, (offset _GLOBAL_OFFSET_TABLE_ - $) ;获取到got表
+sub     esp, 0Ch
+lea     edx, (str - 3FD8h)[eax] ; "adfafds" got表地址+got表到str字符串地址的偏移
+push    edx             ; format
+mov     ebx, eax
+call    _printf
+add     esp, 10h
+mov     eax, 0
+lea     esp, [ebp-8]
+pop     ecx
+pop     ebx
+pop     ebp
+lea     esp, [ecx-4]
+retn
+</code></pre>
+
+<p>尽管有 pic，但是仍有需要修正的数据，如全局变量中的函数指针就需要在运行时进行修正，因此 elf 中仍然有重定位表。elf 中的 .rel.plt 、.rel.dyn 就是其重定位表。其中.rel.dyn 是对代码段访问的修正，.rel.plt 是对代码段函数调用的修正。</p>
+
+<p>重定位的过程中也包括了对导入符号的填充，因此每个重定位项中就包含了 got 表与.dynsym 中符号的对应关系。</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 重定位项结构体</span>
+<span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="n">Elf32_Addr</span>	<span class="n">r_offset</span><span class="p">;</span>
+	<span class="n">Elf32_Word</span>	<span class="n">r_info</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">Elf32_Rel</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="n">Elf32_Addr</span>	<span class="n">r_offset</span><span class="p">;</span>
+	<span class="n">Elf32_Word</span>	<span class="n">r_info</span><span class="p">;</span>
+	<span class="n">Elf32_Sword</span>	<span class="n">r_addend</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">Elf32_Rela</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="n">Elf64_Addr</span>	<span class="n">r_offset</span><span class="p">;</span>
+	<span class="n">Elf64_Xword</span>	<span class="n">r_info</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">Elf64_Rel</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+	<span class="n">Elf64_Addr</span>	<span class="n">r_offset</span><span class="p">;</span>
+	<span class="n">Elf64_Xword</span>	<span class="n">r_info</span><span class="p">;</span>
+	<span class="n">Elf64_Sxword</span>	<span class="n">r_addend</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">Elf64_Rela</span><span class="p">;</span>
+</code></pre></div></div>
+<p><a href="https://refspecs.linuxbase.org/elf/gabi4+/ch4.reloc.html">Relocation</a></p>
+<ul>
+  <li><code class="language-plaintext highlighter-rouge">r_info</code></li>
+  <li>This member gives both the symbol table index with respect to which the relocation must be made, and the type of relocation to apply. For example, a call instruction’s relocation entry would hold the symbol table index of the function being called. If the index is <code class="language-plaintext highlighter-rouge">STN_UNDEF</code>, the undefined symbol index, the relocation uses 0 as the ``symbol value’’. Relocation types are processor-specific; descriptions of their behavior appear in the processor supplement. When the text below refers to a relocation entry’s relocation type or symbol table index, it means the result of applying <code class="language-plaintext highlighter-rouge">ELF32_R_TYPE</code> (or <code class="language-plaintext highlighter-rouge">ELF64_R_TYPE</code>) or <code class="language-plaintext highlighter-rouge">ELF32_R_SYM</code> (or <code class="language-plaintext highlighter-rouge">ELF64_R_SYM</code>), respectively, to the entry’s <code class="language-plaintext highlighter-rouge">r_info</code> member.</li>
+</ul>
+
+<p>r_info 中给出了重定位目标的类型与重定位目标在符号表中的索引（如果有的话），与 r_offset 相结合形成了.dynsym 与 got 的对应关系。在重定位过程中，动态链接器根据符号索引找到程序所要导入的符号，再将符号地址写入到 got 表的相应位置（由 r_offset 计算得出）。</p>
+
+<hr />
+
+<p>一些参考资料：</p>
+
+<p><a href="https://blogs.oracle.com/solaris/post/inside-elf-symbol-tables">Inside ELF Symbol Tables</a></p>
+
+<p><a href="http://nicephil.blinkenshell.org/my_book/ch07s05.html">7.5. ELF在Linux下的动态链接实现</a></p>
+
+<p><a href="https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-79797.html#chapter6-tbl-21">Symbol Table Section - Linker and Libraries Guide</a></p>
+
+<p><a href="http://brandon-hy-lin.blogspot.com/2015/12/dynamic-section.html">隨意寫寫: 如何解讀 dynamic section</a></p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
