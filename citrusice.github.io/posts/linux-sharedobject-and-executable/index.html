@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>Linux SharedObject与Executable</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"></div><div class="container">
+	<h1>Linux SharedObject与Executable</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on May 11, 2022
+	</div>
+	<ul class="post-tags"><li>linux</li><li>elf</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>在 windows 中，exe 与 dll 只是一个标志位的差别。而在 linux 中则更为复杂，尽管 linux 中.so (sharedobject) 与 executable 文件同为 elf，但是实际上 executable 文件是无法直接被 dlopen。</p>
+
+<p>如果真的使用如下代码加载 pie 文件</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;dlfcn.h&gt;
+</span>
+<span class="kt">int</span> <span class="nf">main</span><span class="p">(</span><span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span><span class="o">**</span> <span class="n">argv</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">handle</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">func_print_name</span><span class="p">)(</span><span class="k">const</span> <span class="kt">char</span><span class="o">*</span><span class="p">);</span>
+
+
+    <span class="n">handle</span> <span class="o">=</span> <span class="n">dlopen</span><span class="p">(</span><span class="s">"./pie"</span><span class="p">,</span> <span class="n">RTLD_LAZY</span><span class="p">);</span>
+    <span class="k">if</span><span class="p">(</span><span class="o">!</span><span class="n">handle</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">printf</span><span class="p">(</span><span class="s">"%s</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span><span class="n">dlerror</span><span class="p">());</span>
+    <span class="p">}</span>
+    <span class="n">dlclose</span><span class="p">(</span><span class="n">handle</span><span class="p">);</span>
+
+    <span class="k">return</span> <span class="n">EXIT_SUCCESS</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>则会报出错误：./pie: cannot dynamically load position-independent executable</p>
+
+<p>于是就去看了下 glibc dlopen 的代码，发现是因为 glibc 在 dlopen 的代码里做了限制
+<a href="https://elixir.bootlin.com/glibc/glibc-2.30/source/elf/dl-load.c">dl-load.c - elf/dl-load.c - Glibc source code (glibc-2.30) - Bootlin</a></p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  <span class="k">if</span> <span class="p">((</span><span class="n">__glibc_unlikely</span> <span class="p">(</span><span class="n">l</span><span class="o">-&gt;</span><span class="n">l_flags_1</span> <span class="o">&amp;</span> <span class="n">DF_1_NOOPEN</span><span class="p">)</span>
+       <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">mode</span> <span class="o">&amp;</span> <span class="n">__RTLD_DLOPEN</span><span class="p">))</span>
+      <span class="o">||</span> <span class="p">(</span><span class="n">__glibc_unlikely</span> <span class="p">(</span><span class="n">l</span><span class="o">-&gt;</span><span class="n">l_flags_1</span> <span class="o">&amp;</span> <span class="n">DF_1_PIE</span><span class="p">)</span>
+	  <span class="o">&amp;&amp;</span> <span class="n">__glibc_unlikely</span> <span class="p">((</span><span class="n">mode</span> <span class="o">&amp;</span> <span class="n">__RTLD_OPENEXEC</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)))</span>
+    <span class="p">{</span>
+      <span class="cm">/* We are not supposed to load this object.  Free all resources.  */</span>
+      <span class="n">_dl_unmap_segments</span> <span class="p">(</span><span class="n">l</span><span class="p">);</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">l</span><span class="o">-&gt;</span><span class="n">l_libname</span><span class="o">-&gt;</span><span class="n">dont_free</span><span class="p">)</span>
+	<span class="n">free</span> <span class="p">(</span><span class="n">l</span><span class="o">-&gt;</span><span class="n">l_libname</span><span class="p">);</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="n">l</span><span class="o">-&gt;</span><span class="n">l_phdr_allocated</span><span class="p">)</span>
+	<span class="n">free</span> <span class="p">((</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span> <span class="n">l</span><span class="o">-&gt;</span><span class="n">l_phdr</span><span class="p">);</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="n">l</span><span class="o">-&gt;</span><span class="n">l_flags_1</span> <span class="o">&amp;</span> <span class="n">DF_1_PIE</span><span class="p">)</span>
+	<span class="n">errstring</span>
+	  <span class="o">=</span> <span class="n">N_</span><span class="p">(</span><span class="s">"cannot dynamically load position-independent executable"</span><span class="p">);</span>
+      <span class="k">else</span>
+	<span class="n">errstring</span> <span class="o">=</span> <span class="n">N_</span><span class="p">(</span><span class="s">"shared object cannot be dlopen()ed"</span><span class="p">);</span>
+      <span class="k">goto</span> <span class="n">call_lose</span><span class="p">;</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+<p>当 .dynamic section 的 FLAGS_1 tag 具有 DF_1_NOOPEN 或 DF_1_PIE 标志位时，则拒绝加载该 elf 文件。</p>
+
+<p>解决：
+处理这两个标志位，pie 文件就可以被 dlopen 加载</p>
+
+<hr />
+
+<p>反过来，如何让一个 sharedobject 可以直接执行？</p>
+
+<p>如果直接执行一个.so 文件，我们会看到 Segmentation fault (core dumped) 。观察.so 文件，首先会看到.so 文件是没有.interp 这个 section 的，因此程序执行的时候不会有动态链接器为程序做动态链接。再看入口点位置，发现指向 deregister_tm_clones 这个函数，这个函数很明显不是我们要的入口函数，因此导致程序无法执行。</p>
+
+<p>解决：
+首先在代码中加入.interp 这个区段，为程序加入要使用的动态链接器的名字。然后在编译时指定程序入口点，即可使程序正常运行。</p>
+
+<p>但光这样实际上是不完美的，熟悉 linux 程序运行流程的都知道，程序在执行 main 函数前还有 libc 的初始化流程，如果不进行这个流程，那么一些函数则无法使用。最开始我想在编译的时候将入口点相关的代码编译进.so 文件中，但是 gcc 在编译的时候报错：<code class="language-plaintext highlighter-rouge"> __init_array_start can not be used when making a shared object</code> ，看来在动态库中没法链接入口点相关的代码，因此只好自己手动定义入口点，动态调用__libc_start_main 为 libc 进行初始化。</p>
+
+<p>代码供参考：</p>
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">const</span> <span class="kt">char</span> <span class="n">interp_path</span><span class="p">[]</span> <span class="n">__attribute__</span><span class="p">((</span><span class="n">section</span><span class="p">(</span><span class="s">".interp"</span><span class="p">)))</span> <span class="o">=</span> <span class="s">"/lib64/ld-linux-x86-64.so.2"</span><span class="p">;</span>
+
+<span class="kt">int</span> <span class="nf">_start</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">a1</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">a2</span><span class="p">,</span> <span class="kt">void</span> <span class="p">(</span><span class="o">*</span><span class="n">a3</span><span class="p">)(</span><span class="kt">void</span><span class="p">))</span>
+<span class="p">{</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">stack</span><span class="p">;</span>
+    <span class="n">asm</span><span class="p">(</span><span class="s">" .intel_syntax noprefix</span><span class="se">\n</span><span class="s">\
+            and rsp,0x0fffffffffffffff0 </span><span class="se">\n</span><span class="s">\
+            mov  %0,rsp;</span><span class="se">\n</span><span class="s">\
+            .att_syntax prefix "</span>
+        <span class="o">:</span> <span class="s">"=r"</span><span class="p">(</span><span class="n">stack</span><span class="p">));</span>
+    <span class="n">pfn__libc_start_main</span> <span class="n">libc_start_main</span> <span class="o">=</span> <span class="n">dlsym</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">"__libc_start_main"</span><span class="p">);</span>
+    <span class="n">libc_start_main</span><span class="p">(</span><span class="n">main</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">stack</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
