@@ -1,5 +1,47 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-08-23T15:46:41+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">用机器学习给图片分类</title><link href="https://citrusice.github.io/posts/pic_classification/" rel="alternate" type="text/html" title="用机器学习给图片分类" /><published>2022-08-23T15:40:34+08:00</published><updated>2022-08-23T15:40:34+08:00</updated><id>https://citrusice.github.io/posts/pic_classification</id><content type="html" xml:base="https://citrusice.github.io/posts/pic_classification/">&lt;p&gt;我手机里的图片是一直有分类的，但是近一两年越来越懒，导致手机里未分类的图片堆积了很多，自己手动分类不太现实，所以尝试用机器学习给图片分一下类。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-08-25T16:55:13+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">记一次游戏挂机脚本的破解</title><link href="https://citrusice.github.io/posts/game-script-cracking/" rel="alternate" type="text/html" title="记一次游戏挂机脚本的破解" /><published>2022-08-25T16:48:43+08:00</published><updated>2022-08-25T16:48:43+08:00</updated><id>https://citrusice.github.io/posts/game-script-cracking</id><content type="html" xml:base="https://citrusice.github.io/posts/game-script-cracking/">&lt;p&gt;昨天晚上睡觉的时候想到能不能把最近一直在用的游戏挂机脚本破解一下，于是今天就开始干了。看了一下，程序是.net写的，顿时感觉轻松不少。拖进反编译器看了一下代码，发现有部分代码做了去符号+控制流平坦化，不过强度不是很高，破解是有戏了。&lt;/p&gt;
+
+&lt;p&gt;程序是通过卡号/卡密网络验证的，搜了一下字符串，定位到登录失败的部分。此时查看调用堆栈，往上翻，便可以定位到判断网络验证结果的部分。在附近搜寻了一下，发现这验证部分居然不是托管代码，而是native的，作者写了一个wrapper去调用native代码进行网络验证。找到这个dll，研究了一下，发现它既是一个.net assembly，又是一个native dll，不知道是什么东西生成的。&lt;/p&gt;
+
+&lt;p&gt;.net+native的组合调试起来有点恶心，所以不想摸索网络验证的部分了，决定找一下验证成功后都修改了哪些变量表示验证成功。又是一番摸索，在托管代码中找到了一个成员表示当前用户是否登录，patch该成员的get/set方法。测试一下，虽然显示登陆了，但是功能似乎无法正常使用，继续深入研究，发现在wrapper dll里有一个函数检查当前登录状态，在程序的一些功能位置会调这个函数检测登录情况，patch这个函数测试一下，发现确实可以绕过登录校验了。&lt;/p&gt;
+
+&lt;p&gt;然而并没有这么简单，使用一会功能之后，电脑上所有的进程都突然结束掉了，立马意识到这是程序有暗桩（这里感谢作者的不杀之恩，没有做格盘之类的操作，我没啥破解经验，是实体机上调的）。既然是所有程序都被结束了，那必然是有调了NtTerminateProcess（总不会inline syscall吧，哈哈，要是inline syscall那就只能trace指令了）。挂上调试器，在NtTerminateProcess函数下断点，等到断下来后，查看调用堆栈，发现上面有一个frame正是在之前看到的wrapper里。拖进ida再次分析，发现了暗桩的代码。代码非常明显，也没有做动态调用。长这样：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;.text:1001A1CD                 push    0               ; th32ProcessID
+.text:1001A1CF                 push    2               ; dwFlags
+.text:1001A1D1                 call    ds:CreateToolhelp32Snapshot
+.text:1001A1D7                 mov     esi, eax
+.text:1001A1D9                 mov     [esp+140h+pe.dwSize], 128h
+.text:1001A1E1                 lea     eax, [esp+140h+pe]
+.text:1001A1E5                 push    eax             ; lppe
+.text:1001A1E6                 push    esi             ; hSnapshot
+.text:1001A1E7                 call    ds:Process32First
+.text:1001A1ED                 test    eax, eax
+.text:1001A1EF                 jz      short loc_1001A225
+.text:1001A1F1                 mov     ebx, ds:OpenProcess
+.text:1001A1F7                 mov     edi, ds:Process32Next
+.text:1001A1FD                 nop     dword ptr [eax]
+.text:1001A200
+.text:1001A200 loc_1001A200:                           ; CODE XREF: sub_1001A130+F3↓j
+.text:1001A200                 push    [esp+140h+pe.th32ProcessID] ; dwProcessId
+.text:1001A204                 push    1               ; bInheritHandle
+.text:1001A206                 push    1FFFFFh         ; dwDesiredAccess
+.text:1001A20B                 call    ebx ; OpenProcess
+.text:1001A20D                 push    0               ; uExitCode
+.text:1001A20F                 push    eax             ; hProcess
+.text:1001A210                 call    ds:TerminateProcess
+.text:1001A216                 cmp     eax, 1
+.text:1001A219                 lea     eax, [esp+140h+pe]
+.text:1001A21D                 push    eax             ; lppe
+.text:1001A21E                 push    esi             ; hSnapshot
+.text:1001A21F                 call    edi ; Process32Next
+.text:1001A221                 test    eax, eax
+.text:1001A223                 jnz     short loc_1001A200
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;继续查找TerminateProcess的所有引用，一共发现了5个暗桩，一一patch后，程序就可以正常使用了。&lt;/p&gt;
+
+&lt;p&gt;我接触破解的时间其实比我接触安全还早一年，但那时缺乏操作系统相关的知识，而网上的很多破解教程也只是让你依葫芦画瓢的去单步跟或者找数据位置。当时虽然说看了一寒假破解教程，但是实际上一点都没有学明白，只是学会了怎么用od的快捷键。现在看来，没有操作系统相关的知识去看那些破解教程无异于天马行空，而在有了这些知识后，知道其背后的原理，破解自然是水到渠成的事了。&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">昨天晚上睡觉的时候想到能不能把最近一直在用的游戏挂机脚本破解一下，于是今天就开始干了。看了一下，程序是.net写的，顿时感觉轻松不少。拖进反编译器看了一下代码，发现有部分代码做了去符号+控制流平坦化，不过强度不是很高，破解是有戏了。</summary></entry><entry><title type="html">用机器学习给图片分类</title><link href="https://citrusice.github.io/posts/pic_classification/" rel="alternate" type="text/html" title="用机器学习给图片分类" /><published>2022-08-23T15:40:34+08:00</published><updated>2022-08-23T15:40:34+08:00</updated><id>https://citrusice.github.io/posts/pic_classification</id><content type="html" xml:base="https://citrusice.github.io/posts/pic_classification/">&lt;p&gt;我手机里的图片是一直有分类的，但是近一两年越来越懒，导致手机里未分类的图片堆积了很多，自己手动分类不太现实，所以尝试用机器学习给图片分一下类。&lt;/p&gt;
 
 &lt;p&gt;关于机器学习的知识我只是略懂一二，知道一些大概的原理。让我从零开始搞一个模型肯定是不现实的，所以准备套一套现成的。先看了一些相关项目的代码，大概了解到了怎么调TensorFlow的一些api，然后开搞。&lt;/p&gt;
 
@@ -715,329 +757,4 @@ A relative path from the current directory of the `C:` drive.
 	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(\??\D:\file.txt)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
-&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\DosDevice&lt;/code&gt; 链接到 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\??&lt;/code&gt;&lt;/p&gt;</content><author><name></name></author><category term="windows" /><summary type="html">翻译整理自以下页面：</summary></entry><entry><title type="html">Windows内核对象</title><link href="https://citrusice.github.io/posts/windows-kernel-object/" rel="alternate" type="text/html" title="Windows内核对象" /><published>2021-09-11T15:38:57+08:00</published><updated>2021-09-11T15:38:57+08:00</updated><id>https://citrusice.github.io/posts/windows-kernel-object</id><content type="html" xml:base="https://citrusice.github.io/posts/windows-kernel-object/">&lt;h2 id=&quot;windows-kernel-object的结构&quot;&gt;Windows Kernel Object的结构&lt;/h2&gt;
-
-&lt;p&gt;从_OBJECT_HEADER看起&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt nt!_OBJECT_HEADER
-   +0x000 PointerCount     : Int8B
-   +0x008 HandleCount      : Int8B
-   +0x008 NextToFree       : Ptr64 Void
-   +0x010 Lock             : _EX_PUSH_LOCK
-   +0x018 TypeIndex        : UChar
-   +0x019 TraceFlags       : UChar
-   +0x01a InfoMask         : UChar
-   +0x01b Flags            : UChar
-   +0x020 ObjectCreateInfo : Ptr64 _OBJECT_CREATE_INFORMATION
-   +0x020 QuotaBlockCharged : Ptr64 Void
-   +0x028 SecurityDescriptor : Ptr64 Void
-   +0x030 Body             : _QUAD
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;当我们查看一个windows object时，我们查看的是object的body字段。&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; !process 0 0 explorer.exe
-PROCESS fffffa801a8e1b30
-    SessionId: 1  Cid: 087c    Peb: 7fffffd7000  ParentCid: 0840
-    DirBase: 0aa8e000  ObjectTable: fffff8a001e39d30  HandleCount: 642.
-    Image: explorer.exe
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;如上，可以看到EPROCESS的位置在fffffa801a8e1b30，根据_OBJECT_HEADER的结构我们可以计算出其_OBJECT_HEADER的位置在fffffa801a8e1b30-30，即fffffa801a8e1b00上。可以使用!object来确认计算的结果是否正确&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt _OBJECT_HEADER fffffa801a8e1b00
-nt!_OBJECT_HEADER
-   +0x000 PointerCount     : 0n366
-   +0x008 HandleCount      : 0n7
-   +0x008 NextToFree       : 0x00000000`00000007 Void
-   +0x010 Lock             : _EX_PUSH_LOCK
-   +0x018 TypeIndex        : 0x7 ''
-   +0x019 TraceFlags       : 0 ''
-   +0x01a InfoMask         : 0x8 ''
-   +0x01b Flags            : 0 ''
-   +0x020 ObjectCreateInfo : 0xfffffa80`1a400100 _OBJECT_CREATE_INFORMATION
-   +0x020 QuotaBlockCharged : 0xfffffa80`1a400100 Void
-   +0x028 SecurityDescriptor : 0xfffff8a0`01dfd8db Void
-   +0x030 Body             : _QUAD
-kd&amp;gt; !object fffffa801a8e1b30
-Object: fffffa801a8e1b30  Type: (fffffa8018d42a80) Process
-    ObjectHeader: fffffa801a8e1b00 (new version)
-    HandleCount: 7  PointerCount: 366
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;然而_OBJECT_HEADER与Body并不是整个object的全部，实际上在object header前面还有optional headers与pool header，一个完全的windows object应该是这样的：&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;_POOL_HEADER&lt;/li&gt;
-  &lt;li&gt;_OBJECT_QUOTA_CHARGES (optional)&lt;/li&gt;
-  &lt;li&gt;_OBJECT_HANDLE_DB (optional)&lt;/li&gt;
-  &lt;li&gt;_OBJECT_NAME (optional)&lt;/li&gt;
-  &lt;li&gt;_OBJECT_CREATOR_INFO (optional)&lt;/li&gt;
-  &lt;li&gt;_OBJECT_HEADER&lt;/li&gt;
-  &lt;li&gt;body&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;_OBJECT_HEADER在_OBJECT_HEADER-&amp;gt;InfoMask中使用掩码的方式来表示哪些可选头存在&lt;/p&gt;
-
-&lt;table&gt;
-  &lt;thead&gt;
-    &lt;tr&gt;
-      &lt;th&gt;Bit&lt;/th&gt;
-      &lt;th&gt;Type&lt;/th&gt;
-    &lt;/tr&gt;
-  &lt;/thead&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;0x01&lt;/td&gt;
-      &lt;td&gt;nt!_OBJECT_HEADER_CREATOR_INFO&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;0x02&lt;/td&gt;
-      &lt;td&gt;nt!_OBJECT_HEADER_NAME_INFO&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;0x04&lt;/td&gt;
-      &lt;td&gt;nt!_OBJECT_HEADER_HANDLE_INFO&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;0x08&lt;/td&gt;
-      &lt;td&gt;nt!_OBJECT_HEADER_QUOTA_INFO&lt;/td&gt;
-    &lt;/tr&gt;
-    &lt;tr&gt;
-      &lt;td&gt;0x10&lt;/td&gt;
-      &lt;td&gt;nt!_OBJECT_HEADER_PROCESS_INFO&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;p&gt;内核中存在一个数组ObpInfoMaskToOffset，我们可以根据InfoMask我们可以计算出一个数值作为数组的索引，从而获取我们想要的optional header距离object header的偏移&lt;/p&gt;
-
-&lt;table&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;Offset = ObpInfoMaskToOffset[OBJECT_HEADER-&amp;gt;InfoMask &amp;amp; (DesiredHeaderBit&lt;/td&gt;
-      &lt;td&gt;(DesiredHeaderBit-1))]&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;table&gt;
-  &lt;tbody&gt;
-    &lt;tr&gt;
-      &lt;td&gt;在explorer.exe的例子中，其InfoMask值为8，因此他只有一个_OBJECT_HEADER_QUOTA_INFO的可选头，要计算出他的偏移则计算0x8 &amp;amp; (0x8&lt;/td&gt;
-      &lt;td&gt;0x8-1) = 0x8，根据计算出的索引值找到偏移&lt;/td&gt;
-    &lt;/tr&gt;
-  &lt;/tbody&gt;
-&lt;/table&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; ?nt!ObpInfoMaskToOffset
-Evaluate expression: -8796025365056 = fffff800`04085dc0
-kd&amp;gt; db fffff800`04085dc0+0x8 L1
-fffff800`04085dc8  20     
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;得到偏移为0x20，用object header的地址减去偏移即为我们想找的可选头的地址&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt nt!_OBJECT_HEADER_QUOTA_INFO fffffa8018d42a80-20
-   +0x000 PagedPoolCharge  : 0
-   +0x004 NonPagedPoolCharge : 0
-   +0x008 SecurityDescriptorCharge : 0x13030002
-   +0x010 SecurityDescriptorQuotaBlock : (null) 
-   +0x018 Reserved         : 0
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;_object_type&quot;&gt;_OBJECT_TYPE&lt;/h3&gt;
-
-&lt;p&gt;windows内核中有许多不同类型的对象，每个对象在object header包含了一个字段标注了其类型。在win7之前的windows版本中存在一个Type字段其包含了一个指针指向一个_OBJECT_TYPE结构体，在新版本中，这个字段变为了TypeIndex，其包含了一个全局数组nt!ObTypeIndexTable的索引，而这个数组中存着不同类型的结构体的指针。&lt;/p&gt;
-
-&lt;p&gt;在上述例子中，EPROCESS对象的TypeIndex为7，因此我们可以通过nt!ObTypeIndexTable[0x7]来获取指向其_OBJECT_TYPE的指针&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt nt!_OBJECT_TYPE poi(nt!ObTypeIndexTable + ( 7 * @$ptrsize ))
-   +0x000 TypeList         : _LIST_ENTRY [ 0xfffffa80`18d42a80 - 0xfffffa80`18d42a80 ]
-   +0x010 Name             : _UNICODE_STRING &quot;Process&quot;
-   +0x020 DefaultObject    : (null) 
-   +0x028 Index            : 0x7 ''
-   +0x02c TotalNumberOfObjects : 0x27
-   +0x030 TotalNumberOfHandles : 0xf0
-   +0x034 HighWaterNumberOfObjects : 0x27
-   +0x038 HighWaterNumberOfHandles : 0xf2
-   +0x040 TypeInfo         : _OBJECT_TYPE_INITIALIZER
-   +0x0b0 TypeLock         : _EX_PUSH_LOCK
-   +0x0b8 Key              : 0x636f7250
-   +0x0c0 CallbackList     : _LIST_ENTRY [ 0xfffffa80`18d42b40 - 0xfffffa80`18d42b40 ]
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;可以看到，该对象是一个Process类型对象。&lt;/p&gt;
-
-&lt;p&gt;在windbg中可以使用”!object \ObjectTypes”来获取所有对象类型。&lt;/p&gt;
-
-&lt;p&gt;在windows10中，处于安全考虑，TypeIndex字段被使用异或加密&lt;/p&gt;
-
-&lt;p&gt;http://www.powerofcommunity.net/poc2018/nikita.pdf&lt;/p&gt;
-
-&lt;h3 id=&quot;一切皆对象_object_type对象&quot;&gt;一切皆对象——_OBJECT_TYPE对象&lt;/h3&gt;
-
-&lt;p&gt;如果我们使用!object命令来查看一个_OBJECT_TYPE结构体，我们会发现每一个类型竟然也是作为对象存在的&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; !object poi(nt!ObTypeIndexTable + ( 7 * @$ptrsize ))
-Object: fffffa8018d42a80  Type: (fffffa8018d41c00) Type
-    ObjectHeader: fffffa8018d42a50 (new version)
-    HandleCount: 0  PointerCount: 2
-    Directory Object: fffff8a0000068f0  Name: Process
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;可以看到，process类型对象的类型为Type。继续查看其object header&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt _OBJECT_HEADER fffffa8018d42a50
-nt!_OBJECT_HEADER
-   +0x000 PointerCount     : 0n2
-   +0x008 HandleCount      : 0n0
-   +0x008 NextToFree       : (null) 
-   +0x010 Lock             : _EX_PUSH_LOCK
-   +0x018 TypeIndex        : 0x2 ''
-   +0x019 TraceFlags       : 0 ''
-   +0x01a InfoMask         : 0x3 ''
-   +0x01b Flags            : 0x13 ''
-   +0x020 ObjectCreateInfo : (null) 
-   +0x020 QuotaBlockCharged : (null) 
-   +0x028 SecurityDescriptor : (null) 
-   +0x030 Body             : _QUAD
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;可以看到其TypeIndex为2，说明Type类型同样也存在nt!ObTypeIndexTable中&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;kd&amp;gt; dt nt!_OBJECT_TYPE poi(nt!ObTypeIndexTable + ( 2 * @$ptrsize ))
-   +0x000 TypeList         : _LIST_ENTRY [ 0xfffffa80`18d41bb0 - 0xfffffa80`1b524d60 ]
-   +0x010 Name             : _UNICODE_STRING &quot;Type&quot;
-   +0x020 DefaultObject    : 0xfffff800`040839e0 Void
-   +0x028 Index            : 0x2 ''
-   +0x02c TotalNumberOfObjects : 0x2a
-   +0x030 TotalNumberOfHandles : 0
-   +0x034 HighWaterNumberOfObjects : 0x2a
-   +0x038 HighWaterNumberOfHandles : 0
-   +0x040 TypeInfo         : _OBJECT_TYPE_INITIALIZER
-   +0x0b0 TypeLock         : _EX_PUSH_LOCK
-   +0x0b8 Key              : 0x546a624f
-   +0x0c0 CallbackList     : _LIST_ENTRY [ 0xfffffa80`18d41cc0 - 0xfffffa80`18d41cc0 ]
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;回到ProcessType的object header上，其InfoMask值为3，说明它具有_OBJECT_HEADER_CREATOR_INFO与_OBJECT_HEADER_NAME_INFO两个可选头，其中_OBJECT_HEADER_CREATOR_INFO具有一个双向链表，通过这个链表我们可以遍历所有的Type&lt;/p&gt;
-
-&lt;h2 id=&quot;windows-kernel-object存在哪&quot;&gt;Windows Kernel Object存在哪&lt;/h2&gt;
-
-&lt;p&gt;所有的对象都由windows对象管理器（Object Manager）统一管理并以namespace进行分类，每个named kernel object有一个类似路径一样的名字，例如表示C盘驱动器的对象名为&lt;strong&gt;\DosDevices\C:&lt;/strong&gt;，其中\DosDevice就是该对象的namespace。&lt;/p&gt;
-
-&lt;h2 id=&quot;打印所有内核对象&quot;&gt;打印所有内核对象&lt;/h2&gt;
-
-&lt;p&gt;使用Nt函数NtOpenDirectoryObject/NtQueryDirectoryObject来遍历所有的Directory，进而遍历所有对象&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//https://github.com/adobe/chromium/blob/master/sandbox/tools/finder/finder_kernel.cc&lt;/span&gt;
-
-&lt;span class=&quot;cp&quot;&gt;#include &amp;lt;iostream&amp;gt;
-#include &amp;lt;Windows.h&amp;gt;
-#include &amp;lt;winternl.h&amp;gt;
-&lt;/span&gt;
-&lt;span class=&quot;cp&quot;&gt;#include &amp;lt;ntstatus.h&amp;gt;
-#define DIRECTORY_QUERY 1
-#define BUFFER_SIZE 0x800
-&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_OBJDIR_INFORMATION&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;UNICODE_STRING&lt;/span&gt;          &lt;span class=&quot;n&quot;&gt;ObjectName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;UNICODE_STRING&lt;/span&gt;          &lt;span class=&quot;n&quot;&gt;ObjectTypeName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;BYTE&lt;/span&gt;                    &lt;span class=&quot;n&quot;&gt;Data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OBJDIR_INFORMATION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POBJDIR_INFORMATION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;NTSTATUS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_NtOpenDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;_Out_&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PHANDLE&lt;/span&gt;            &lt;span class=&quot;n&quot;&gt;DirectoryHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;ACCESS_MASK&lt;/span&gt;        &lt;span class=&quot;n&quot;&gt;DesiredAccess&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;POBJECT_ATTRIBUTES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ObjectAttributes&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;NTSTATUS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_NtQueryDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;      &lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;DirectoryHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;_Out_opt_&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PVOID&lt;/span&gt;   &lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;      &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt;   &lt;span class=&quot;n&quot;&gt;Length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;      &lt;span class=&quot;n&quot;&gt;BOOLEAN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReturnSingleEntry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;_In_&lt;/span&gt;      &lt;span class=&quot;n&quot;&gt;BOOLEAN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RestartScan&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;_Inout_&lt;/span&gt;   &lt;span class=&quot;n&quot;&gt;PULONG&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;Context&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;_Out_opt_&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PULONG&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;ReturnLength&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;ULONG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_RtlNtStatusToDosError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;NTSTATUS&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;PrintNtStatus&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;NTSTATUS&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;LPSTR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errmsg&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FormatMessageA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FORMAT_MESSAGE_FROM_SYSTEM&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;FORMAT_MESSAGE_FROM_HMODULE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;FORMAT_MESSAGE_ALLOCATE_BUFFER&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;GetModuleHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;L&quot;ntdll.dll&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;code&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;MAKELANGID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LANG_NEUTRAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SUBLANG_DEFAULT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
-		&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LPSTR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;errmsg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;errmsg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;wmain&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;wchar_t&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;**&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;std&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wstring&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;L&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
-
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;HMODULE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hNtdll&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GetModuleHandleA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;ntdll.dll&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;PFN_NtQueryDirectoryObject&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pfnNtQueryDirectoryObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_NtQueryDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProcAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hNtdll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;NtQueryDirectoryObject&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;PFN_NtOpenDirectoryObject&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pfnNtOpenDirectoryObject&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_NtOpenDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProcAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hNtdll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;NtOpenDirectoryObject&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;PFN_RtlNtStatusToDosError&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pfnRtlNtStatusToDosError&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PFN_RtlNtStatusToDosError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GetProcAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hNtdll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;RtlNtStatusToDosError&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;UNICODE_STRING&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;unicode_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;unicode_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Length&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;USHORT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;unicode_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MaximumLength&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;USHORT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;unicode_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PWSTR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;c_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;OBJECT_ATTRIBUTES&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;path_attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;InitializeObjectAttributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path_attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-		&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unicode_str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-		&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;      &lt;span class=&quot;c1&quot;&gt;// No Attributes&lt;/span&gt;
-		&lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;c1&quot;&gt;// No Root Directory&lt;/span&gt;
-		&lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;// No Security Descriptor&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file_handle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;NTSTATUS&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pfnNtOpenDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file_handle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;DIRECTORY_QUERY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-		&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path_attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;STATUS_SUCCESS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;PrintNtStatus&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-		&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;returnLength&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;POBJDIR_INFORMATION&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;POBJDIR_INFORMATION&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;malloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;BUFFER_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pfnNtQueryDirectoryObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file_handle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BUFFER_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TRUE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FALSE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;returnLength&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)))&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;wprintf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;L&quot;%d	%s	%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ObjectName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;buffer&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ObjectTypeName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;STATUS_NO_MORE_ENTRIES&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;PrintNtStatus&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ret&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-		&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;一些参考资料：&lt;/p&gt;
-
-&lt;p&gt;https://codemachine.com/articles/object_headers.html&lt;/p&gt;
-
-&lt;p&gt;https://stackoverflow.com/questions/2643084/sysinternals-winobj-device-listing-mechanism&lt;/p&gt;
-
-&lt;p&gt;https://github.com/adobe/chromium/blob/master/sandbox/tools/finder/finder_kernel.cc&lt;/p&gt;
-
-&lt;p&gt;https://rayanfam.com/topics/reversing-windows-internals-part1/&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;内核路漫漫。。。&lt;/p&gt;</content><author><name></name></author><category term="kernel" /><category term="windows" /><summary type="html">Windows Kernel Object的结构</summary></entry></feed>
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\DosDevice&lt;/code&gt; 链接到 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\??&lt;/code&gt;&lt;/p&gt;</content><author><name></name></author><category term="windows" /><summary type="html">翻译整理自以下页面：</summary></entry></feed>
