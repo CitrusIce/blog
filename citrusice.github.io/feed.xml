@@ -1,5 +1,59 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-08-25T16:55:13+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">记一次游戏挂机脚本的破解</title><link href="https://citrusice.github.io/posts/game-script-cracking/" rel="alternate" type="text/html" title="记一次游戏挂机脚本的破解" /><published>2022-08-25T16:48:43+08:00</published><updated>2022-08-25T16:48:43+08:00</updated><id>https://citrusice.github.io/posts/game-script-cracking</id><content type="html" xml:base="https://citrusice.github.io/posts/game-script-cracking/">&lt;p&gt;昨天晚上睡觉的时候想到能不能把最近一直在用的游戏挂机脚本破解一下，于是今天就开始干了。看了一下，程序是.net写的，顿时感觉轻松不少。拖进反编译器看了一下代码，发现有部分代码做了去符号+控制流平坦化，不过强度不是很高，破解是有戏了。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-09-02T13:11:44+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">《Kernel Attacks through User-Mode Callbacks》的一些笔记</title><link href="https://citrusice.github.io/posts/note-of-kernel-attack-through-usermode-callbacks/" rel="alternate" type="text/html" title="《Kernel Attacks through User-Mode Callbacks》的一些笔记" /><published>2022-09-02T12:59:04+08:00</published><updated>2022-09-02T12:59:04+08:00</updated><id>https://citrusice.github.io/posts/note-of-kernel-attack-through-usermode-callbacks</id><content type="html" xml:base="https://citrusice.github.io/posts/note-of-kernel-attack-through-usermode-callbacks/">&lt;p&gt;读《Kernel Attacks through User-Mode Callbacks》这篇论文做的一些笔记，主要是摘录和翻译。&lt;/p&gt;
+
+&lt;p&gt;“win32k calls win32k!xxxInitProcessInfo to initialize the per-process W32PROCESS/PROCESSINFO2 structure” (Mandt, p. 4)&lt;/p&gt;
+
+&lt;p&gt;win32k!xxxInitProcessInfo 初始化W32PROCESS/PROCESSINFO&lt;/p&gt;
+
+&lt;p&gt;该结构包含进程gui相关信息，如桌面句柄、windows station句柄以及gdi句柄等。&lt;/p&gt;
+
+&lt;p&gt;“Additionally, win32k also initializes a per-thread W32THREAD/THREADINFO structure for all threads that are converted to GUI threads. This structure holds thread specific information related to the GUI subsystem such as information on the thread message queues, registered windows hooks, owner desktop, menu state, and so on. Here, W32pThreadCallout calls win32k!AllocateW32Thread to allocate the structure, followed by GdiThreadCallout and UserThreadCallout to initialize information peculiar to the GDI and USER subsystems respectively.” (Mandt, p. 4)&lt;/p&gt;
+
+&lt;p&gt;W32THREAD/THREADINFO包含线程gui信息，如线程消息队列，注册的窗口钩子，所属的desktop，菜单状态等。&lt;/p&gt;
+
+&lt;p&gt;“win32k!AllocateW32Thread” (Mandt, p. 4)&lt;/p&gt;
+
+&lt;p&gt;“USER32!_fnDWORD” (Mandt, p. 8) fnDWORD用于dispatch message&lt;/p&gt;
+
+&lt;p&gt;(Mandt, p. 11) 如果一个usermode callback在执行过程中修改了某些窗口属性，而在callback之后返回到内核中时内核没有做相应的检查，则可能会会导致一些安全问题&lt;/p&gt;
+
+&lt;p&gt;“Functions prefixed xxx will in most cases leave the critical section and invoke a user-mode callback.” (Mandt, p. 11)&lt;/p&gt;
+
+&lt;p&gt;“Functions prefixed zzz invoke asynchronous or deferred callbacks.” (Mandt, p. 11)&lt;/p&gt;
+
+&lt;h2 id=&quot;user-object-locking&quot;&gt;User Object Locking&lt;/h2&gt;
+
+&lt;p&gt;“Window Object Use-After-Free (CVE-2011-1237)” (Mandt, p. 13) 当程序设置了CBT HOOK的时候，可以接收打HCBT_CREATEWND 消息，这个消息中程序可以使用一个已存在的窗口句柄来设置新创建窗口z轴上的位置（操作系统使用hwndInsertAfter实现），在设置了这个z轴位置的属性后，操作系统将使用这个句柄将将要创建的窗口加入到z轴的链表里去。然而操作系统并没有在回调函数设置窗口位置后将用于设置窗口位置的窗口句柄锁定，因此在之后攻击者可以将该窗口句柄指向的窗口销毁，从而使操作系统操作一块被释放的内存，造成uaf。&lt;/p&gt;
+
+&lt;p&gt;“Keyboard Layout Object Use-After-Free (CVE-2011-1241)” (Mandt, p. 14) LoadKeyboardLayoutEx 函数需要传入一个键盘布局的句柄，而该函数在接收到句柄后没有锁定该句柄指向的对象，导致攻击者可以在callback中卸载该对象，从而触发uaf&lt;/p&gt;
+
+&lt;h2 id=&quot;object-state-validation&quot;&gt;Object State Validation&lt;/h2&gt;
+
+&lt;p&gt;“DDE Conversation State Vulnerabilities” (Mandt, p. 16) 双方使用dde通讯的时候，攻击者（其中一方）可以在用户回调中结束通讯，导致对方的通讯对象被释放，当对方再次使用通讯对象时，由于没有对其进行安全验证，继续使用该指针，导致安全问题。&lt;/p&gt;
+
+&lt;p&gt;“Menu State Handling Vulnerabilities” (Mandt, p. 17) 在处理多种菜单消息时，win32k在usercallback之后没有验证菜单的状态，导致安全问题&lt;/p&gt;
+
+&lt;h2 id=&quot;buffer-reallocation&quot;&gt;Buffer Reallocation&lt;/h2&gt;
+
+&lt;p&gt;许多对象都使用array来存放一些东西，array会随着元素的增加或减少而改变大小。重要的是任何可以在usercallback中被修改的array需要在调用结束后进行检查，否则将导致安全问题。&lt;/p&gt;
+
+&lt;p&gt;“Menu Item Array Use-After-Free” (Mandt, p. 19) 菜单对象定义了一个指向数组菜单item的指针，可以用使用InsertMenuItem或DeleteMenu函数操作该数组，同时有一个cItems变量来存储数组元素的个数。一些win32k中的函数没有在用户回调之后校验菜单数组，并且由于数组不存在锁的机制，所以任何一个用户回调函数都可以修改该数组。如果一块用户数组的内存在用户回调中被重新分配内存，而之后的代码没有进行校验，则会导致之后都的代码操作在一块被释放的内存上。“SetMenuInfo” (Mandt, p. 19) 允许应用为菜单设置属性。在设置MIM_APPLYTOSUBMENUS flag后，win32开会更新所有子菜单的属性。其内部实现为xxxSetMenuInfo 函数。xxxSetMenuInfo 在递归更新子菜单属性前首先将菜单items的数量以及指向该数组的指针存在栈中。一旦xxxSetMenuInfo 递归找到最底层的菜单，递归停止，并且这时有可能会在xxxMNUpdateShownMenu中调用用户回调，因此此时可以在用户回调中修改菜单item 数组的大小。并且，在xxxMNUpdateShownMenu返回后，上层函数(xxxSetMenuInfo )并没有校验菜单数组指针和菜单item数量的正确性。因此当攻击者在回调中修改了数组时，xxxSetMenuInfo将有可能操作一块空的内存。&lt;/p&gt;
+
+&lt;p&gt;“SetWindowPos Array Use-After-Free” (Mandt, p. 21) 大同小异，懒得写了&lt;/p&gt;
+
+&lt;p&gt;“Use-After-Free Exploitation” (Mandt, p. 24) 为了利用uaf漏洞，攻击者需要重新分配那块已经被释放的内存并且能在一定程度上控制该内存。对于desktop heap的uaf，可以使用SetWindowTextW去强制分配一个特定大小的堆内存；对于session pool的uaf，则可以使用SetClassLongPtr并且指定GCLP_MENUNAME来达到效果。win32k中一些对象会包含指向永久锁的指针，当被uaf影响的对象再次被释放后，win32k会将该对象中永久锁的的引用减一，这就实现了一个任意地址减一的操作。使用这个任意地址减一的操作，可以将窗口对象的类型(bType)设置为0，当该窗口对象销毁时，这回引起free type为0的销毁函数被调用，而该函数是未被定义的（指向该函数的函数指针为null），因此用户可以通过映射0页导致内核代码执行。&lt;/p&gt;
+
+&lt;p&gt;“Null Pointer Exploitation” (Mandt, p. 25) 通过调用NtAllocateVirtualMemory，用户可以在0页分配内存，进而导致攻击者可以在0页创建一个假的对象然后触发任意内存写或者控制函数指针指向的内容。&lt;/p&gt;
+
+&lt;h2 id=&quot;缓解措施&quot;&gt;缓解措施&lt;/h2&gt;
+
+&lt;p&gt;win32k中的uaf关键在于攻击者有能力在回调中释放对象并且在win32k重新使用该对象的时候重新分配内存。因此可以通过隔离某一些资源的分配（如字符串），使它们从不同的资源内配内存来减少内核pool以及heap的可预测性。&lt;/p&gt;
+
+&lt;p&gt;由于系统可以知道何时回调处于激活状态，因此可以使用延时释放内存。这将组织攻击者立刻重用被释放的内存空间。然而这种方式对于那些在uaf触发前有多个回调被调用的漏洞无效。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;文章和笔记都是六月份弄的，回首一下这两三个月，感觉确实在随机漫步，搞一些杂七杂八的东西。不过也无所谓，就相当于休息了。之前代码写得实在太投入，等到写完才感觉到好累。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">读《Kernel Attacks through User-Mode Callbacks》这篇论文做的一些笔记，主要是摘录和翻译。</summary></entry><entry><title type="html">记一次游戏挂机脚本的破解</title><link href="https://citrusice.github.io/posts/game-script-cracking/" rel="alternate" type="text/html" title="记一次游戏挂机脚本的破解" /><published>2022-08-25T16:48:43+08:00</published><updated>2022-08-25T16:48:43+08:00</updated><id>https://citrusice.github.io/posts/game-script-cracking</id><content type="html" xml:base="https://citrusice.github.io/posts/game-script-cracking/">&lt;p&gt;昨天晚上睡觉的时候想到能不能把最近一直在用的游戏挂机脚本破解一下，于是今天就开始干了。看了一下，程序是.net写的，顿时感觉轻松不少。拖进反编译器看了一下代码，发现有部分代码做了去符号+控制流平坦化，不过强度不是很高，破解是有戏了。&lt;/p&gt;
 
 &lt;p&gt;程序是通过卡号/卡密网络验证的，搜了一下字符串，定位到登录失败的部分。此时查看调用堆栈，往上翻，便可以定位到判断网络验证结果的部分。在附近搜寻了一下，发现这验证部分居然不是托管代码，而是native的，作者写了一个wrapper去调用native代码进行网络验证。找到这个dll，研究了一下，发现它既是一个.net assembly，又是一个native dll，不知道是什么东西生成的。&lt;/p&gt;
 
@@ -619,142 +673,4 @@ Tracing KERNEL32!GetProcAddressStub to return address 009f83f4
 
 &lt;p&gt;举一个例子，load_config table中一项叫security cookie，这里面存放的是一个地址，指向代码段的4/8字节数据，这块数据初始必须为一个特定值，否则只要pe头中版本大于6则pe加载就会报错。详情看之前的文章：&lt;a href=&quot;https://citrusice.github.io/posts/debugging-error-code-0xc000007b/&quot;&gt;调试PE装载过程——0xC000007B&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;由于要规避所有区段问题，需要把stub段代码放在.text段，这导致第一区段增大，之后所有区段的VirtualAddress都会改变。改变后这个load_config中的security cookie指向的位置就错了，因此就需要写代码去修复这一项。实际上类似security cookie这样需要修正的项特别多（你说自己是win7程序不要load_config，那总得要导入表吧，导入表那么多指向字符串的rva同样要修）。除了修各种表，往pe里加入各种信息（资源、图标等），同样需要开发者能随意操纵pe文件，同时保证pe可以被windows加载。要让壳有这种能力，不单单需要开发者对pe格式有深入的理解，还需要有良好的代码功底。&lt;/p&gt;</content><author><name></name></author><category term="PEPacker" /><summary type="html">壳是一个老生常谈的话题，但在各种shellcode loader横行的今天，好像已经没有人提起壳了。但因为我最近正好写了壳，所以今天我就要提一提。</summary></entry><entry><title type="html">Windows的各种路径</title><link href="https://citrusice.github.io/posts/windows-path/" rel="alternate" type="text/html" title="Windows的各种路径" /><published>2021-12-29T17:30:17+08:00</published><updated>2021-12-29T17:30:17+08:00</updated><id>https://citrusice.github.io/posts/windows-path</id><content type="html" xml:base="https://citrusice.github.io/posts/windows-path/">&lt;p&gt;翻译整理自以下页面：&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://superuser.com/questions/810609/what-does-mean-in-c-windows-system32-conhost-exe&quot;&gt;command line - What does \??\ mean in \??\C:\Windows\System32\conhost.exe? - Super User&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths&quot;&gt;File path formats on Windows systems&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces&quot;&gt;Naming Files, Paths, and Namespaces - Win32 apps&lt;/a&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;dos-path&quot;&gt;DOS path&lt;/h1&gt;
-
-&lt;p&gt;包含三部分：&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;盘符加冒号 (c:)&lt;/li&gt;
-  &lt;li&gt;目录名&lt;/li&gt;
-  &lt;li&gt;文件名&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;如果这三部分都有，则为绝对路径；如果没有盘符部分但是以 &lt;strong&gt;\&lt;/strong&gt; 开头，则从当前盘符的根目录开始；如果有盘符但后面没有 &lt;strong&gt;\&lt;/strong&gt; ，则为指定盘符的相对路径，相对于在那个盘符的当前目录（每个盘符下都存在一个当前目录），否则是当前目录的相对路径。&lt;/p&gt;
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;C:\Documents\Newsletters\Summer2018.pdf 
-An absolute file path from the root of drive `C:`.
-
-\Program Files\Custom Utilities\StringFinder.exe
-An absolute path from the root of the current drive.
-
-2018\January.xlsx
-A relative path to a file in a subdirectory of the current directory.
-
-..\Publications\TravelBrochure.pdf
-A relative path to file in a directory that is a peer of the current directory.
-
-C:\Projects\apilibrary\apilibrary.sln
-An absolute path to a file from the root of drive `C:`.
-
-C:Projects\apilibrary\apilibrary.sln
-A relative path from the current directory of the `C:` drive.
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;The first is that the runtime library supports per-drive working directories using conventionally ‘hidden’ environment variables such as “=C:”. For example, “C:System32” resolves to “C:\Windows\System32” if the “=C:” environment variable is set to “C:\Windows”.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;windows 使用环境变量类似 “=C:” 这种名字用于记录当前驱动器的当前目录，因此设置这个环境变量可以修改其他驱动器的当前路径，从而影响 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;C:Projects\apilibrary\apilibrary.sln&lt;/code&gt; 这种路径形式的解析位置&lt;/p&gt;
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	&lt;span class=&quot;n&quot;&gt;SetEnvironmentVariableA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;=C:&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;C:&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;Windows&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(c:system32\notepad.exe)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;Also, if the last component of the path is a reserved DOS device name, including if the name has trailing colons, spaces, dots, and even a file extension, the path gets translated to a device path (e.g. “C:\Windows\nul: .txt” -&amp;gt; “\??\nul”). (DOS devices are also reserved in the final component of relative paths that have no drive.) Otherwise, the runtime library simply prepends “\??\” to the normalized path (e.g. “C:/Windows” -&amp;gt; “\??\C:\Windows”).&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;如果路径的最后一部分是一个保留的 DOS 设备名，包括如果设备名后尾随了冒号、空格和点甚至是文件扩展名，则直接转为该设备的路径 (e.g. “C:\Windows\nul: .txt” -&amp;gt; “\??\nul”)。否则 windows 则直接在进行 normalized 后的 DOS path 前增加 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\??\&lt;/code&gt;。&lt;/p&gt;
-&lt;h1 id=&quot;unc-path&quot;&gt;UNC path&lt;/h1&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;以 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\&lt;/code&gt;开始，后面接 host name，host name 可以是服务器名 (NetBIOS 机器名) 或 ip 地址&lt;/li&gt;
-  &lt;li&gt;share name，接在 host name 后面，host name 和 share name 共同构成一个 volum&lt;/li&gt;
-  &lt;li&gt;目录名字&lt;/li&gt;
-  &lt;li&gt;文件名字&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\system07\C$\&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;The root directory of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;C:&lt;/code&gt; drive on &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;system07&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\Server2\Share\Test\Foo.txt&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;The &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Foo.txt&lt;/code&gt; file in the Test directory of the &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\Server2\Share&lt;/code&gt; volume.&lt;/p&gt;
-
-&lt;h1 id=&quot;dos-device-paths&quot;&gt;DOS device paths&lt;/h1&gt;
-
-&lt;p&gt;形如
-&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\.\C:\Test\Foo.txt&lt;/code&gt;   &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\?\C:\Test\Foo.txt&lt;/code&gt;
-或通过卷 guid 指定盘符
-&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\.\Volume{b75e2c83-0000-0000-0000-602f00000000}\Test\Foo.txt&lt;/code&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\?\Volume{b75e2c83-0000-0000-0000-602f00000000}\Test\Foo.txt&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;DOS device path 包括：&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;dos device path 指定符号 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\.\&lt;/code&gt; 或 ` \?`&lt;/li&gt;
-  &lt;li&gt;一个指向目标设备符号链接 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\?\C:\&lt;/code&gt;。同样可以使用 UNC 路径&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt; \\.\UNC\Server\Share\Test\Foo.txt &lt;/code&gt; ` \?\UNC\Server\Share\Test\Foo.txt`。
-  没看懂的部分：
-    &lt;blockquote&gt;
-      &lt;p&gt;For device UNCs, the server/share portion forms the volume. For example, in &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\?\server1\e:\utilities\\filecomparer\&lt;/code&gt;, the server/share portion is ` server1\utilities`. This is significant when calling a method such as &lt;a href=&quot;https://docs.microsoft.com/en-us/dotnet/api/system.io.path.getfullpath#System_IO_Path_GetFullPath_System_String_System_String_&quot;&gt;Path.GetFullPath(String, String)&lt;/a&gt; with relative directory segments; it is never possible to navigate past the volume.&lt;/p&gt;
-    &lt;/blockquote&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;The straight-forward case is a path that’s prefixed by either “\\.\” or “\\?\”. This is a local device path, not a UNC path. (Strictly speaking it’s in the form of a UNC path, but “.” and “?” are reserved device domains.) For this case, the prefix is simply replaced by NT “\??\”.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;dos device path 严格来说属于一种 UNC path 的形式，”?”为保留设备名。这两个前缀被简单替换为 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\??\&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;有歧义的地方：&lt;/p&gt;
-
-&lt;p&gt;DOS device path 不允许使用 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.&lt;/code&gt; &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;..&lt;/code&gt;
-&lt;a href=&quot;https://docs.microsoft.com/en-us/dotnet/standard/io/file-path-formats#dos-device-paths&quot;&gt;File path formats on Windows systems | Microsoft Docs&lt;/a&gt;&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;DOS device paths are fully qualified by definition. Relative directory segments (&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.&lt;/code&gt; and &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;..&lt;/code&gt;) are not allowed. Current directories never enter into their usage.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#win32-file-namespaces&quot;&gt;Naming Files, Paths, and Namespaces - Win32 apps | Microsoft Docs&lt;/a&gt;&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;For file I/O, the “\\?\” prefix to a path string tells the Windows APIs to disable all string parsing and to send the string that follows it straight to the file system. For example, if the file system supports large paths and file names, you can exceed the MAX_PATH limits that are otherwise enforced by the Windows APIs. For more information about the normal maximum path limitation, see the previous section &lt;a href=&quot;#maximum-path-length-limitation&quot;&gt;Maximum Path Length Limitation&lt;/a&gt;.&lt;/li&gt;
-  &lt;li&gt;Because it turns off automatic expansion of the path string, the “\?&quot; prefix also allows the use of “..” and “.” in the path names, which can be useful if you are attempting to perform operations on a file with these otherwise reserved relative path specifiers as part of the fully qualified path.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;当使用 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\\?\&lt;/code&gt;的时候，windows api 不会对传入的路径做任何 normalization 处理，而使用&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt; \\.\&lt;/code&gt; 的时候会进行 normalization&lt;/p&gt;
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//失败&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(\\?\D:\.\file.txt)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//成功&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(\\.\D:\.\file.txt)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;关于 Device path normalization：&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/23041983/path-prefixes-and&quot;&gt;windows - Path prefixes \??\ and \?\ - Stack Overflow&lt;/a&gt;&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;Device path normalization resolves “.” and “..” components, replaces forward slashes with backslashes, and strips trailing spaces and dots from the final path component. Because forward slashes are translated to backslashes, the prefix of a normalized device path can be “//./” or “//?/” or any combination of slashes and backslashes, except for exactly “\\?\”.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;normalization 会处理 “.” 和 “..”，并且将 “/” 替换为 “\“，并将尾随的 “.” 和空格删除。因为会将斜杠转为反斜杠，因此 “//./” 和 “//?/” 都是可行的，但是 “\\?\” 不行，因为这会禁止 normalization&lt;/p&gt;
-
-&lt;h1 id=&quot;-prefix&quot;&gt;\??\ Prefix&lt;/h1&gt;
-
-&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\??\&lt;/code&gt;指示对象管理器在调用者的 local device directory 搜索（也包括在 Global 中搜索），也就是&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt; \Sessions\0\DosDevices\[Logon Authentication ID] &lt;/code&gt;。当调用者为 system 时，则在&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt; \Global?? &lt;/code&gt;中搜索。每个 local device directory 下有一个 Global 符号链接链接到&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt; \Global??&lt;/code&gt;&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//以下两种均可以成功&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(\??\Global\D:\file.txt)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;hFile&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CreateFileA&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;R&quot;(\??\D:\file.txt)&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GENERIC_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_SHARE_READ&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OPEN_EXISTING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FILE_ATTRIBUTE_NORMAL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\DosDevice&lt;/code&gt; 链接到 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;\??&lt;/code&gt;&lt;/p&gt;</content><author><name></name></author><category term="windows" /><summary type="html">翻译整理自以下页面：</summary></entry></feed>
+&lt;p&gt;由于要规避所有区段问题，需要把stub段代码放在.text段，这导致第一区段增大，之后所有区段的VirtualAddress都会改变。改变后这个load_config中的security cookie指向的位置就错了，因此就需要写代码去修复这一项。实际上类似security cookie这样需要修正的项特别多（你说自己是win7程序不要load_config，那总得要导入表吧，导入表那么多指向字符串的rva同样要修）。除了修各种表，往pe里加入各种信息（资源、图标等），同样需要开发者能随意操纵pe文件，同时保证pe可以被windows加载。要让壳有这种能力，不单单需要开发者对pe格式有深入的理解，还需要有良好的代码功底。&lt;/p&gt;</content><author><name></name></author><category term="PEPacker" /><summary type="html">壳是一个老生常谈的话题，但在各种shellcode loader横行的今天，好像已经没有人提起壳了。但因为我最近正好写了壳，所以今天我就要提一提。</summary></entry></feed>
