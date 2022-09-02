@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-09-02T13:11:44+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-09-02T13:27:56+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
 </subtitle><entry><title type="html">《Kernel Attacks through User-Mode Callbacks》的一些笔记</title><link href="https://citrusice.github.io/posts/note-of-kernel-attack-through-usermode-callbacks/" rel="alternate" type="text/html" title="《Kernel Attacks through User-Mode Callbacks》的一些笔记" /><published>2022-09-02T12:59:04+08:00</published><updated>2022-09-02T12:59:04+08:00</updated><id>https://citrusice.github.io/posts/note-of-kernel-attack-through-usermode-callbacks</id><content type="html" xml:base="https://citrusice.github.io/posts/note-of-kernel-attack-through-usermode-callbacks/">&lt;p&gt;读《Kernel Attacks through User-Mode Callbacks》这篇论文做的一些笔记，主要是摘录和翻译。&lt;/p&gt;
 
 &lt;p&gt;“win32k calls win32k!xxxInitProcessInfo to initialize the per-process W32PROCESS/PROCESSINFO2 structure” (Mandt, p. 4)&lt;/p&gt;
@@ -99,7 +99,7 @@
 
 &lt;p&gt;关于机器学习的知识我只是略懂一二，知道一些大概的原理。让我从零开始搞一个模型肯定是不现实的，所以准备套一套现成的。先看了一些相关项目的代码，大概了解到了怎么调TensorFlow的一些api，然后开搞。&lt;/p&gt;
 
-&lt;p&gt;大部分时间其实都用在了准备数据，处理数据上。数据来源于我之前自己手动分类的图片，总共大概8k张左右。对于模型来说不存在“图片”的概念，而只有不同形状的矩阵，因此需要将图片以矩阵形式表示。对于一张图片来说，图上的每个点都是一个有颜色的像素，该像素的颜色可以用rgb三个值来表示，而该像素的位置则可以用x/y坐标来表示，这样就可以用一个三维矩阵 (x,y,3) 来表示一张图片了。送入模型的数据需要有统一的形状，也就意味着图片的大小同样也是固定的，需要把图片缩到统一尺寸。除此之外，还需要对矩阵做归一化处理，就是把矩阵中的每个值缩放到0-1这个范围内，至于为啥我目前还不太清楚，只知道跟激活函数有关。&lt;/p&gt;
+&lt;p&gt;大部分时间其实都用在了准备数据，处理数据上。数据来源于我之前自己手动分类的图片，总共大概8k张左右。对于模型来说不存在“图片”的概念，而只有不同形状的矩阵，因此需要将图片以矩阵形式表示。对于一张图片来说，图上的每个点都是一个有颜色的像素，该像素的颜色可以用rgb三个值来表示，而该像素的位置则可以用x/y坐标来表示，这样就可以用一个 (x,y,3)形状的矩阵来表示一张图片了。送入模型的数据需要有统一的形状，也就意味着图片的大小同样也是固定的，需要把图片缩到统一尺寸。除此之外，还需要对矩阵做归一化处理，就是把矩阵中的每个值缩放到0-1这个范围内，至于为啥我目前还不太清楚，只知道跟激活函数有关。&lt;/p&gt;
 
 &lt;p&gt;模型是随便找的一个模型，毕竟啥也不懂，随便找个能用的就完事了。给处理好的图片数据打上标签后，就开始训练模型。第一次当然不会顺风顺水，训练的过程中我就发现我这个模型虽然训练的正确率一直涨，但是测试数据的正确率没变化。研究了一下，发现是我的数据样本和参数有很大问题。我的图片分为a b c三类，a类有6k多张，而b c加起来只有1k多张，同时我没有正确设置训练时用的steps_per_epoch参数（应该设置为 数据集的大小/batch_size），只是抄了代码，导致每轮训练没有把数据过完，模型收到的数据大部分都是a类图，所以模型大概只是无脑把图片识别为a类图。几番修改后，用了2k张左右的图片作为训练数据集重新训练，得到了一个0.87的模型，尽管最终还是需要手工挑出一些模型分类错的，但是效果还算可以了，省了不少时间。&lt;/p&gt;
 
