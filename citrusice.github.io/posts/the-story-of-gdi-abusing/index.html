@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>The Story of GDI Abusing</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"></div><div class="container">
+	<h1>The Story of GDI Abusing</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Oct 19, 2022
+	</div>
+	<ul class="post-tags"><li>pwn</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>真正开始要写利用了才发现我对利用这块一无所知，要说 win32k 我还稍微具备点前置知识，什么窗口过程用户回调巴拉巴拉，但利用是一点没有接触过，所以还是先补补漏洞利用手法，这篇是关于利用 gdi 对象实现任意内存写原语的。</p>
+
+<h1 id="bitmap-abuse">Bitmap Abuse</h1>
+
+<p>在 peb 中有一个指向 GdiSharedHandleTable 的指针，这个表是 Win32k! gpentHmgr 的映射，他是个数组结构，存放一个进程可用的 gdi 对象。</p>
+
+<p>每个元素的结构长这样：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span> 
+  <span class="n">PVOID64</span> <span class="n">pKernelAddress</span><span class="p">;</span> <span class="c1">// 0x00 </span>
+  <span class="n">USHORT</span> <span class="n">wProcessId</span><span class="p">;</span> <span class="c1">// 0x08 </span>
+  <span class="n">USHORT</span> <span class="n">wCount</span><span class="p">;</span> <span class="c1">// 0x0a </span>
+  <span class="n">USHORT</span> <span class="n">wUpper</span><span class="p">;</span> <span class="c1">// 0x0c </span>
+  <span class="n">USHORT</span> <span class="n">wType</span><span class="p">;</span> <span class="c1">// 0x0e </span>
+  <span class="n">PVOID64</span> <span class="n">pUserAddress</span><span class="p">;</span> <span class="c1">// 0x10 </span>
+<span class="p">}</span> <span class="n">GDICELL64</span><span class="p">;</span> <span class="c1">// sizeof = 0x18</span>
+</code></pre></div></div>
+
+<p>pKernelAddress 是该句柄引用的对象在内核中的地址，因此当我们有一个 gdi 对象句柄时，我们就可以通过这个句柄找到该对象的地址。</p>
+
+<p>每个对象对象头长这样：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+<span class="err">  </span><span class="n">ULONG64</span> <span class="n">hHmgr</span><span class="p">;</span>
+<span class="err">  </span><span class="n">ULONG32</span> <span class="n">ulShareCount</span><span class="p">;</span>
+<span class="err">  </span><span class="n">WORD</span> <span class="n">cExclusiveLock</span><span class="p">;</span>
+<span class="err">  </span><span class="n">WORD</span> <span class="n">BaseFlags</span><span class="p">;</span>
+<span class="err">  </span><span class="n">ULONG64</span> <span class="n">Tid</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">BASEOBJECT64</span><span class="p">;</span> <span class="c1">// sizeof = 0x18</span>
+</code></pre></div></div>
+
+<p>对象头后面就跟的是真正的对象内容</p>
+
+<p>接下来让我们看一下 SetBitmapBits 里真正起作用的函数 bDoGetSetBitmapBits：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">BOOL</span> <span class="nf">bDoGetSetBitmapBits</span><span class="p">(</span><span class="n">SURFOBJ</span> <span class="o">*</span><span class="n">psoDst</span><span class="p">,</span> <span class="n">SURFOBJ</span> <span class="o">*</span><span class="n">psoSrc</span><span class="p">,</span> <span class="n">BOOL</span> <span class="n">bGetBits</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">//...</span>
+    <span class="c1">//set bitmap 部分</span>
+        <span class="n">PSURFACE</span> <span class="n">pSurfDst</span> <span class="o">=</span> <span class="n">SURFOBJ_TO_SURFACE</span><span class="p">(</span><span class="n">psoDst</span><span class="p">);</span>
+
+        <span class="p">{</span>
+            <span class="n">PDEVOBJ</span> <span class="n">po</span><span class="p">(</span><span class="n">psoDst</span><span class="o">-&gt;</span><span class="n">hdev</span><span class="p">);</span>
+            <span class="n">po</span><span class="p">.</span><span class="n">vSync</span><span class="p">(</span><span class="n">psoDst</span><span class="p">,</span><span class="nb">NULL</span><span class="p">,</span><span class="mi">0</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="c1">//</span>
+        <span class="c1">// Initialize temporaries.</span>
+        <span class="c1">//</span>
+
+        <span class="n">PBYTE</span> <span class="n">pjBuffer</span> <span class="o">=</span> <span class="p">(</span><span class="n">PBYTE</span><span class="p">)</span> <span class="n">psoSrc</span><span class="o">-&gt;</span><span class="n">pvBits</span><span class="p">;</span>
+        <span class="n">PBYTE</span> <span class="n">pjBitmap</span> <span class="o">=</span> <span class="p">(</span><span class="n">PBYTE</span><span class="p">)</span> <span class="n">psoDst</span><span class="o">-&gt;</span><span class="n">pvScan0</span><span class="p">;</span>
+        <span class="n">LONG</span> <span class="n">lDeltaBitmap</span> <span class="o">=</span> <span class="n">psoDst</span><span class="o">-&gt;</span><span class="n">lDelta</span><span class="p">;</span>
+        <span class="n">ULONG</span> <span class="n">cjScanBitmap</span> <span class="o">=</span> <span class="n">pSurfDst</span><span class="o">-&gt;</span><span class="n">cjScan</span><span class="p">();</span>
+
+        <span class="c1">//</span>
+        <span class="c1">// Get the WORD aligned width of the input scanlines.</span>
+        <span class="c1">//</span>
+
+        <span class="n">ULONG</span> <span class="n">cjScanInput</span> <span class="o">=</span> <span class="p">((((</span><span class="n">gaulConvert</span><span class="p">[</span><span class="n">psoDst</span><span class="o">-&gt;</span><span class="n">iBitmapFormat</span><span class="p">]</span> <span class="o">*</span> <span class="n">psoDst</span><span class="o">-&gt;</span><span class="n">sizlBitmap</span><span class="p">.</span><span class="n">cx</span><span class="p">)</span> <span class="o">+</span> <span class="mi">15</span><span class="p">)</span> <span class="o">&gt;&gt;</span> <span class="mi">4</span><span class="p">)</span> <span class="o">&lt;&lt;</span> <span class="mi">1</span><span class="p">);</span>
+        <span class="n">ULONG</span> <span class="n">cjMaxLength</span> <span class="o">=</span> <span class="n">cjScanInput</span> <span class="o">*</span> <span class="n">psoDst</span><span class="o">-&gt;</span><span class="n">sizlBitmap</span><span class="p">.</span><span class="n">cy</span><span class="p">;</span>
+        <span class="n">LONG</span> <span class="n">lInitOffset</span> <span class="o">=</span> <span class="n">psoSrc</span><span class="o">-&gt;</span><span class="n">lDelta</span><span class="p">;</span>
+        <span class="n">ULONG</span> <span class="n">cjTotal</span> <span class="o">=</span> <span class="n">psoSrc</span><span class="o">-&gt;</span><span class="n">cjBits</span><span class="p">;</span>
+
+        <span class="c1">//</span>
+        <span class="c1">// Check for invalid initial offset.</span>
+        <span class="c1">//</span>
+
+        <span class="k">if</span> <span class="p">((</span><span class="n">lInitOffset</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">)</span> <span class="o">||</span> <span class="p">((</span><span class="n">ULONG</span><span class="p">)</span><span class="n">lInitOffset</span> <span class="o">&gt;=</span> <span class="n">cjMaxLength</span><span class="p">))</span>
+        <span class="p">{</span>
+            <span class="n">psoSrc</span><span class="o">-&gt;</span><span class="n">cjBits</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="k">return</span><span class="p">(</span><span class="n">TRUE</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="c1">//</span>
+        <span class="c1">// Make cjTotal valid range.</span>
+        <span class="c1">//</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">lInitOffset</span> <span class="o">+</span> <span class="n">cjTotal</span> <span class="o">&gt;</span> <span class="n">cjMaxLength</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">cjTotal</span> <span class="o">=</span> <span class="n">cjMaxLength</span> <span class="o">-</span> <span class="n">lInitOffset</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="c1">//</span>
+        <span class="c1">// Fill in our return values, we know them already.</span>
+        <span class="c1">//</span>
+
+        <span class="n">psoSrc</span><span class="o">-&gt;</span><span class="n">cjBits</span> <span class="o">=</span> <span class="n">cjTotal</span><span class="p">;</span>
+
+        <span class="c1">//</span>
+        <span class="c1">// Move pointer to current scanline in bitmap.</span>
+        <span class="c1">//</span>
+
+        <span class="n">pjBitmap</span> <span class="o">+=</span> <span class="p">((</span><span class="n">lInitOffset</span> <span class="o">/</span> <span class="n">cjScanInput</span><span class="p">)</span> <span class="o">*</span> <span class="n">lDeltaBitmap</span><span class="p">);</span>
+
+        <span class="n">ULONG</span> <span class="n">ulTemp</span><span class="p">,</span><span class="n">ulCopy</span><span class="p">;</span>
+
+        <span class="c1">//</span>
+        <span class="c1">// Move partial scan if necesary.</span>
+        <span class="c1">//</span>
+
+        <span class="n">ulTemp</span> <span class="o">=</span> <span class="p">(</span><span class="n">lInitOffset</span> <span class="o">%</span> <span class="n">cjScanInput</span><span class="p">);</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">ulTemp</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">ulCopy</span> <span class="o">=</span> <span class="n">MIN</span><span class="p">((</span><span class="n">cjScanInput</span> <span class="o">-</span> <span class="n">ulTemp</span><span class="p">),</span> <span class="n">cjTotal</span><span class="p">);</span>
+
+            <span class="n">RtlCopyMemory</span><span class="p">((</span><span class="n">PVOID</span><span class="p">)</span> <span class="p">(</span><span class="n">pjBitmap</span> <span class="o">+</span> <span class="n">ulTemp</span><span class="p">),</span> <span class="p">(</span><span class="n">PVOID</span><span class="p">)</span> <span class="n">pjBuffer</span><span class="p">,</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">)</span> <span class="n">ulCopy</span><span class="p">);</span>
+
+            <span class="n">pjBuffer</span> <span class="o">+=</span> <span class="n">ulCopy</span><span class="p">;</span>
+            <span class="n">pjBitmap</span> <span class="o">+=</span> <span class="n">lDeltaBitmap</span><span class="p">;</span>
+            <span class="n">cjTotal</span>  <span class="o">-=</span> <span class="n">ulCopy</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="c1">//</span>
+        <span class="c1">// Move as many scans that fit.</span>
+        <span class="c1">//</span>
+
+        <span class="n">ulTemp</span> <span class="o">=</span> <span class="n">cjTotal</span> <span class="o">/</span> <span class="n">cjScanInput</span><span class="p">;</span>
+        <span class="n">cjTotal</span> <span class="o">-=</span> <span class="p">(</span><span class="n">ulTemp</span> <span class="o">*</span> <span class="n">cjScanInput</span><span class="p">);</span>
+
+        <span class="k">while</span> <span class="p">(</span><span class="n">ulTemp</span><span class="o">--</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">RtlCopyMemory</span><span class="p">((</span><span class="n">PVOID</span><span class="p">)</span> <span class="n">pjBitmap</span><span class="p">,</span> <span class="p">(</span><span class="n">PVOID</span><span class="p">)</span> <span class="n">pjBuffer</span><span class="p">,</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">)</span> <span class="n">cjScanInput</span><span class="p">);</span>
+
+            <span class="n">pjBuffer</span> <span class="o">+=</span> <span class="n">cjScanInput</span><span class="p">;</span>
+            <span class="n">pjBitmap</span> <span class="o">+=</span> <span class="n">lDeltaBitmap</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="c1">//</span>
+        <span class="c1">// Move as much of partial scan as possible.</span>
+        <span class="c1">//</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">cjTotal</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">RtlCopyMemory</span><span class="p">((</span><span class="n">PVOID</span><span class="p">)</span> <span class="n">pjBitmap</span><span class="p">,</span> <span class="p">(</span><span class="n">PVOID</span><span class="p">)</span> <span class="n">pjBuffer</span><span class="p">,</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">int</span><span class="p">)</span> <span class="n">cjTotal</span><span class="p">);</span>
+        <span class="p">}</span>
+            <span class="c1">//...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>可以看到 pvScan0 是一个关键字段，bDoGetSetBitmapBits 会取一个 surfobj 的 pvScan0 作为 dst，另一个 surobj 的 pvBits 作为 src 进行拷贝，如果我们可以影响这个字段，就代表我们可以通过 SetBitmapBits 实现一个内核的任意写。</p>
+
+<p>当我们调用 CreateBitmap 函数后，我们获得一个 HBITMAP 句柄，这个句柄实际上就对应着内核里的 SURFOBJ 对象</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">struct</span> <span class="nc">_SURFOBJ</span>
+<span class="p">{</span>
+    <span class="n">DHSURF</span>  <span class="n">dhsurf</span><span class="p">;</span>
+    <span class="n">HSURF</span>   <span class="n">hsurf</span><span class="p">;</span>
+    <span class="n">DHPDEV</span>  <span class="n">dhpdev</span><span class="p">;</span>
+    <span class="n">HDEV</span>    <span class="n">hdev</span><span class="p">;</span>
+    <span class="n">SIZEL</span>   <span class="n">sizlBitmap</span><span class="p">;</span>
+    <span class="n">ULONG</span>   <span class="n">cjBits</span><span class="p">;</span>
+    <span class="n">PVOID</span>   <span class="n">pvBits</span><span class="p">;</span>
+    <span class="n">PVOID</span>   <span class="n">pvScan0</span><span class="p">;</span> <span class="c1">//+0x38</span>
+    <span class="n">LONG</span>    <span class="n">lDelta</span><span class="p">;</span>
+    <span class="n">ULONG</span>   <span class="n">iUniq</span><span class="p">;</span>
+    <span class="n">ULONG</span>   <span class="n">iBitmapFormat</span><span class="p">;</span>
+    <span class="n">USHORT</span>  <span class="n">iType</span><span class="p">;</span>
+    <span class="n">USHORT</span>  <span class="n">fjBitmap</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">SURFOBJ</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>因此当我们得到对象的内核地址后，address+0x18+0x38 的地方也就是 pvScan0 的地址，如果我们可以通过漏洞在这个位置写入确定的值，那么我们就可以通过 bitmap 来实现任意写。</p>
+
+<h1 id="bitmap-利用的扩展">Bitmap 利用的扩展</h1>
+<p>bitmap 非常好使，但是上述利用方法在一些严苛的环境中是没法使用的，比如当你无法控制写入的值，只能控制写入的位置时。因此有人便在这个技术之上开发了新的技术，让 bitmap 可以应用于更多的漏洞场景中。</p>
+
+<p>让我们再看一下 SURFOBJ 在内存中的结构，该对象在内存中后面尾随了一块数据，其大小为 <code class="language-plaintext highlighter-rouge">szlBitmap.cx*szlBitmap.cy</code>，而 pvScan0 则指向这块数据。这意味着如果我们可以将这个字段的值扩大，我们就可以对 pvScan0 指向的数据进行越界读写。那么我们就可以在内存中一前一后排列两个 SRFOBJ 对象，通过漏洞扩大前面一个 SRFOBJ 对象 szlBitmap，让我们可以越界读写后面的 SRFOBJ 对象的，操作其 pvScan0 字段，进而实现稳定的内存读写。</p>
+
+<h1 id="池-freelist-重用">池 FreeList 重用</h1>
+
+<p>在 Win10 rs1 v1607 时，微软推出了缓解措施，将 gdicell 的 pKernelAddress 置空，因为无法获取到对象的地址，因此该方法就无法继续使用了，但是黑客们依然想出了办法来预测 bitmap 的地址，这个方法就是利用 accelerator table。</p>
+
+<p>在分配 pool 内存时，如果分配的内存 size 大于一页的话，就会 MiAllocatePoolPages 直接按页分配。而在 MiAllocatePoolPages 中，会先从 FreeList 中找有没有合适的页（从队尾开始遍历），如果有就直接用合适的页，如果没有再把新的页 map 进来。在 MiFreePoolPages 中，该函数首先看该页能否跟前一页进行合并，如果不能合并，则将该页放到 freelist 队尾。</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PVOID</span>
+<span class="nf">ExAllocatePoolWithTag</span> <span class="p">(</span>
+    <span class="n">IN</span> <span class="n">POOL_TYPE</span> <span class="n">PoolType</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">SIZE_T</span> <span class="n">NumberOfBytes</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">ULONG</span> <span class="n">Tag</span>
+    <span class="p">)</span>
+<span class="p">{</span>
+<span class="c1">//...</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">NumberOfBytes</span> <span class="o">&gt;</span> <span class="n">POOL_BUDDY_MAX</span><span class="p">)</span> <span class="p">{</span>
+
+        <span class="c1">//</span>
+        <span class="c1">// The requested size is greater than the largest block maintained</span>
+        <span class="c1">// by allocation lists.</span>
+        <span class="c1">//</span>
+
+        <span class="n">RetryCount</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+        <span class="n">IsLargeSessionAllocation</span> <span class="o">=</span> <span class="p">(</span><span class="n">PoolType</span> <span class="o">&amp;</span> <span class="n">SESSION_POOL_MASK</span><span class="p">);</span>
+
+        <span class="n">RequestType</span> <span class="o">=</span> <span class="p">(</span><span class="n">PoolType</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">BASE_POOL_TYPE_MASK</span> <span class="o">|</span> <span class="n">SESSION_POOL_MASK</span> <span class="o">|</span> <span class="n">POOL_VERIFIER_MASK</span><span class="p">));</span>
+
+<span class="nl">restart1:</span>
+
+        <span class="n">LOCK_POOL</span><span class="p">(</span><span class="n">PoolDesc</span><span class="p">,</span> <span class="n">LockHandle</span><span class="p">);</span>
+
+        <span class="n">Entry</span> <span class="o">=</span> <span class="p">(</span><span class="n">PPOOL_HEADER</span><span class="p">)</span> <span class="n">MiAllocatePoolPages</span> <span class="p">(</span><span class="n">RequestType</span><span class="p">,</span>
+                                                    <span class="n">NumberOfBytes</span><span class="p">,</span>
+                                                    <span class="n">IsLargeSessionAllocation</span><span class="p">);</span>
+<span class="c1">//...</span>
+    <span class="p">}</span>
+<span class="c1">//...    </span>
+<span class="p">}</span>
+<span class="n">PVOID</span>
+<span class="nf">MiAllocatePoolPages</span> <span class="p">(</span>
+    <span class="n">IN</span> <span class="n">POOL_TYPE</span> <span class="n">PoolType</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">SIZE_T</span> <span class="n">SizeInBytes</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">ULONG</span> <span class="n">IsLargeSessionAllocation</span>
+    <span class="p">)</span>
+<span class="p">{</span>
+<span class="c1">//...</span>
+        <span class="n">ListHead</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">MmNonPagedPoolFreeListHead</span><span class="p">[</span><span class="n">Index</span><span class="p">];</span>
+        <span class="n">LastListHead</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">MmNonPagedPoolFreeListHead</span><span class="p">[</span><span class="n">MI_MAX_FREE_LIST_HEADS</span><span class="p">];</span>
+
+        <span class="k">do</span> <span class="p">{</span>
+
+            <span class="n">Entry</span> <span class="o">=</span> <span class="n">ListHead</span><span class="o">-&gt;</span><span class="n">Flink</span><span class="p">;</span>
+
+            <span class="k">while</span> <span class="p">(</span><span class="n">Entry</span> <span class="o">!=</span> <span class="n">ListHead</span><span class="p">)</span> <span class="p">{</span>
+
+                <span class="k">if</span> <span class="p">(</span><span class="n">MmProtectFreedNonPagedPool</span> <span class="o">==</span> <span class="n">TRUE</span><span class="p">)</span> <span class="p">{</span>
+                    <span class="n">MiUnProtectFreeNonPagedPool</span> <span class="p">((</span><span class="n">PVOID</span><span class="p">)</span><span class="n">Entry</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+                <span class="p">}</span>
+    
+                <span class="c1">//</span>
+                <span class="c1">// The list is not empty, see if this one has enough space.</span>
+                <span class="c1">//</span>
+    
+                <span class="n">FreePageInfo</span> <span class="o">=</span> <span class="n">CONTAINING_RECORD</span><span class="p">(</span><span class="n">Entry</span><span class="p">,</span>
+                                                 <span class="n">MMFREE_POOL_ENTRY</span><span class="p">,</span>
+                                                 <span class="n">List</span><span class="p">);</span>
+    
+                <span class="n">ASSERT</span> <span class="p">(</span><span class="n">FreePageInfo</span><span class="o">-&gt;</span><span class="n">Signature</span> <span class="o">==</span> <span class="n">MM_FREE_POOL_SIGNATURE</span><span class="p">);</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">FreePageInfo</span><span class="o">-&gt;</span><span class="n">Size</span> <span class="o">&gt;=</span> <span class="n">SizeInPages</span><span class="p">)</span> <span class="p">{</span>
+    
+                    <span class="c1">//</span>
+                    <span class="c1">// This entry has sufficient space, remove</span>
+                    <span class="c1">// the pages from the end of the allocation.</span>
+                    <span class="c1">//</span>
+                    <span class="c1">//...</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+<span class="c1">//...</span>
+<span class="p">}</span>
+<span class="n">ULONG</span>
+<span class="nf">MiFreePoolPages</span> <span class="p">(</span>
+    <span class="n">IN</span> <span class="n">PVOID</span> <span class="n">StartingAddress</span>
+    <span class="p">)</span>
+<span class="p">{</span>
+<span class="c1">//...</span>
+   <span class="k">if</span> <span class="p">(</span><span class="n">Entry</span> <span class="o">==</span> <span class="p">(</span><span class="n">PMMFREE_POOL_ENTRY</span><span class="p">)</span><span class="n">StartingAddress</span><span class="p">)</span> <span class="p">{</span>
+
+            <span class="c1">//</span>
+            <span class="c1">// This entry was not combined with the previous, insert it</span>
+            <span class="c1">// into the list.</span>
+            <span class="c1">//</span>
+
+            <span class="n">Entry</span><span class="o">-&gt;</span><span class="n">Size</span> <span class="o">=</span> <span class="n">i</span><span class="p">;</span>
+
+            <span class="n">Index</span> <span class="o">=</span> <span class="p">(</span><span class="n">ULONG</span><span class="p">)(</span><span class="n">Entry</span><span class="o">-&gt;</span><span class="n">Size</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+    
+            <span class="k">if</span> <span class="p">(</span><span class="n">Index</span> <span class="o">&gt;=</span> <span class="n">MI_MAX_FREE_LIST_HEADS</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">Index</span> <span class="o">=</span> <span class="n">MI_MAX_FREE_LIST_HEADS</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+            <span class="p">}</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="n">MmProtectFreedNonPagedPool</span> <span class="o">==</span> <span class="n">FALSE</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">InsertTailList</span> <span class="p">(</span><span class="o">&amp;</span><span class="n">MmNonPagedPoolFreeListHead</span><span class="p">[</span><span class="n">Index</span><span class="p">],</span>
+                                <span class="o">&amp;</span><span class="n">Entry</span><span class="o">-&gt;</span><span class="n">List</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="k">else</span> <span class="p">{</span>
+                <span class="n">MiProtectedPoolInsertList</span> <span class="p">(</span><span class="o">&amp;</span><span class="n">MmNonPagedPoolFreeListHead</span><span class="p">[</span><span class="n">Index</span><span class="p">],</span>
+                                      <span class="o">&amp;</span><span class="n">Entry</span><span class="o">-&gt;</span><span class="n">List</span><span class="p">,</span>
+                                      <span class="n">Entry</span><span class="o">-&gt;</span><span class="n">Size</span> <span class="o">&lt;</span> <span class="n">MM_SMALL_ALLOCATIONS</span> <span class="o">?</span>
+                                          <span class="n">TRUE</span> <span class="o">:</span> <span class="n">FALSE</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+<span class="c1">//...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>可以看到，freelist 中页的使用是一个 LIFO（后进先出）的顺序，因此，只要我们分配的页大小每次都一样，通过循环分配+释放的动作，我们最终可以使每次分配后的页为同一个地址。</p>
+
+<p>accelerator table 是一个内核对象，并且该对象与 bitmap 位于同一个池中。该对象的内核地址我们可以同过 gSharedInfo 这个表获得对应的 handleentry，handleentry 中有一个成员 pHead 存放了该内核对象的地址，（bitmap 对象是通过 GdiSharedHandleTable 获得的，如 gSharedInfo 不是同一个表），并且该对象跟 bitmap 对象都有一个特点，就是我们可以控制该对象的大小，因此，在创建 accelerator table 对象和 bitmap 对象时，通过将其 size 指定为大于一页，这时申请对象就会需要 MiAllocatePoolPages 来分配。而通过上面提到的重复分配+释放的手段，最终我们就可以预测到 bitmap 的地址。</p>
+
+<blockquote>
+  <p>通过 CreateAcceleratorTable 创建 0x1000 size 的加速表，立刻 free 掉创建的 AcceleratorTable，不断重复，当再次请求分配 AcceleratorTable 与前一个释放掉的 AcceleratorTable 相同时，请求分配 Bitmap objects，这时 pHead 指针的地址就是结构成员 pKernelAddress 所在的位置。
+<a href="https://www.anquanke.com/post/id/168356">Windows10 v1607内核提权技术的发展——利用AcceleratorTable-安全客 - 安全资讯平台</a></p>
+</blockquote>
+
+<p>在 v1703 (rs2) 中，handleentry 的 pHead 字段再次被指控，此后我们便无法通过 accelerator table 来预测 bitmap 的地址了。</p>
+
+<h1 id="hmvalidatehandle-与-ulclientdelta">HmValidateHandle 与 ulClientDelta</h1>
+
+<p>这个函数可以通过一个窗口句柄返回内核 tagWND 对象的内核地址。内核中的 tagWND 对象是存放在 desktop heap 中的，而 desktop heap 在不但存在于内核地址中，还在用户地址有一份映射，映射的代码在 MapDesktop 函数中。</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">NTSTATUS</span> <span class="nf">MapDesktop</span><span class="p">(</span>
+    <span class="n">PKWIN32_OPENMETHOD_PARAMETERS</span> <span class="n">pOpenParams</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="c1">//..</span>
+    <span class="cm">/*
+     * Allocate a view of the desktop.
+     */</span>
+    <span class="n">pdvNew</span> <span class="o">=</span> <span class="n">UserAllocPoolWithQuota</span> <span class="p">(</span><span class="k">sizeof</span> <span class="p">(</span><span class="o">*</span><span class="n">pdvNew</span><span class="p">),</span> <span class="n">TAG_PROCESSINFO</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">pdvNew</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">Status</span> <span class="o">=</span> <span class="n">STATUS_NO_MEMORY</span><span class="p">;</span>
+        <span class="k">goto</span> <span class="n">Exit</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="cm">/*
+     * Read/write access has been granted. Map the desktop memory into
+     * the client process.
+     */</span>
+    <span class="n">ulViewSize</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">liOffset</span><span class="p">.</span> <span class="n">QuadPart</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">pClientBase</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+
+    <span class="n">Status</span> <span class="o">=</span> <span class="n">MmMapViewOfSection</span> <span class="p">(</span><span class="n">hsectionDesktop</span><span class="p">,</span>
+                                <span class="n">pOpenParams</span><span class="o">-&gt;</span><span class="n">Process</span><span class="p">,</span>
+                                <span class="o">&amp;</span><span class="n">pClientBase</span><span class="p">,</span>
+                                <span class="mi">0</span><span class="p">,</span>
+                                <span class="mi">0</span><span class="p">,</span>
+                                <span class="o">&amp;</span><span class="n">liOffset</span><span class="p">,</span>
+                                <span class="o">&amp;</span><span class="n">ulViewSize</span><span class="p">,</span>
+                                <span class="n">ViewUnmap</span><span class="p">,</span>
+                                <span class="n">SEC_NO_CHANGE</span><span class="p">,</span>
+                                <span class="n">PAGE_EXECUTE_READ</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span> <span class="n">NT_SUCCESS</span> <span class="p">(</span><span class="n">Status</span><span class="p">))</span> <span class="p">{</span>
+        <span class="n">RIPMSG1</span> <span class="p">(</span><span class="n">RIP_WARNING</span><span class="p">,</span>
+                <span class="s">"MapDesktop - failed to map to client process (Status == 0x%x)."</span><span class="p">,</span>
+                <span class="n">Status</span><span class="p">);</span>
+
+        <span class="n">RIPNTERR0</span> <span class="p">(</span><span class="n">Status</span><span class="p">,</span> <span class="n">RIP_VERBOSE</span><span class="p">,</span> <span class="s">""</span><span class="p">);</span>
+        <span class="n">UserFreePool</span> <span class="p">(</span><span class="n">pdvNew</span><span class="p">);</span>
+        <span class="n">Status</span> <span class="o">=</span> <span class="n">STATUS_NO_MEMORY</span><span class="p">;</span>
+        <span class="k">goto</span> <span class="n">Exit</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="cm">/*
+     * Link the view into the ppi.
+     */</span>
+    <span class="n">pdvNew</span><span class="o">-&gt;</span><span class="n">pdesk</span>         <span class="o">=</span> <span class="n">pdesk</span><span class="p">;</span>
+    <span class="n">pdvNew</span><span class="o">-&gt;</span><span class="n">ulClientDelta</span> <span class="o">=</span> <span class="p">(</span><span class="n">ULONG_PTR</span><span class="p">)(</span><span class="n">pheap</span> <span class="o">-</span> <span class="n">pClientBase</span><span class="p">);</span>
+    <span class="n">pdvNew</span><span class="o">-&gt;</span><span class="n">pdvNext</span>       <span class="o">=</span> <span class="n">ppi</span><span class="o">-&gt;</span><span class="n">pdvList</span><span class="p">;</span>
+    <span class="n">ppi</span><span class="o">-&gt;</span><span class="n">pdvList</span>          <span class="o">=</span> <span class="n">pdvNew</span><span class="p">;</span>
+<span class="c1">//...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>通过代码我们可以看到，内核会将 desktop heap 在用户地址映射一份，并且计算出 desktop heap 内核地址与用户地址的差存入 desktop view 的 ulClientDelta 字段。这代表当我们知道内核中 tagWND 的地址时，我们可以通过其内核地址 ulClientDelta 计算出该对象的用户地址。但是 ulClientDelta 可以从哪里获取呢？答案在 zzzSetDesktop 函数中。</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">VOID</span> <span class="nf">zzzSetDesktop</span><span class="p">(</span>
+    <span class="n">PTHREADINFO</span> <span class="n">pti</span><span class="p">,</span>
+    <span class="n">PDESKTOP</span>    <span class="n">pdesk</span><span class="p">,</span>
+    <span class="n">HDESK</span>       <span class="n">hdesk</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">//...</span>
+    
+    <span class="n">pteb</span> <span class="o">=</span> <span class="n">PsGetThreadTeb</span><span class="p">(</span><span class="n">pti</span><span class="o">-&gt;</span><span class="n">pEThread</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">pteb</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">PDESKTOPVIEW</span> <span class="n">pdv</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">pdesk</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">pdv</span> <span class="o">=</span> <span class="n">GetDesktopView</span><span class="p">(</span><span class="n">pti</span><span class="o">-&gt;</span><span class="n">ppi</span><span class="p">,</span> <span class="n">pdesk</span><span class="p">)))</span> <span class="p">{</span>
+
+            <span class="n">pti</span><span class="o">-&gt;</span><span class="n">pClientInfo</span><span class="o">-&gt;</span><span class="n">pDeskInfo</span> <span class="o">=</span>
+                    <span class="p">(</span><span class="n">PDESKTOPINFO</span><span class="p">)((</span><span class="n">PBYTE</span><span class="p">)</span><span class="n">pti</span><span class="o">-&gt;</span><span class="n">pDeskInfo</span> <span class="o">-</span> <span class="n">pdv</span><span class="o">-&gt;</span><span class="n">ulClientDelta</span><span class="p">);</span>
+
+            <span class="n">pti</span><span class="o">-&gt;</span><span class="n">pClientInfo</span><span class="o">-&gt;</span><span class="n">ulClientDelta</span> <span class="o">=</span> <span class="n">pdv</span><span class="o">-&gt;</span><span class="n">ulClientDelta</span><span class="p">;</span>
+    <span class="c1">//...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>zzzSetDesktop 会从 desktop view 中取出 ulClientDelta 字段，放入 pti 的 pClientInfo 中。但是这个 pClientInfo 似乎跟 TEB 没什么关系啊？我们继续看这个 pClientInfo，定位到 xxxCreateThreadInfo</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">NTSTATUS</span> <span class="nf">xxxCreateThreadInfo</span><span class="p">(</span>
+    <span class="n">PETHREAD</span> <span class="n">pEThread</span><span class="p">,</span>
+    <span class="n">BOOL</span>     <span class="n">IsSystemThread</span><span class="p">)</span>
+<span class="p">{</span>
+<span class="c1">//...</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">pteb</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">try</span> <span class="p">{</span>
+            <span class="n">pteb</span><span class="o">-&gt;</span><span class="n">Win32ThreadInfo</span> <span class="o">=</span> <span class="n">ptiCurrent</span><span class="p">;</span>
+        <span class="p">}</span> <span class="n">except</span> <span class="p">(</span><span class="n">W32ExceptionHandler</span><span class="p">(</span><span class="n">FALSE</span><span class="p">,</span> <span class="n">RIP_WARNING</span><span class="p">))</span> <span class="p">{</span>
+              <span class="n">Status</span> <span class="o">=</span> <span class="n">GetExceptionCode</span><span class="p">();</span>
+              <span class="k">goto</span> <span class="n">CreateThreadInfoFailed</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="cm">/*
+     * Point to the client info.
+     */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">dwTIFlags</span> <span class="o">&amp;</span> <span class="n">TIF_SYSTEMTHREAD</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">ptiCurrent</span><span class="o">-&gt;</span><span class="n">pClientInfo</span> <span class="o">=</span> <span class="n">UserAllocPoolWithQuota</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="n">CLIENTINFO</span><span class="p">),</span>
+                                                  <span class="n">TAG_CLIENTTHREADINFO</span><span class="p">);</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">ptiCurrent</span><span class="o">-&gt;</span><span class="n">pClientInfo</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">Status</span> <span class="o">=</span> <span class="n">STATUS_NO_MEMORY</span><span class="p">;</span>
+            <span class="k">goto</span> <span class="n">CreateThreadInfoFailed</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="cm">/*
+         * If this is not a system thread then grab the user mode client info
+         * elsewhere we use the GetClientInfo macro which looks here
+         */</span>
+        <span class="n">UserAssert</span><span class="p">(</span><span class="n">pteb</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">);</span>
+
+        <span class="k">try</span> <span class="p">{</span>
+            <span class="n">ptiCurrent</span><span class="o">-&gt;</span><span class="n">pClientInfo</span> <span class="o">=</span> <span class="p">((</span><span class="n">PCLIENTINFO</span><span class="p">)((</span><span class="n">pteb</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">Win32ClientInfo</span><span class="p">));</span>
+        <span class="p">}</span> <span class="n">except</span> <span class="p">(</span><span class="n">W32ExceptionHandler</span><span class="p">(</span><span class="n">FALSE</span><span class="p">,</span> <span class="n">RIP_WARNING</span><span class="p">))</span> <span class="p">{</span>
+              <span class="n">Status</span> <span class="o">=</span> <span class="n">GetExceptionCode</span><span class="p">();</span>
+              <span class="k">goto</span> <span class="n">CreateThreadInfoFailed</span><span class="p">;</span>
+        <span class="p">}</span>
+<span class="c1">//...</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>很明显，当不是 system thread 的时候，这个 pClientInfo 就来自 peb 中的 Win32ClientInfo，因此在 zzzSetDesktop 中将 ulClientDelta 存入到 pti 指向的 pClientInfo 实际上就是存入了 peb 中。</p>
+
+<p>现在我们可以通过 HmValidateHandle 获得对象 tagWND 的内核地址，还可以通过 teb 获得 ulClientDelta，即内核桌面堆地址与映射到用户地址的偏移，因此现在我们可以准确的计算出 tagWND 对象的用户地址。</p>
+
+<p>那么 tagWND 中有什么？</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">struct</span> <span class="nc">tagWND</span>
+<span class="p">{</span>
+<span class="c1">//...</span>
+    <span class="k">struct</span> <span class="nc">tagCLS</span><span class="o">*</span>  <span class="n">pcls</span><span class="p">;</span>      <span class="cm">/* 0x001c Pointer to window class        */</span>
+<span class="c1">//...</span>
+<span class="p">}</span> <span class="n">WND</span><span class="p">;</span>
+<span class="cm">/* Window class structure */</span>
+<span class="k">typedef</span> <span class="k">struct</span> <span class="nc">tagCLS</span>
+<span class="p">{</span>
+    <span class="cm">/* NOTE: The order of the following fields is assumed. */</span>
+    <span class="k">struct</span> <span class="nc">tagCLS</span><span class="o">*</span>  <span class="n">pclsNext</span><span class="p">;</span>
+    <span class="n">WORD</span>        <span class="n">clsMagic</span><span class="p">;</span>
+    <span class="n">ATOM</span>        <span class="n">atomClassName</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="nc">tagDCE</span><span class="o">*</span>  <span class="n">pdce</span><span class="p">;</span>          <span class="cm">/* DCE * to DC associated with class */</span>
+    <span class="kt">int</span>         <span class="n">cWndReferenceCount</span><span class="p">;</span>   <span class="cm">/* The number of windows registered
+                         with this class */</span>
+    <span class="n">WORD</span>        <span class="n">style</span><span class="p">;</span>
+    <span class="n">WNDPROC</span>     <span class="n">lpfnWndProc</span><span class="p">;</span>
+    <span class="kt">int</span>         <span class="n">cbclsExtra</span><span class="p">;</span>
+    <span class="kt">int</span>         <span class="n">cbwndExtra</span><span class="p">;</span>
+    <span class="n">HMODULE</span>         <span class="n">hModule</span><span class="p">;</span>
+    <span class="n">HICON</span>       <span class="n">hIcon</span><span class="p">;</span>
+    <span class="n">HCURSOR</span>     <span class="n">hCursor</span><span class="p">;</span>
+    <span class="n">HBRUSH</span>      <span class="n">hbrBackground</span><span class="p">;</span>
+    <span class="n">LPSTR</span>       <span class="n">lpszMenuName</span><span class="p">;</span>
+    <span class="n">LPSTR</span>       <span class="n">lpszClassName</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">CLS</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>tagWND 中有指向 tagCLS 内核地址的指针，同样根据 ulClientDelta，我们可以计算出 tagCLS 的用户地址。而 tagCLS 结构中存放了一个 lpszMenuName 指针，这个位置分配的内存是 pagepool，因此与 bitmap 在同一个池中，可以起到与 accelerator table 相同的效果。</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCLS</span> <span class="nf">InternalRegisterClassEx</span> <span class="p">(</span>
+    <span class="n">LPWNDCLASSVEREX</span> <span class="n">cczlpwndcls</span><span class="p">,</span>
+    <span class="n">WORD</span> <span class="n">fnid</span><span class="p">,</span>
+    <span class="n">DWORD</span> <span class="n">CSF_flags</span><span class="p">)</span>
+<span class="p">{</span>
+                <span class="n">UNICODE_STRING</span> <span class="n">strMenuName</span><span class="p">;</span>
+
+                <span class="cm">/*
+                 * Alloc space for the Menu Name.
+                 */</span>
+                <span class="n">AllocateUnicodeString</span> <span class="p">(</span><span class="o">&amp;</span><span class="n">strMenuName</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">UString</span><span class="p">);</span> 
+<span class="p">}</span>
+
+</code></pre></div></div>
+
+<p>在 rs2 (1703)  Creators Update 中，微软移除了 Win32ClientInfo 结构体内的 ulClientDelta 指针，因此这种方法无法继续泄露地址了。</p>
+
+<h1 id="gdi-palette">GDI Palette</h1>
+
+<p>在 rs3 (v1709) 中，bitmap 还开启了 type isolation，进一步缓解了这种漏洞利用手法，而安全研究者们再次找到了另一个对象 Palette，该对象类似 bitmap, 存在 SetPaletteEntries 函数可以被我们利用，跟进 SetPaletteEntries 函数，在其内部函数 GreSetPaletteEntries 中可以看到，HPALETTE 对应的类是 EPALOBJ，而该类中有一个指向 PALETTE 结构的指针 ppal，是实际内容，该函数通过 <code class="language-plaintext highlighter-rouge">XEPALOBJ::ulSetEntries</code> 最终实现功能，让我们看一下 <code class="language-plaintext highlighter-rouge">XEPALOBJ::ulSetEntries</code> 的代码：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ULONG</span> <span class="n">XEPALOBJ</span><span class="o">::</span><span class="n">ulSetEntries</span><span class="p">(</span><span class="n">ULONG</span> <span class="n">iStart</span><span class="p">,</span> <span class="n">ULONG</span> <span class="n">cEntry</span><span class="p">,</span> <span class="n">CONST</span> <span class="n">PALETTEENTRY</span> <span class="o">*</span><span class="n">ppalentry</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">ASSERTGDI</span><span class="p">(</span><span class="n">bIsPalDC</span><span class="p">(),</span> <span class="s">"ERROR: ulSetEntries called on non-DC palette"</span><span class="p">);</span>
+
+<span class="c1">// Make sure they aren't trying to change the default or halftone palette.</span>
+<span class="c1">// Make sure they aren't trying to pass us NULL.</span>
+<span class="c1">// Make sure the start index is valid, this checks the RGB case also.</span>
+
+    <span class="k">if</span> <span class="p">((</span><span class="n">ppal</span> <span class="o">==</span> <span class="n">ppalDefault</span><span class="p">)</span>               <span class="o">||</span>
+        <span class="n">bIsHTPal</span><span class="p">()</span>                          <span class="o">||</span>
+        <span class="p">(</span><span class="n">ppalentry</span> <span class="o">==</span> <span class="p">(</span><span class="n">PPALETTEENTRY</span><span class="p">)</span> <span class="nb">NULL</span><span class="p">)</span> <span class="o">||</span>
+        <span class="p">(</span><span class="n">iStart</span> <span class="o">&gt;=</span> <span class="n">ppal</span><span class="o">-&gt;</span><span class="n">cEntries</span><span class="p">))</span>
+    <span class="p">{</span>
+        <span class="k">return</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+    <span class="p">}</span>
+
+<span class="c1">// Make sure we don't try to copy off the end of the buffer</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">iStart</span> <span class="o">+</span> <span class="n">cEntry</span> <span class="o">&gt;</span> <span class="n">ppal</span><span class="o">-&gt;</span><span class="n">cEntries</span><span class="p">)</span>
+        <span class="n">cEntry</span> <span class="o">=</span> <span class="n">ppal</span><span class="o">-&gt;</span><span class="n">cEntries</span> <span class="o">-</span> <span class="n">iStart</span><span class="p">;</span>
+
+<span class="c1">// Let's not update the palette time if we don't have to.</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">cEntry</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+
+<span class="c1">// Copy the new values in</span>
+
+    <span class="n">PPALETTEENTRY</span> <span class="n">ppalstruc</span> <span class="o">=</span> <span class="p">(</span><span class="n">PPALETTEENTRY</span><span class="p">)</span> <span class="o">&amp;</span><span class="p">(</span><span class="n">ppal</span><span class="o">-&gt;</span><span class="n">apalColor</span><span class="p">[</span><span class="n">iStart</span><span class="p">]);</span>
+    <span class="n">PBYTE</span> <span class="n">pjFore</span>     <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="n">PBYTE</span> <span class="n">pjCurrent</span>  <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+
+<span class="c1">// Mark the foreground translate dirty so we get a new realization done</span>
+<span class="c1">// in the next RealizePaletette.</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">ptransFore</span><span class="p">()</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">ptransFore</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">iUniq</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+        <span class="n">pjFore</span> <span class="o">=</span> <span class="o">&amp;</span><span class="p">(</span><span class="n">ptransFore</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">ajVector</span><span class="p">[</span><span class="n">iStart</span><span class="p">]);</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">ptransCurrent</span><span class="p">()</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">ptransCurrent</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">iUniq</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+        <span class="n">pjCurrent</span> <span class="o">=</span> <span class="o">&amp;</span><span class="p">(</span><span class="n">ptransCurrent</span><span class="p">()</span><span class="o">-&gt;</span><span class="n">ajVector</span><span class="p">[</span><span class="n">iStart</span><span class="p">]);</span>
+    <span class="p">}</span>
+
+<span class="c1">// Hold the orginal values in temporary vars.</span>
+
+    <span class="n">ULONG</span> <span class="n">ulReturn</span> <span class="o">=</span> <span class="n">cEntry</span><span class="p">;</span>
+
+    <span class="k">while</span><span class="p">(</span><span class="n">cEntry</span><span class="o">--</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="o">*</span><span class="n">ppalstruc</span> <span class="o">=</span> <span class="o">*</span><span class="n">ppalentry</span><span class="p">;</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">pjFore</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="o">*</span><span class="n">pjFore</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="n">pjFore</span><span class="o">++</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">pjCurrent</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="o">*</span><span class="n">pjCurrent</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="n">pjCurrent</span><span class="o">++</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="n">ppalentry</span><span class="o">++</span><span class="p">;</span>
+        <span class="n">ppalstruc</span><span class="o">++</span><span class="p">;</span>
+    <span class="p">}</span>
+
+<span class="c1">// Set in the new palette time.</span>
+
+    <span class="n">vUpdateTime</span><span class="p">();</span>
+
+<span class="c1">// Mark foreground translate and current translate invalid so they get rerealized.</span>
+
+    <span class="k">return</span><span class="p">(</span><span class="n">ulReturn</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>可以看到该类中的 ppal-&gt;apalColor 被一一设置了 ppalentry 中的内容，而 ppalentry 的内容是我们可控的，这意味着如果我们能控制这个 apalColor 字段便可以实现任意写。</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">PALETTE</span> <span class="o">:</span> <span class="k">public</span> <span class="n">OBJECT</span>
+<span class="p">{</span>
+<span class="nl">public:</span>
+<span class="c1">//...</span>
+<span class="n">ULONG</span>   <span class="n">cEntries</span><span class="p">;</span>      <span class="c1">// count of entries currently in palette</span>
+<span class="c1">//...</span>
+    <span class="n">PAL_ULONG</span>  <span class="o">*</span><span class="n">apalColor</span><span class="p">;</span>  <span class="c1">// Pointer to color table.   Usually points to</span>
+                            <span class="c1">// &amp;apalColorTabe[0], except for a DirectDraw</span>
+                            <span class="c1">// GetDC surface, for which it points directly to</span>
+                            <span class="c1">// the screen surface's color table</span>
+    <span class="n">PALETTE</span>    <span class="o">*</span><span class="n">ppalColor</span><span class="p">;</span>  <span class="c1">// Palette that owns the color table</span>
+
+    <span class="c1">// NOTE: THIS IS A VARIABLE-LENGTH FIELD AND MUST BE LAST</span>
+
+    <span class="n">PAL_ULONG</span>  <span class="n">apalColorTable</span><span class="p">[</span><span class="mi">1</span><span class="p">];</span> <span class="c1">// array of rgb values that each index corresponds</span>
+                                  <span class="c1">// plus array of intensities from least intense to most</span>
+                                  <span class="c1">// intense (plus index to corresponding rgb value)</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>利用起来跟 bitmap 一致，因此就不多说了。在缓解上，当 Palette 开启了 type isolation 后 (rs4 v1803)，那种扩展利用的手法也同样无法使用了。</p>
+
+<h1 id="type-isolation">Type Isolation</h1>
+<blockquote>
+  <p>We live in a world where there is a lot of buggy software, and a lot of crafty attackers.</p>
+</blockquote>
+
+<blockquote>
+  <p>Unfortunately, we can’t fix every bug.</p>
+</blockquote>
+
+<blockquote>
+  <p>What we need are mitigations: ways to make bugs more difficult, or even impossible, to exploit.</p>
+</blockquote>
+
+<blockquote>
+  <p>We are raising the bar for hackers.</p>
+</blockquote>
+
+<blockquote>
+  <p>– The Life And Death of Kernel Object Abuse - D1 COMMSEC - Saif Elsherei and Ian Kronquist</p>
+</blockquote>
+
+<p>type isolation 是针对上面 bitmap 的扩展利用而开发出的缓解措施，其目的旨在保护一些 ntgdi 和 ntuser 类型的对象免受 uaf 的攻击，通过使攻击者难以操作内存布局让漏洞难以被利用。要注意的是，完全的任意内存写并不在 type isolation 的威胁模型之内，该措施在于防止攻击者在具有一个不完全的任意内存写后将其扩大成一个完全的任意内存写。</p>
+
+<p>在具体实现上，type isolation 分离了对象头与数据部分。以 bitmap 举例，SURFOBJ 后面跟的是该对象的数据部分，在开启了 type isolation 后，SURFOBJ 结构与数据部分不再连续的放在内存中，而是分开来，存放于不同的堆中。对象头部分会存在与 isolated heap 中，而数据部分放于正常的堆中。</p>
+
+<p>Reference：</p>
+
+<p>Abusing GDI  for ring0 exploit primitives.  Diego Juarez - Exploit Developer  Ekoparty 2015</p>
+
+<p>Abusing GDI for ring0 exploit primitives: RELOADED. Nicolas A. Economou. Diego Juarez</p>
+
+<p>Abusing GDI for ring0 exploitprimitives: Evolution. By Nicolas A. Economou</p>
+
+<p>The Life And Death of Kernel Object. AbuseSaif ElSherei (0x5A1F) &amp; Ian Kronquist</p>
+
+<p><a href="https://blog.quarkslab.com/reverse-engineering-the-win32k-type-isolation-mitigation.html">Reverse Engineering the Win32k Type Isolation Mitigation</a></p>
+
+<p><a href="https://www.freebuf.com/vuls/267298.html">猫鼠游戏：Windows内核提权样本狩猎思路分享 - FreeBuf网络安全行业门户</a></p>
+
+<hr />
+
+<p>花了三周时间学习 gdi 系列的利用手法以及 windows 池之类的相关知识，深感不易，然而这大概也只是漏洞的冰山一角。有时候会觉得自己接触安全太晚了，如果从 xp 时代开始弄，那么就不会有那么多安全机制和缓解措施，接触前沿技术的门槛会低很多。而现在我感觉要能看到安全的前沿都十分费力，不过也有好处就是了，那就是现在有大量的资料可以参考，学起来比那时候要轻松很多。</p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
