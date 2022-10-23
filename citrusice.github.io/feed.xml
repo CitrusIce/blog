@@ -1,5 +1,55 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-10-23T11:50:52+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">记一次解决explorer占用cpu过高</title><link href="https://citrusice.github.io/posts/debugging-explorer-high-cpu-usage/" rel="alternate" type="text/html" title="记一次解决explorer占用cpu过高" /><published>2022-10-19T16:25:58+08:00</published><updated>2022-10-19T16:25:58+08:00</updated><id>https://citrusice.github.io/posts/debugging-explorer-high-cpu-usage</id><content type="html" xml:base="https://citrusice.github.io/posts/debugging-explorer-high-cpu-usage/">&lt;p&gt;占用cpu高的进程是explorer.exe，并非是创建桌面和任务栏的那个explorer，而是有着如下命令行&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-10-23T13:31:52+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">ByPassAVTeam ShellcodeLoader后门分析</title><link href="https://citrusice.github.io/posts/shellcode-loader-backdoor-analysis/" rel="alternate" type="text/html" title="ByPassAVTeam ShellcodeLoader后门分析" /><published>2022-10-23T13:29:16+08:00</published><updated>2022-10-23T13:29:16+08:00</updated><id>https://citrusice.github.io/posts/shellcode-loader-backdoor-analysis</id><content type="html" xml:base="https://citrusice.github.io/posts/shellcode-loader-backdoor-analysis/">&lt;p&gt;看到有人转发&lt;a href=&quot;https://github.com/ByPassAVTeam/ShellcodeLoader&quot;&gt;这个项目&lt;/a&gt;说带后门，因为很眼熟这个项目，所以下载下来分析一下。&lt;/p&gt;
+
+&lt;p&gt;项目主要部分是个带mfc框架的shellcode loader加上使用冷门函数(PfxInitialize)反沙箱，这种东西只能说躲得过初一躲不过十五。还配了一个自动化配置shellcode的程序，根据别人的消息，后门就在这个自动化配置shellcode的工具里，LoaderMaker.exe。&lt;/p&gt;
+
+&lt;p&gt;另外项目开源的代码是干净的，并没有后门，存在后门的是github项目里发布的预编译程序。&lt;/p&gt;
+
+&lt;p&gt;先看一眼导入表&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022230914572.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;OpenProcess，CreateToolhelp32Snapshot，一股进程注入的味道扑面而来。&lt;/p&gt;
+
+&lt;p&gt;ida粗略看一眼大致流程，其实会发现还是挺正常的，正常的打banner，正常的读文件，正常的写入shellcode，要说有一点点可疑，那也就是那个sedebug提权和anti_sandbox，但是也没见到什么恶意行为。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022231746749.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;那么作者是将后门藏在哪里了呢，我第一反应是tls，第二反应是cruntime初始化阶段。但是既然咱们上面已经看到了可以的OpenProcess和CreateToolhelp32Snapshot，就不需要那么麻烦一个一个找了，找到CreateToolhelp32Snapshot，然后看一眼交叉引用，对着代码一顿分析。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022232245207.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;通过函数名获取pid，不用多说了吧。&lt;/p&gt;
+
+&lt;p&gt;继续看引用了get_pid的函数&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022232341446.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;栈字符串解密-&amp;gt;get_pid-&amp;gt;sub401290，接着看这个sub_401290&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221023120322393.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;栈字符串解密-&amp;gt;动态获取VirutalAllocEx-&amp;gt;动态获取WriteProcessMemory-&amp;gt;alloc+write将shellcode1写入内存-&amp;gt;创建一块可执行内存并写入sub_41a8b0处的shellcode2-&amp;gt;执行shellcode2。shellcode1大小经典929，cs stager基本没跑了&lt;/p&gt;
+
+&lt;p&gt;其实看到这里基本已经差不多了，按一般套路来说shellcode2的功能就是createthread、apc、setthreadcontext三选一，但是既然分析还是要分析完，继续看这个shellcode什么功能吧&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221023130424471.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;push 0x33+far ret，哟这不天堂之门么，作者还是有点意思的，将shellcode dump出来，又是一顿分析&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022233049093.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;先调sub_A3然后返回值作为函数指针调用，那么sub_A3就是动态获取函数了，那么把sub_A3单独提取出来，跑了一下，发现获取到的是NtCreatethreadEx，那么到此就结束了。&lt;/p&gt;
+
+&lt;p&gt;但是最开始的问题还没有回答，后门到底是在什么地方执行的呢？&lt;/p&gt;
+
+&lt;p&gt;一通交叉引用，发现后门居然是在最开始标注的printf里&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022233636692.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;不得不说作者还是非常懂逆向人员的心态的，看到输出字符串的函数就会忽略过去，因此就把后门代码藏在这种不显眼的位置。&lt;/p&gt;
+
+&lt;p&gt;对脚本小子们的一记重拳，利好红队开发&lt;/p&gt;</content><author><name></name></author><category term="逆向" /><summary type="html">看到有人转发这个项目说带后门，因为很眼熟这个项目，所以下载下来分析一下。</summary></entry><entry><title type="html">记一次解决explorer占用cpu过高</title><link href="https://citrusice.github.io/posts/debugging-explorer-high-cpu-usage/" rel="alternate" type="text/html" title="记一次解决explorer占用cpu过高" /><published>2022-10-19T16:25:58+08:00</published><updated>2022-10-19T16:25:58+08:00</updated><id>https://citrusice.github.io/posts/debugging-explorer-high-cpu-usage</id><content type="html" xml:base="https://citrusice.github.io/posts/debugging-explorer-high-cpu-usage/">&lt;p&gt;占用cpu高的进程是explorer.exe，并非是创建桌面和任务栏的那个explorer，而是有着如下命令行&lt;/p&gt;
 
 &lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;C:\WINDOWS\explorer.exe /factory,{ceff45ee-c862-41de-aee2-a022c81eda92} -Embedding
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
@@ -1353,83 +1403,4 @@ retn
 
 &lt;p&gt;&lt;a href=&quot;https://docs.oracle.com/cd/E23824_01/html/819-0690/chapter6-79797.html#chapter6-tbl-21&quot;&gt;Symbol Table Section - Linker and Libraries Guide&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;http://brandon-hy-lin.blogspot.com/2015/12/dynamic-section.html&quot;&gt;隨意寫寫: 如何解讀 dynamic section&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><category term="linux" /><category term="elf" /><summary type="html">本文不是指南，也并不权威。起这个标题只是想模仿《Window PE 权威指南》这本在我 Windows 入门过程中起到十分重要作用的书。而现在我需要研究研究 linux 相关的技术，因此就起了对应的标题。另外，如果你想要入门 Windows 相关知识用于逆向、开发、武器化等方向，我同样推荐这本书。</summary></entry><entry><title type="html">UAC Bypass与COM劫持</title><link href="https://citrusice.github.io/posts/uac-bypass-and-com-hijack/" rel="alternate" type="text/html" title="UAC Bypass与COM劫持" /><published>2022-04-02T20:29:18+08:00</published><updated>2022-04-02T20:29:18+08:00</updated><id>https://citrusice.github.io/posts/uac-bypass-and-com-hijack</id><content type="html" xml:base="https://citrusice.github.io/posts/uac-bypass-and-com-hijack/">&lt;p&gt;事情的起因源于朋友问我关于 com 劫持能否用于过 uac，在我的认知里，无论是注册 com、修改 com 相关注册表都需要管理员权限，因为那些项一般都是在 HKLM 中的，因此 com 劫持肯定无法用于过 UAC。然而第二天他就丢来了一个文章 &lt;a href=&quot;http://payloads.online/archivers/2018-10-14/1/&quot;&gt;COM Hijacking « 倾旋的博客&lt;/a&gt;，文章的最后写了利用 eventvwr.exe 进行 com 劫持的利用。&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/Pasted%20image%2020220331205325.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;首先这打破了我认知上的误区，注册 com 其实并不一定需要管理员，将 com 组件注册到 HKLM 下面确实是需要管理员权限的，但是我们还可以将 com 组件注册在 HKCU 下面，这样这个 com 组件只有当前用户可以使用。&lt;/p&gt;
-
-&lt;p&gt;这个过 uac 的原理似乎很简单，浏览相关文章后，大概了解了原因&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;在 windows 注册表中， HKCR 只是 HKLM\Software\Classes 与 HKCU\Software\Classes 的组合。在 HKCU 中写的键值会被合并到 HKCR 中。程序在读取 HKCR 中的内容时会先读取 HKCU 中的项，如果没有再读取 HKLM 中的项。&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;所以可以往 HKCU 中添加 eventvwr 用到的一个 com 组件的项，eventvwr 在加载 com 访问 HKCR 的过程中，会先查找 HKCU 中的项，然后才是 HKLM 中的项，进而进行劫持。&lt;/p&gt;
-
-&lt;p&gt;但事实似乎又不是这样，如果对于任意 com 组件，都可以通过 hkcu 中写相应的项进行劫持，那样引起的安全问题是巨大的，在浏览文章的过程中，我也看到了微软早已对这种劫持思路有所防范：&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://docs.microsoft.com/en-us/previous-versions/bb756926(v=msdn.10)&quot;&gt;Application Compatibility: UAC: COM Per-User Configuration | Microsoft Docs&lt;/a&gt;&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Beginning with Windows Vista® and Windows Server® 2008, if the integrity level of a process is higher than Medium, the COM runtime ignores per-user COM configuration and accesses only per-machine COM configuration. This action reduces the surface area for elevation of privilege attacks, preventing a process with standard user privileges from configuring a COM object with arbitrary code and having this code called from an elevated process.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;大意是 elevated 的进程只会根据 HKLM 中的 com 配置去调用 com 对象而不会根据 HCKU 中的 com 配置去调用对象。&lt;/p&gt;
-
-&lt;p&gt;这与上面的 com 劫持案例有明显的冲突，于是我决定写个 com 组件注册到 HKCU 下，然后以管理权限运行一个 loader 尝试加载自己的 com 组件试验一下。&lt;/p&gt;
-
-&lt;p&gt;结论：&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/Pasted%20image%2020220331213409.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;那么为什么 eventvwr 又可以进行 uac bypass 呢？&lt;/p&gt;
-
-&lt;p&gt;eventvwr 实际上会去直接调用 mmc 打开事件查看器，mmc 加载 com 时会去读取相应的注册表项，其调用栈如下：&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;https://raw.githubusercontent.com/CitrusIce/blog_pic/master/Pasted%20image%2020220402151116.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;ida 分析其读取注册表加载 com 组件的代码，其流程大致如下&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;_snwprintf_s&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x400u&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xFFFFFFFFFFFFFFFFu&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;L&quot;CLSID&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;%s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;InprocServer32&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;v6&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RegOpenKeyExW&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;HKEY_CLASSES_ROOT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Buffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x20019u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;v7&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RegQueryValueExW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;cbData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;v10&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadLibraryExW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;v11&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GetProcAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;DllGetClassObject&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; 
-&lt;span class=&quot;n&quot;&gt;v12&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;__int64&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kr&quot;&gt;__fastcall&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__m128i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GUID&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v11&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IID_IClassFactory&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lpcbData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;正与我猜测的一致，clr 调用 com 模块并不是通过 CoCreateInstance 加载的，而是自己重新实现了 com 加载，导致了可以被 com 劫持。&lt;/p&gt;
-
-&lt;p&gt;那么在正常的 com 加载流程中为什么不能进行劫持呢？&lt;/p&gt;
-
-&lt;p&gt;用 procmon 观察普通的 com 加载流程，发现在 combase.dll 中，通过调用 CComRegCatalog :: GetClassInfoW 获取 com 信息，然后进行加载。使用 RegOpenKeyExW 打开相应注册表项时，并非直接使用 HKEY_CLASSES_ROOT 读取对应注册表项，而是从使用了对象中存储的一个注册表句柄。&lt;/p&gt;
-
-&lt;p&gt;伪代码&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;m_hkeyClassesRoot&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;RegOpenKeyExW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SubKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x20019&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hkey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;而这个句柄则是通过 OpenClassesRootKeyExW 获取的。&lt;/p&gt;
-
-&lt;p&gt;OpenClassesRootKeyExW 根据用户权限打开不同的注册表项作为 HKCR 供之后 com 加载使用&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bElevated&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;v6&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RegOpenKeyExW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;HKEY_LOCAL_MACHINE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;L&quot;Software&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;Classes&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x2000000u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;v15&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RegOpenUserClassesRoot&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TokenHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x2000000u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;hKey&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;至此所有疑问全部解决&lt;/p&gt;
-
-&lt;p&gt;ps:
-尽管这种 uac 绕过的方式已经有四五年之久，但是网上真正深入去分析这个绕过成因的文章却少之又少，谈到为什么可以绕过，仅仅简单提到了 HKCU 与 HKLM 键值读取的先后顺序，其底层的真正逻辑又有多少人关注呢？单纯学会绕过技术本身是没有意义的。最近拜读了一下四哥早年那篇《你尽力了吗？》的文章，我觉得里面很多话都说的相当有价值，也说出了我的心声，我摘录一小段作为本文的结尾，希望大家都能有所收获。&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;我一直都希望大家从这里学到的不是技术本身，而是学习方法和一种不再狂热的淡然。很多技术，明天就会过时，如果你掌握的是学习方法，那你还有下一个机会，如果你掌握的仅仅是这个技术本身，你就没有机会了。&lt;/p&gt;
-&lt;/blockquote&gt;</content><author><name></name></author><category term="reverse-engineering" /><category term="uac-bypass" /><category term="com-hijack" /><category term="windows" /><summary type="html">事情的起因源于朋友问我关于 com 劫持能否用于过 uac，在我的认知里，无论是注册 com、修改 com 相关注册表都需要管理员权限，因为那些项一般都是在 HKLM 中的，因此 com 劫持肯定无法用于过 UAC。然而第二天他就丢来了一个文章 COM Hijacking « 倾旋的博客，文章的最后写了利用 eventvwr.exe 进行 com 劫持的利用。</summary></entry></feed>
+&lt;p&gt;&lt;a href=&quot;http://brandon-hy-lin.blogspot.com/2015/12/dynamic-section.html&quot;&gt;隨意寫寫: 如何解讀 dynamic section&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><category term="linux" /><category term="elf" /><summary type="html">本文不是指南，也并不权威。起这个标题只是想模仿《Window PE 权威指南》这本在我 Windows 入门过程中起到十分重要作用的书。而现在我需要研究研究 linux 相关的技术，因此就起了对应的标题。另外，如果你想要入门 Windows 相关知识用于逆向、开发、武器化等方向，我同样推荐这本书。</summary></entry></feed>
