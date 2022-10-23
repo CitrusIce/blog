@@ -261,11 +261,13 @@ header {
 
     ul {
         list-style-type: none;
+        flex-direction: row;
+        display: flex;
 
         li {
             // background-color: #ff9f1c;
             border: 1px solid #fff;
-            float: left;
+            float: none;
 
             // margin: 5px;
             &:not(:first-child) {

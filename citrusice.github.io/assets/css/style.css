@@ -757,10 +757,12 @@ header {
   .navbar a {
     color: inherit; }
   .navbar ul {
-    list-style-type: none; }
+    list-style-type: none;
+    flex-direction: row;
+    display: flex; }
     .navbar ul li {
       border: 1px solid #fff;
-      float: left;
+      float: none;
       padding: 10px 25px;
       font-size: 15px;
       transition: background-color .3s ease-in; }

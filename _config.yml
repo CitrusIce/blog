@@ -14,10 +14,10 @@ exclude: [makefile,newpost.sh,Gemfile,Gemfile.lock,LICENSE.txt,README.md,screen1
 permalink: /posts/:title/
 texture:
   title: Nqd8VId6
-  tagline: Developer. Penetration Tester
+  tagline: Developer. Security Researcher
   date_format: "%b %-d, %Y"
   style: black
-  showNav: false
+  showNav: true
   showPicker: false
 
   # generate social links in footer
