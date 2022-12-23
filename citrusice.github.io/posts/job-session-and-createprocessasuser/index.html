@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>Job, Session, and CreateProcessAsUser</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"><div class="navbar">
+	<ul>
+		<a href="/index"><li>Home</li></a>
+		<a href="/about"><li>About</li></a>
+		<a href="/friends"><li>Friends</li></a>
+		<!-- <a href="/archive"><li>Archive</li></a> -->
+	</ul>
+</div></div><div class="container">
+	<h1>Job, Session, and CreateProcessAsUser</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Dec 23, 2022
+	</div>
+	<ul class="post-tags"><li>调试</li><li>windows</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>起因是因为要实现一个在 Session0 启动进程的功能（注意是在 Session0 启动，不是从 Session0 启动），本以为没什么难度，却没想到还是踩坑了。</p>
+
+<p>流程很简单：</p>
+
+<ol>
+  <li>获取一个 session0 的 token（应该也可以设置 token 为 session0，但我是从别的进程获取的）</li>
+  <li>Impersonate</li>
+  <li>CreateProcessAsUser</li>
+</ol>
+
+<p>结果给的报错是 <code class="language-plaintext highlighter-rouge">ACCESS_DENIED</code> (5)。在确认了不是权限的问题之后，我发现这个问题并不简单。如果要想知道到底是什么引起了错误，最直接也是最有效的办法就是操起调试器开始调。于是我打开内核调试，拿起 windbg 在 <code class="language-plaintext highlighter-rouge">NtCreateUserProcess</code> 下断。</p>
+
+<p>经过几轮 trace，最终得到了设置错误的位置，以下是调用栈</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1: kd&gt; k
+ # Child-SP          RetAddr               Call Site
+00 ffffa287`2443bc58 fffff800`7da0f8bd     nt!PspConvertJobToMixed
+01 ffffa287`2443bc60 fffff800`7d86d16b     nt!PspBindProcessSessionToJob+0x1a22e5
+02 ffffa287`2443bc90 fffff800`7d86dadc     nt!PspEstablishJobHierarchy+0x47
+03 ffffa287`2443bd00 fffff800`7d82c118     nt!PspImplicitAssignProcessToJob+0x10c
+04 ffffa287`2443bd40 fffff800`7d829725     nt!PspInsertProcess+0x7c
+05 ffffa287`2443bdc0 fffff800`7d61cbb5     nt!NtCreateUserProcess+0xd85
+</code></pre></div></div>
+
+<p>通过符号名可以看出来是个 job 有关，google 了一下这几个函数也没找到其他人对这几个函数的分析，看来只能自己动手逆一下了。</p>
+
+<p>要搞清楚函数是要干什么的，主要是要搞清楚什么东西输入了这个函数（参数、全局变量），然后这个函数做了什么。trace 出的这个调用链有点长，不太好梳理，找了一下函数的引用，发现了这样一条调用路径 <code class="language-plaintext highlighter-rouge">NtSetInformationJobObject -&gt; PspBindProcessSessionToJob -&gt; PspConvertJobToMixed</code> ，接着通过 NtSetInformationJobObject 的 signature 很快就逆出来传入 PspBindProcessSessionToJob 的参数是 <code class="language-plaintext highlighter-rouge">EJOB</code> 和 <code class="language-plaintext highlighter-rouge">EPROCESS</code>， <code class="language-plaintext highlighter-rouge">PspConvertJobToMixed</code> 的参数是 EJOB 和 0，再修改修改变量名逻辑就很清晰了。</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">__int64</span> <span class="kr">__fastcall</span> <span class="nf">PspBindProcessSessionToJob</span><span class="p">(</span><span class="n">PEJOB</span> <span class="n">job</span><span class="p">,</span> <span class="n">PEPROCESS</span> <span class="n">process</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="n">PEJOB</span> <span class="n">job_1</span><span class="p">;</span> <span class="c1">// r8</span>
+  <span class="kt">signed</span> <span class="kr">__int32</span> <span class="n">sessionid</span><span class="p">;</span> <span class="c1">// er9</span>
+  <span class="kt">int</span> <span class="n">job_SessionId</span><span class="p">;</span> <span class="c1">// er10</span>
+  <span class="n">__int64</span> <span class="n">result</span><span class="p">;</span> <span class="c1">// rax</span>
+  <span class="kt">signed</span> <span class="kr">__int32</span> <span class="n">v6</span><span class="p">;</span> <span class="c1">// eax</span>
+
+  <span class="n">sessionid</span> <span class="o">=</span> <span class="n">MmGetSessionId</span><span class="p">((</span><span class="n">__int64</span><span class="p">)</span><span class="n">process</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span> <span class="n">job_SessionId</span> <span class="o">==</span> <span class="n">sessionid</span>
+    <span class="o">||</span> <span class="n">job_SessionId</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="o">&amp;&amp;</span> <span class="p">((</span><span class="n">v6</span> <span class="o">=</span> <span class="n">_InterlockedCompareExchange</span><span class="p">((</span><span class="k">volatile</span> <span class="kt">signed</span> <span class="kr">__int32</span> <span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">job_1</span><span class="o">-&gt;</span><span class="n">SessionId</span><span class="p">,</span> <span class="n">sessionid</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">v6</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+     <span class="o">||</span> <span class="n">v6</span> <span class="o">==</span> <span class="n">sessionid</span><span class="p">)</span> <span class="p">)</span>
+  <span class="p">{</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="mi">0</span><span class="n">i64</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">else</span>
+  <span class="p">{</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="n">PspConvertJobToMixed</span><span class="p">((</span><span class="n">__int64</span><span class="p">)</span><span class="n">job_1</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="n">__int64</span> <span class="kr">__fastcall</span> <span class="nf">PspConvertJobToMixed</span><span class="p">(</span><span class="n">PEJOB</span> <span class="n">job</span><span class="p">,</span> <span class="kt">int</span> <span class="n">a2</span><span class="p">)</span>
+<span class="p">{</span>
+  <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">jobFlags</span><span class="p">;</span> <span class="c1">// eax</span>
+
+  <span class="k">if</span> <span class="p">(</span> <span class="n">job</span><span class="o">-&gt;</span><span class="n">SessionId</span> <span class="o">==</span> <span class="o">-</span><span class="mi">2</span> <span class="p">)</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="n">i64</span><span class="p">;</span>
+  <span class="n">jobFlags</span> <span class="o">=</span> <span class="n">job</span><span class="o">-&gt;</span><span class="n">JobFlags</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span> <span class="p">(</span><span class="n">jobFlags</span> <span class="o">&amp;</span> <span class="mh">0x10</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">_bittest</span><span class="p">((</span><span class="k">const</span> <span class="kt">int</span> <span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">jobFlags</span><span class="p">,</span> <span class="mh">0x1Eu</span><span class="p">)</span>
+     <span class="o">||</span> <span class="p">(((</span><span class="kt">unsigned</span> <span class="n">__int64</span><span class="p">)</span><span class="n">job</span><span class="o">-&gt;</span><span class="n">PartitionObject</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xFFFFFFFFFFFFFFFEu</span><span class="n">i64</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span>
+     <span class="o">||</span> <span class="n">a2</span><span class="p">)</span> <span class="p">)</span>
+  <span class="p">{</span>
+    <span class="n">job</span><span class="o">-&gt;</span><span class="n">SessionId</span> <span class="o">=</span> <span class="o">-</span><span class="mi">2</span><span class="p">;</span>
+    <span class="k">return</span> <span class="mi">0</span><span class="n">i64</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="mh">0xC0000022</span><span class="n">i64</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>大概逻辑就是首先找到新创建进程所属的 session，如果所属的 session 跟 job 的 session 不一致，则调用 PspConvertJobToMixed 将 job 转换为混合 session 的 job。在 PspConvertJobToMixed 中，检查 job 的 JobFlags，要求没有 <code class="language-plaintext highlighter-rouge">JOB_OBJECT_LIMIT_AFFINITY</code> (0x10) 并且第 30 位为 1（不知道是啥），要么  <code class="language-plaintext highlighter-rouge">(((unsigned __int64) job-&gt;PartitionObject + 1) &amp; 0xFFFFFFFFFFFFFFFEui64) != 0</code>，我也不知道是什么。</p>
+
+<p>根据逻辑可以看出，当 job 的 session id 为 -2 时，代表这个 job 是跨 session 的，而要想让这个 job 跨 session 那么就需要 job 满足一些条件。同时我们还知道，处于 job 下的进程创建的子进程会被自动继承父进程的 job，这导致内核会试图将子进程加入父进程的 job 中，由于我是在 session1 往 session0 创建进程，而 session1 的进程所属的 job 不满足这个条件，这导致内核无法将 job 转换为 mix job，因此导致创建进程失败。</p>
+
+<p>那么父进程为什么会有个 job 呢？简单看了一下，我的程序是一个 cui 程序，启动的时候会启动一个 conhost，我发现所有带 conhost 的进程都会有个 job 附加（cmd、powershell 等），看来这个 job 似乎跟 conhost 有关，具体我没有深究了，主要也没搜索到什么信息，如果有了解的欢迎联系我交流！</p>
+
+<p>解决：只要在创建进程的时候让子进程摆脱父进程的 job 就可以成功创建进程了。这需要在创建进程时传入 <code class="language-plaintext highlighter-rouge">CREATE_BREAKAWAY_FROM_JOB</code> 并且该 job 具有 <code class="language-plaintext highlighter-rouge">JOB_OBJECT_LIMIT_BREAKAWAY_OK</code> 或 <code class="language-plaintext highlighter-rouge">JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK</code> 的 flag（发现 job 是有 <code class="language-plaintext highlighter-rouge">JOB_OBJECT_LIMIT_BREAKAWAY_OK</code> flag 的）。</p>
+
+<hr />
+
+<p>最近有尝试在用 vscode+cmake 构建工程，调试的话主要是靠 windbg，有时候会用到 cdb，毕竟直接在命令行里调也还是蛮方便的（gdb 或者 lldb 感觉都不太好用，windows 上还是得用 windows 的东西）。相比于 gui 的 windbg 把任何能展示的都直接展示出来，用 cdb 的时候往往需要去认真的想“我想要什么样的信息才能解决这个问题”，因为每个信息都需要靠命令敲出来，无形中增加了成本。但我觉得“知道自己想要什么”是一种很重要的能力。</p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
