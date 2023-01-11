@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2023-01-11T15:16:08+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2023-01-11T15:43:43+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
 </subtitle><entry><title type="html">CVE-2018-8453 利用（下）</title><link href="https://citrusice.github.io/posts/cve-2018-8453-exploit-2/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（下）" /><published>2023-01-11T15:11:34+08:00</published><updated>2023-01-11T15:11:34+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-exploit-2</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-exploit-2/">&lt;p&gt;上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。&lt;/p&gt;
 
 &lt;p&gt;本文利用环境依然为 win10 x64 1703&lt;/p&gt;
@@ -54,7 +54,15 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;p&gt;写到这才想起来 0xffff0000 是一个很大的数，可以越界读写 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;0xffff0000*4&lt;/code&gt;（约3gb） 的内存空间，实际上我们根本不需要让两个 palette 并排放置，只要多申请几个 palette 然后确定两个 palette 之间的距离在这个范围内就可以了。&lt;/p&gt;
 
-&lt;p&gt;之后的流程就是一模一样了，从内核中删除 dc object 的 handle entry 防止二次释放，然后替换进程 token 提权。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。</summary></entry><entry><title type="html">CVE-2018-8453 利用（上）</title><link href="https://citrusice.github.io/posts/cve-2018-8453-exploit-1/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（上）" /><published>2022-12-27T13:11:32+08:00</published><updated>2022-12-27T13:11:32+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-exploit-1</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-exploit-1/">&lt;p&gt;在有了一些漏洞利用知识后，回过头来再看这个洞。在这个洞中，攻击者可以通过在 HMAssignmentUnlock 中提前释放 SBTrack 来达到 double free 的效果，那么如何利用这个漏洞呢？&lt;/p&gt;
+&lt;p&gt;之后的流程就是一模一样了，从内核中删除 dc object 的 handle entry 防止二次释放，然后替换进程 token 提权。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;从刚开始想了解内核漏洞去读《Kernel Attacks through User-Mode Callbacks》到现在完整分析完一个漏洞，已经过去了半年时间。这样的速度是快还是慢呢？类似的疑问我常常会想，但我又知道这样的问题是无所谓回答不回答的。曾经刚入门安全的时候我曾在笔记中留下这样的话，现在回过头看还是会不禁赞叹一下自己，哈哈。&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;有点忙，能学东西的时间不多，有点苦恼于自己什么都不会，但是转念一想才开始学习3个月不到，这也正常。我已经见过不少的例子，只要保持学习，就可以从什么都不会到小有所成&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。</summary></entry><entry><title type="html">CVE-2018-8453 利用（上）</title><link href="https://citrusice.github.io/posts/cve-2018-8453-exploit-1/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（上）" /><published>2022-12-27T13:11:32+08:00</published><updated>2022-12-27T13:11:32+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-exploit-1</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-exploit-1/">&lt;p&gt;在有了一些漏洞利用知识后，回过头来再看这个洞。在这个洞中，攻击者可以通过在 HMAssignmentUnlock 中提前释放 SBTrack 来达到 double free 的效果，那么如何利用这个漏洞呢？&lt;/p&gt;
 
 &lt;p&gt;回顾之前的漏洞利用知识，我们至少需要有改变内存内容的能力，这样才能通过 gdi 对象来构成一个任意写原语（bitmap extend abuse），但是如何通过这样的 bug 来影响内存的内容？&lt;/p&gt;
 
