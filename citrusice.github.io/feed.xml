@@ -1,5 +1,60 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2022-12-27T13:20:20+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">CVE-2018-8453 利用（上）</title><link href="https://citrusice.github.io/posts/cve-2018-8453-exploit-1/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（上）" /><published>2022-12-27T13:11:32+08:00</published><updated>2022-12-27T13:11:32+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-exploit-1</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-exploit-1/">&lt;p&gt;在有了一些漏洞利用知识后，回过头来再看这个洞。在这个洞中，攻击者可以通过在 HMAssignmentUnlock 中提前释放 SBTrack 来达到 double free 的效果，那么如何利用这个漏洞呢？&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2023-01-11T15:16:08+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">CVE-2018-8453 利用（下）</title><link href="https://citrusice.github.io/posts/cve-2018-8453-exploit-2/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（下）" /><published>2023-01-11T15:11:34+08:00</published><updated>2023-01-11T15:11:34+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-exploit-2</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-exploit-2/">&lt;p&gt;上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。&lt;/p&gt;
+
+&lt;p&gt;本文利用环境依然为 win10 x64 1703&lt;/p&gt;
+
+&lt;p&gt;参考：&lt;a href=&quot;https://ti.qianxin.com/blog/articles/cve-2018-8453-win32k-elevation-of-privilege-vulnerability-targeting-the-middle-east/&quot;&gt;CVE-2018-8453：针对中东地区的Windows内核提权漏洞利用分析&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;首先回顾一下上次的流程。这个漏洞是一个 double free 漏洞，在第一次释放后我们通过 NtGdiSetLinkedUFIs 去在原始被释放的位置分配了一块新的内存，而在第二次释放前，win32k 对 sbtrack 中的字段有 unlock 的操作，由于 sbrack 的内存现在是我们可以控制的，所以此时我们有了一个任意地址减一的原语。&lt;/p&gt;
+
+&lt;p&gt;那么我们用这个任意地址减一的原语去干什么？首先想到的那就是通过两个相邻的 palette，修改前一个 palette 的 cEntries 为 0 的高位（减一后溢出变为 0xff），实现增大 cEntries 的效果，然后覆盖后一个 palette 的 apalColor 实现任意读写。&lt;/p&gt;
+
+&lt;p&gt;如果要这么实现，那么我们需要进一步解决两个问题，第一要知道这两个 palette 的地址，第二是要让这两个 palette 相邻（或者比较足够近）。&lt;/p&gt;
+
+&lt;p&gt;首先还是通过窗口 lpszMenuName 预测下一次分配一个页时的地址，因为这个预测方法需要 palette 必须大于一页（large pool 分配机制），所以相邻的 palette 一定在第二页中。因此我们设计第一个 palette 大小为 0x1b00。&lt;strong&gt;在 large pool 分配后，系统会在分配的块后面加一个 frag chunk，然后将多余的块作为待分配的 poolchunk 管理。&lt;/strong&gt; 因此第二个 palette 的大小便是 0x4e0。为了防止还有其他的待分配的 0x4e0 的块，这里我们可以分配大量的 palette，然后通过 Manager palette 改写后面 palette cEntries 来确定哪个是真正分配在 Manager 后面的块。这样就实现了两个并排的 palette，并且我们知道他们俩个的地址。&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0: kd&amp;gt; ??MgrAddr
+unsigned int64 0xffffa088`c2557000
+0: kd&amp;gt; !pool 0xffffa088`c2557000
+Pool page ffffa088c2557000 region is Paged session pool
+ffffa088c2557000 is not a valid large pool allocation, checking large session pool...
+*ffffa088c2557000 : large page allocation, tag is Gh08, size is 0x1b00 bytes
+		Pooltag Gh08 : GDITAG_HMGR_PAL_TYPE, Binary : win32k.sys
+0: kd&amp;gt; !pool 0xffffa088`c2557000+1b00+20
+Pool page ffffa088c2558b20 region is Paged session pool
+ffffa088c2558000 is not a valid large pool allocation, checking large session pool...
+ ffffa088c2558b00 size:   20 previous size:    0  (Allocated)  Frag
+*ffffa088c2558b20 size:  4e0 previous size:   20  (Allocated) *Gh08
+		Pooltag Gh08 : GDITAG_HMGR_PAL_TYPE, Binary : win32k.sys
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;同样我们继续使用 NtGdiSetLinkedUFIs 在 sbtrack 被释放后分配内存，在原始思路中，文章作者使用了 bitmap 来占位刚被释放的 sbtrack，这是因为作者的利用环境为 1709，此时 bitmap 已经开启了 type isolation，数据与 bitmap 头做了分离，因此变相实现了 NtGdiSetLinkedUFIs 的效果。&lt;/p&gt;
+
+&lt;p&gt;虽然使用任意地址减一的方法不需要 sbtrack 的那个 chunk 与之后的 chunk 合并，但是可能是有由于 sbtrack 的 chunk size 太小，导致利用不稳定（之后重新分配的时候经常分配不到 sbtrack 的那个块），因此还是将 chunk 合并为大块（大块数量少）。&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0: kd&amp;gt; !dppal 0xffffa088`c1db7000
+EPALOBJ structure at 0xffffa088c1db7000:
+--------------------------------------------------
+FLONG      flPal         0x501
+ULONG      cEntries      0xffff069c
+ULONG      ulTime        0x2082
+HDC        hdcHead       0x0000000000000000
+HDEVPPAL   hSelected     0x0000000000000000
+ULONG      cRefhpal      0x0
+ULONG      cRefRegular   0x0
+PTRANSLATE ptransFore    0x0000000000000000
+PTRANSLATE ptransCurrent 0x0000000000000000
+PTRANSLATE ptransOld     0x0000000000000000
+PPALETTE   ppalColor     0xffffa088c1db7088
+PAL_ULONG  apalColor     0x0000000000000000
+--------------------------------------------------
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;将 cEntries 高位减一后变为 0xffff，此时 palette 就可以实现越界读写了，然后再改写后面的 palette。&lt;/p&gt;
+
+&lt;p&gt;写到这才想起来 0xffff0000 是一个很大的数，可以越界读写 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;0xffff0000*4&lt;/code&gt;（约3gb） 的内存空间，实际上我们根本不需要让两个 palette 并排放置，只要多申请几个 palette 然后确定两个 palette 之间的距离在这个范围内就可以了。&lt;/p&gt;
+
+&lt;p&gt;之后的流程就是一模一样了，从内核中删除 dc object 的 handle entry 防止二次释放，然后替换进程 token 提权。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。</summary></entry><entry><title type="html">CVE-2018-8453 利用（上）</title><link href="https://citrusice.github.io/posts/cve-2018-8453-exploit-1/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（上）" /><published>2022-12-27T13:11:32+08:00</published><updated>2022-12-27T13:11:32+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-exploit-1</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-exploit-1/">&lt;p&gt;在有了一些漏洞利用知识后，回过头来再看这个洞。在这个洞中，攻击者可以通过在 HMAssignmentUnlock 中提前释放 SBTrack 来达到 double free 的效果，那么如何利用这个漏洞呢？&lt;/p&gt;
 
 &lt;p&gt;回顾之前的漏洞利用知识，我们至少需要有改变内存内容的能力，这样才能通过 gdi 对象来构成一个任意写原语（bitmap extend abuse），但是如何通过这样的 bug 来影响内存的内容？&lt;/p&gt;
 
@@ -1907,12 +1962,4 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;p&gt;继续查找TerminateProcess的所有引用，一共发现了5个暗桩，一一patch后，程序就可以正常使用了。&lt;/p&gt;
 
-&lt;p&gt;我接触破解的时间其实比我接触安全还早一年，但那时缺乏操作系统相关的知识，而网上的很多破解教程也只是让你依葫芦画瓢的去单步跟或者找数据位置。当时虽然说看了一寒假破解教程，但是实际上一点都没有学明白，只是学会了怎么用od的快捷键。现在看来，没有操作系统相关的知识去看那些破解教程无异于天马行空，而在有了这些知识后，知道其背后的原理，破解自然是水到渠成的事了。&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">昨天晚上睡觉的时候想到能不能把最近一直在用的游戏挂机脚本破解一下，于是今天就开始干了。看了一下，程序是.net写的，顿时感觉轻松不少。拖进反编译器看了一下代码，发现有部分代码做了去符号+控制流平坦化，不过强度不是很高，破解是有戏了。</summary></entry><entry><title type="html">用机器学习给图片分类</title><link href="https://citrusice.github.io/posts/pic_classification/" rel="alternate" type="text/html" title="用机器学习给图片分类" /><published>2022-08-23T15:40:34+08:00</published><updated>2022-08-23T15:40:34+08:00</updated><id>https://citrusice.github.io/posts/pic_classification</id><content type="html" xml:base="https://citrusice.github.io/posts/pic_classification/">&lt;p&gt;我手机里的图片是一直有分类的，但是近一两年越来越懒，导致手机里未分类的图片堆积了很多，自己手动分类不太现实，所以尝试用机器学习给图片分一下类。&lt;/p&gt;
-
-&lt;p&gt;关于机器学习的知识我只是略懂一二，知道一些大概的原理。让我从零开始搞一个模型肯定是不现实的，所以准备套一套现成的。先看了一些相关项目的代码，大概了解到了怎么调TensorFlow的一些api，然后开搞。&lt;/p&gt;
-
-&lt;p&gt;大部分时间其实都用在了准备数据，处理数据上。数据来源于我之前自己手动分类的图片，总共大概8k张左右。对于模型来说不存在“图片”的概念，而只有不同形状的矩阵，因此需要将图片以矩阵形式表示。对于一张图片来说，图上的每个点都是一个有颜色的像素，该像素的颜色可以用rgb三个值来表示，而该像素的位置则可以用x/y坐标来表示，这样就可以用一个 (x,y,3)形状的矩阵来表示一张图片了。送入模型的数据需要有统一的形状，也就意味着图片的大小同样也是固定的，需要把图片缩到统一尺寸。除此之外，还需要对矩阵做归一化处理，就是把矩阵中的每个值缩放到0-1这个范围内，至于为啥我目前还不太清楚，只知道跟激活函数有关。&lt;/p&gt;
-
-&lt;p&gt;模型是随便找的一个模型，毕竟啥也不懂，随便找个能用的就完事了。给处理好的图片数据打上标签后，就开始训练模型。第一次当然不会顺风顺水，训练的过程中我就发现我这个模型虽然训练的正确率一直涨，但是测试数据的正确率没变化。研究了一下，发现是我的数据样本和参数有很大问题。我的图片分为a b c三类，a类有6k多张，而b c加起来只有1k多张，同时我没有正确设置训练时用的steps_per_epoch参数（应该设置为 数据集的大小/batch_size），只是抄了代码，导致每轮训练没有把数据过完，模型收到的数据大部分都是a类图，所以模型大概只是无脑把图片识别为a类图。几番修改后，用了2k张左右的图片作为训练数据集重新训练，得到了一个0.87的模型，尽管最终还是需要手工挑出一些模型分类错的，但是效果还算可以了，省了不少时间。&lt;/p&gt;
-
-&lt;p&gt;尽管很想写点技术的东西，但是机器学习这块我只是刚刚看到大门的水平，所以只能这样写流水账了。&lt;/p&gt;</content><author><name></name></author><category term="machine-learning" /><summary type="html">我手机里的图片是一直有分类的，但是近一两年越来越懒，导致手机里未分类的图片堆积了很多，自己手动分类不太现实，所以尝试用机器学习给图片分一下类。</summary></entry></feed>
+&lt;p&gt;我接触破解的时间其实比我接触安全还早一年，但那时缺乏操作系统相关的知识，而网上的很多破解教程也只是让你依葫芦画瓢的去单步跟或者找数据位置。当时虽然说看了一寒假破解教程，但是实际上一点都没有学明白，只是学会了怎么用od的快捷键。现在看来，没有操作系统相关的知识去看那些破解教程无异于天马行空，而在有了这些知识后，知道其背后的原理，破解自然是水到渠成的事了。&lt;/p&gt;</content><author><name></name></author><category term="reverse-engineering" /><summary type="html">昨天晚上睡觉的时候想到能不能把最近一直在用的游戏挂机脚本破解一下，于是今天就开始干了。看了一下，程序是.net写的，顿时感觉轻松不少。拖进反编译器看了一下代码，发现有部分代码做了去符号+控制流平坦化，不过强度不是很高，破解是有戏了。</summary></entry></feed>
