@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>What It Says Is Not What It eXecute</title>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"><div class="navbar">
+	<ul>
+		<a href="/index"><li>Home</li></a>
+		<a href="/about"><li>About</li></a>
+		<a href="/friends"><li>Friends</li></a>
+		<!-- <a href="/archive"><li>Archive</li></a> -->
+	</ul>
+</div></div><div class="container">
+	<h1>What It Says Is Not What It eXecute</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Feb 24, 2023
+	</div>
+	<ul class="post-tags"><li>debugging</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>对于每个程序员来说，编程时最依赖也最为可靠的便是官方给的文档以及 sdk 中的种种信息。然而即便是官网文档，其内容也并非完全正确。本文将分享我最近调试的两个bug。</p>
+
+<h1 id="enumdesktops">EnumDesktops</h1>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">BOOL</span> <span class="nf">EnumDesktopsA</span><span class="p">(</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span> <span class="n">HWINSTA</span>          <span class="n">hwinsta</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>           <span class="n">DESKTOPENUMPROCA</span> <span class="n">lpEnumFunc</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>           <span class="n">LPARAM</span>           <span class="n">lParam</span>
+<span class="p">);</span>
+</code></pre></div></div>
+
+<p>关于第一个参数，文档写的是如果是 NULL 则当前的 window station 会被使用</p>
+
+<p><code class="language-plaintext highlighter-rouge">[in, optional] hwinsta</code></p>
+
+<p>A handle to the window station whose desktops are to be enumerated. This handle is returned by the <a href="https://learn.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-createwindowstationa">CreateWindowStation</a>, <a href="https://learn.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-getprocesswindowstation">GetProcessWindowStation</a>, or <a href="https://learn.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-openwindowstationa">OpenWindowStation</a> function, and must have the WINSTA_ENUMDESKTOPS access right. For more information, see <a href="https://learn.microsoft.com/en-us/windows/desktop/winstation/window-station-security-and-access-rights">Window Station Security and Access Rights</a>.</p>
+
+<p>If this parameter is NULL, the current window station is used.</p>
+
+<p>实际上当 window station 为 NULL 时则会在回调中返回 winstation 的列表</p>
+
+<p>调用链：
+<code class="language-plaintext highlighter-rouge">user32!InternalEnumObjects</code> &gt; <code class="language-plaintext highlighter-rouge">NtUserBuildNameList</code> &gt; <code class="language-plaintext highlighter-rouge">_BuildNameList</code></p>
+
+<p>当给 <code class="language-plaintext highlighter-rouge">_BuildNameList</code> 传入的 pwinsta 为 NULL 时，该函数返回的是 winstation 的列表</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="cm">/*
+     * If we're enumerating windowstations, pwinsta is NULL.  Otherwise,
+     * we're enumerating desktops.
+     */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">pwinsta</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">pobj</span>  <span class="o">=</span> <span class="p">(</span><span class="n">PBYTE</span><span class="p">)</span><span class="n">grpWinStaList</span><span class="p">;</span>
+        <span class="n">amDesired</span> <span class="o">=</span> <span class="n">WINSTA_ENUMERATE</span><span class="p">;</span>
+        <span class="n">pGenericMapping</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">WinStaMapping</span><span class="p">;</span>
+        <span class="n">iNext</span> <span class="o">=</span> <span class="n">FIELD_OFFSET</span><span class="p">(</span><span class="n">WINDOWSTATION</span><span class="p">,</span> <span class="n">rpwinstaNext</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">pobj</span> <span class="o">=</span> <span class="p">(</span><span class="n">PBYTE</span><span class="p">)</span><span class="n">pwinsta</span><span class="o">-&gt;</span><span class="n">rpdeskList</span><span class="p">;</span>
+        <span class="n">amDesired</span> <span class="o">=</span> <span class="n">DESKTOP_ENUMERATE</span><span class="p">;</span>
+        <span class="n">pGenericMapping</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">DesktopMapping</span><span class="p">;</span>
+        <span class="n">iNext</span> <span class="o">=</span> <span class="n">FIELD_OFFSET</span><span class="p">(</span><span class="n">DESKTOP</span><span class="p">,</span> <span class="n">rpdeskNext</span><span class="p">);</span>
+    <span class="p">}</span>
+
+</code></pre></div></div>
+
+<h1 id="zwmapviewofsection">ZwMapViewOfSection</h1>
+
+<p>这倒不是 msdn 上文档出错，而是我不知道从哪搞过来的一份 ntdll 声明出错了。</p>
+
+<p>MSDN 上函数的声明</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">NTSYSAPI</span> <span class="n">NTSTATUS</span> <span class="nf">ZwMapViewOfSection</span><span class="p">(</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">HANDLE</span>          <span class="n">SectionHandle</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">HANDLE</span>          <span class="n">ProcessHandle</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">out</span><span class="p">]</span>           <span class="n">PVOID</span>           <span class="o">*</span><span class="n">BaseAddress</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">ULONG_PTR</span>       <span class="n">ZeroBits</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">SIZE_T</span>          <span class="n">CommitSize</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">optional</span><span class="p">]</span> <span class="n">PLARGE_INTEGER</span>  <span class="n">SectionOffset</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">,</span> <span class="n">out</span><span class="p">]</span>           <span class="n">PSIZE_T</span>         <span class="n">ViewSize</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">SECTION_INHERIT</span> <span class="n">InheritDisposition</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">ULONG</span>           <span class="n">AllocationType</span><span class="p">,</span>
+  <span class="p">[</span><span class="n">in</span><span class="p">]</span>                <span class="n">ULONG</span>           <span class="n">Win32Protect</span>
+<span class="p">);</span>
+</code></pre></div></div>
+
+<p>头文件中的声明</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">NTSYSAPI</span>
+<span class="n">NTSTATUS</span>
+<span class="n">NTAPI</span>
+<span class="nf">ZwMapViewOfSection</span> <span class="p">(</span>
+    <span class="n">IN</span> <span class="n">HANDLE</span> <span class="n">SectionHandle</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">HANDLE</span> <span class="n">ProcessHandle</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">OUT</span> <span class="n">PVOID</span> <span class="o">*</span><span class="n">BaseAddress</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">ULONG</span> <span class="n">ZeroBits</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">ULONG</span> <span class="n">CommitSize</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">OUT</span> <span class="n">PLARGE_INTEGER</span> <span class="n">SectionOffset</span> <span class="n">OPTIONAL</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">OUT</span> <span class="n">PULONG</span> <span class="n">ViewSize</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">SECTION_INHERIT</span> <span class="n">InheritDisposition</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">ULONG</span> <span class="n">AllocationType</span><span class="p">,</span>
+    <span class="n">IN</span> <span class="n">ULONG</span> <span class="n">Protect</span>
+    <span class="p">);</span>
+</code></pre></div></div>
+
+<p>可以看到 CommitSize 和 ZeroBits 的大小在 x64 的情况下是不对的，ULONG 是 4 字节而 ULONG_PTR 和 SIZE_T 都是 8 字节。这就导致了在传参的时候，原来栈上杂乱的数据会影响到这两个参数的高位，导致传参不正确。</p>
+
+<hr />
+
+<p>之前读了一篇关于代码分析的论文，名字叫《What You See Is Not What You eXecute》，所以我就也模仿了一下起了这么一个标题。</p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
