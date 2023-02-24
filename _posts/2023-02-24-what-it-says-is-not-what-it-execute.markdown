@@ -9,6 +9,8 @@ categories: debugging
 
 # EnumDesktops
 
+这是一个枚举指定 window station 上所有 desktop 的函数
+
 ```cpp
 BOOL EnumDesktopsA(
   [in, optional] HWINSTA          hwinsta,
@@ -25,12 +27,12 @@ A handle to the window station whose desktops are to be enumerated. This handle 
 
 If this parameter is NULL, the current window station is used.
 
-实际上当 window station 为 NULL 时则会在回调中返回 winstation 的列表
+实际上当 window station 为 NULL 时则会在回调中返回 winstation 的列表，也就是说此时该函数并不会返回desktop的列表，而是返回所有window station的列表。
 
 调用链：
 `user32!InternalEnumObjects` > `NtUserBuildNameList` > `_BuildNameList`
 
-当给 `_BuildNameList` 传入的 pwinsta 为 NULL 时，该函数返回的是 winstation 的列表
+根据代码可以看到，当给 `_BuildNameList` 传入的 pwinsta 为 NULL 时，该函数返回的是 winstation 的列表
 
 ```cpp
     /*
