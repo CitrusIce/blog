@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>From Memory Loading to Everything - Part 1</title>
+<script data-goatcounter="https://citrusice.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"><div class="navbar">
+	<ul>
+		<a href="/index"><li>Home</li></a>
+		<a href="/about"><li>About</li></a>
+		<a href="/friends"><li>Friends</li></a>
+		<!-- <a href="/archive"><li>Archive</li></a> -->
+	</ul>
+</div></div><div class="container">
+	<h1>From Memory Loading to Everything - Part 1</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on May 20, 2023
+	</div>
+	<ul class="post-tags"><li>windows</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>我接触 Windows 最开始看的两本书是《PE 权威指南》和《Windows 核心编程》，学这两本书的目的也很简单：实现内存加载。我们知道，要实现内存加载，最重要的是处理 PE 中的三个表：导入表，iat 和重定位表。然而跟 pe 装载有关系的表却不仅仅只有这三个，那么剩下的表都有着怎样的内容？在 PE 的装在过程中发挥了什么样的作用？</p>
+
+<p>毫无疑问，仅仅处理导入表和重定位表的内存加载是不完美的，只能实现部分 pe 的加载。</p>
+
+<p>这个系列目的在于提供 pe 装载部分细节的<strong>索引</strong>，希望读者能通过这些索引去更深入的学习，以实现完美的内存加载技术。当然，不会有现成的代码，甚至不会有太多细节。</p>
+
+<p>对 pe 这些表的了解过程一定程度上也代表了我的二进制学习历程。</p>
+
+<h1 id="peb_ldr_data">PEB_LDR_DATA</h1>
+
+<p>尽管 PEB_LDR_DATA 并非是 pe 中的一个表，但是它记录了当前进程中到底有哪些模块被装载，如果要实现完美的内存加载，它是少不了的，因为 GetModuleHandle 是依赖于 LdrpCheckForLoadedDll ，而 LdrpCheckForLoadedDll 最终就是检查 PEB_LDR_DATA。</p>
+
+<p>另外，如果要将内存加载的模块设置为主模块，需要修改 ` (HMODULE)(PVOID)NtCurrentPeb()-&gt;ImageBaseAddress`</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//0x58 bytes (sizeof)</span>
+<span class="k">struct</span> <span class="nc">_PEB_LDR_DATA</span>
+<span class="p">{</span>
+    <span class="n">ULONG</span> <span class="n">Length</span><span class="p">;</span>                                                           <span class="c1">//0x0</span>
+    <span class="n">UCHAR</span> <span class="n">Initialized</span><span class="p">;</span>                                                      <span class="c1">//0x4</span>
+    <span class="n">VOID</span><span class="o">*</span> <span class="n">SsHandle</span><span class="p">;</span>                                                         <span class="c1">//0x8</span>
+    <span class="k">struct</span> <span class="nc">_LIST_ENTRY</span> <span class="n">InLoadOrderModuleList</span><span class="p">;</span>                               <span class="c1">//0x10</span>
+    <span class="k">struct</span> <span class="nc">_LIST_ENTRY</span> <span class="n">InMemoryOrderModuleList</span><span class="p">;</span>                             <span class="c1">//0x20</span>
+    <span class="k">struct</span> <span class="nc">_LIST_ENTRY</span> <span class="n">InInitializationOrderModuleList</span><span class="p">;</span>                     <span class="c1">//0x30</span>
+    <span class="n">VOID</span><span class="o">*</span> <span class="n">EntryInProgress</span><span class="p">;</span>                                                  <span class="c1">//0x40</span>
+    <span class="n">UCHAR</span> <span class="n">ShutdownInProgress</span><span class="p">;</span>                                               <span class="c1">//0x48</span>
+    <span class="n">VOID</span><span class="o">*</span> <span class="n">ShutdownThreadId</span><span class="p">;</span>                                                 <span class="c1">//0x50</span>
+<span class="p">};</span> 
+
+<span class="c1">//0x120 bytes (sizeof)</span>
+<span class="k">struct</span> <span class="nc">_LDR_DATA_TABLE_ENTRY</span>
+<span class="p">{</span>
+    <span class="k">struct</span> <span class="nc">_LIST_ENTRY</span> <span class="n">InLoadOrderLinks</span><span class="p">;</span>                                    <span class="c1">//0x0</span>
+    <span class="k">struct</span> <span class="nc">_LIST_ENTRY</span> <span class="n">InMemoryOrderLinks</span><span class="p">;</span>                                  <span class="c1">//0x10</span>
+    <span class="k">struct</span> <span class="nc">_LIST_ENTRY</span> <span class="n">InInitializationOrderLinks</span><span class="p">;</span>                          <span class="c1">//0x20</span>
+    <span class="n">VOID</span><span class="o">*</span> <span class="n">DllBase</span><span class="p">;</span>                                                          <span class="c1">//0x30</span>
+    <span class="n">VOID</span><span class="o">*</span> <span class="n">EntryPoint</span><span class="p">;</span>                                                       <span class="c1">//0x38</span>
+    <span class="n">ULONG</span> <span class="n">SizeOfImage</span><span class="p">;</span>                                                      <span class="c1">//0x40</span>
+    <span class="k">struct</span> <span class="nc">_UNICODE_STRING</span> <span class="n">FullDllName</span><span class="p">;</span>                                     <span class="c1">//0x48</span>
+    <span class="k">struct</span> <span class="nc">_UNICODE_STRING</span> <span class="n">BaseDllName</span><span class="p">;</span>                                     <span class="c1">//0x58</span>
+    <span class="k">union</span>
+    <span class="p">{</span>
+        <span class="n">UCHAR</span> <span class="n">FlagGroup</span><span class="p">[</span><span class="mi">4</span><span class="p">];</span>                                                 <span class="c1">//0x68</span>
+        <span class="n">ULONG</span> <span class="n">Flags</span><span class="p">;</span>                                                        <span class="c1">//0x68</span>
+        <span class="k">struct</span>
+        <span class="p">{</span>
+            <span class="n">ULONG</span> <span class="n">PackagedBinary</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                         <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">MarkedForRemoval</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                       <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ImageDll</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                               <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">LoadNotificationsSent</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                  <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">TelemetryEntryProcessed</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ProcessStaticImport</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                    <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">InLegacyLists</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                          <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">InIndexes</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                              <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ShimDll</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                                <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">InExceptionTable</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                       <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ReservedFlags1</span><span class="o">:</span><span class="mi">2</span><span class="p">;</span>                                         <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">LoadInProgress</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                         <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">LoadConfigProcessed</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                    <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">EntryProcessed</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                         <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ProtectDelayLoad</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                       <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ReservedFlags3</span><span class="o">:</span><span class="mi">2</span><span class="p">;</span>                                         <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">DontCallForThreads</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                     <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ProcessAttachCalled</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                    <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ProcessAttachFailed</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                    <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">CorDeferredValidate</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                    <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">CorImage</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                               <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">DontRelocate</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                           <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">CorILOnly</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                              <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ChpeImage</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                              <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ReservedFlags5</span><span class="o">:</span><span class="mi">2</span><span class="p">;</span>                                         <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">Redirected</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                             <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">ReservedFlags6</span><span class="o">:</span><span class="mi">2</span><span class="p">;</span>                                         <span class="c1">//0x68</span>
+            <span class="n">ULONG</span> <span class="n">CompatDatabaseProcessed</span><span class="o">:</span><span class="mi">1</span><span class="p">;</span>                                <span class="c1">//0x68</span>
+        <span class="p">};</span>
+    <span class="p">};</span>
+    <span class="n">USHORT</span> <span class="n">ObsoleteLoadCount</span><span class="p">;</span>                                               <span class="c1">//0x6c</span>
+    <span class="n">USHORT</span> <span class="n">TlsIndex</span><span class="p">;</span>                                                        <span class="c1">//0x6e</span>
+    <span class="k">struct</span> <span class="nc">_LIST_ENTRY</span> <span class="n">HashLinks</span><span class="p">;</span>                                           <span class="c1">//0x70</span>
+    <span class="n">ULONG</span> <span class="n">TimeDateStamp</span><span class="p">;</span>                                                    <span class="c1">//0x80</span>
+    <span class="k">struct</span> <span class="nc">_ACTIVATION_CONTEXT</span><span class="o">*</span> <span class="n">EntryPointActivationContext</span><span class="p">;</span>                <span class="c1">//0x88</span>
+    <span class="n">VOID</span><span class="o">*</span> <span class="n">Lock</span><span class="p">;</span>                                                             <span class="c1">//0x90</span>
+    <span class="k">struct</span> <span class="nc">_LDR_DDAG_NODE</span><span class="o">*</span> <span class="n">DdagNode</span><span class="p">;</span>                                        <span class="c1">//0x98</span>
+    <span class="k">struct</span> <span class="nc">_LIST_ENTRY</span> <span class="n">NodeModuleLink</span><span class="p">;</span>                                      <span class="c1">//0xa0</span>
+    <span class="k">struct</span> <span class="nc">_LDRP_LOAD_CONTEXT</span><span class="o">*</span> <span class="n">LoadContext</span><span class="p">;</span>                                 <span class="c1">//0xb0</span>
+    <span class="n">VOID</span><span class="o">*</span> <span class="n">ParentDllBase</span><span class="p">;</span>                                                    <span class="c1">//0xb8</span>
+    <span class="n">VOID</span><span class="o">*</span> <span class="n">SwitchBackContext</span><span class="p">;</span>                                                <span class="c1">//0xc0</span>
+    <span class="k">struct</span> <span class="nc">_RTL_BALANCED_NODE</span> <span class="n">BaseAddressIndexNode</span><span class="p">;</span>                         <span class="c1">//0xc8</span>
+    <span class="k">struct</span> <span class="nc">_RTL_BALANCED_NODE</span> <span class="n">MappingInfoIndexNode</span><span class="p">;</span>                         <span class="c1">//0xe0</span>
+    <span class="n">ULONGLONG</span> <span class="n">OriginalBase</span><span class="p">;</span>                                                 <span class="c1">//0xf8</span>
+    <span class="k">union</span> <span class="n">_LARGE_INTEGER</span> <span class="n">LoadTime</span><span class="p">;</span>                                          <span class="c1">//0x100</span>
+    <span class="n">ULONG</span> <span class="n">BaseNameHashValue</span><span class="p">;</span>                                                <span class="c1">//0x108</span>
+    <span class="k">enum</span> <span class="n">_LDR_DLL_LOAD_REASON</span> <span class="n">LoadReason</span><span class="p">;</span>                                   <span class="c1">//0x10c</span>
+    <span class="n">ULONG</span> <span class="n">ImplicitPathOptions</span><span class="p">;</span>                                              <span class="c1">//0x110</span>
+    <span class="n">ULONG</span> <span class="n">ReferenceCount</span><span class="p">;</span>                                                   <span class="c1">//0x114</span>
+    <span class="n">ULONG</span> <span class="n">DependentLoadFlags</span><span class="p">;</span>                                               <span class="c1">//0x118</span>
+    <span class="n">UCHAR</span> <span class="n">SigningLevel</span><span class="p">;</span>                                                     <span class="c1">//0x11c</span>
+<span class="p">};</span> 
+</code></pre></div></div>
+
+<h1 id="tls-表">TLS 表</h1>
+
+<p>Windows TLS (Thread Local Storage) 机制意在为每个线程提供的独立的存储空间，分为动态 TLS 和静态 TLS，动态 TLS 自然不必多说，通过 Windows Api 实现，而静态 TLS 则关乎 PE 的 TLS 表。</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">struct</span> <span class="nc">_IMAGE_TLS_DIRECTORY64</span> <span class="p">{</span>
+    <span class="n">ULONGLONG</span> <span class="n">StartAddressOfRawData</span><span class="p">;</span>
+    <span class="n">ULONGLONG</span> <span class="n">EndAddressOfRawData</span><span class="p">;</span>
+    <span class="n">ULONGLONG</span> <span class="n">AddressOfIndex</span><span class="p">;</span>         <span class="c1">// PDWORD</span>
+    <span class="n">ULONGLONG</span> <span class="n">AddressOfCallBacks</span><span class="p">;</span>     <span class="c1">// PIMAGE_TLS_CALLBACK *;</span>
+    <span class="n">DWORD</span> <span class="n">SizeOfZeroFill</span><span class="p">;</span>
+    <span class="k">union</span> <span class="p">{</span>
+        <span class="n">DWORD</span> <span class="n">Characteristics</span><span class="p">;</span>
+        <span class="k">struct</span> <span class="p">{</span>
+            <span class="n">DWORD</span> <span class="n">Reserved0</span> <span class="o">:</span> <span class="mi">20</span><span class="p">;</span>
+            <span class="n">DWORD</span> <span class="n">Alignment</span> <span class="o">:</span> <span class="mi">4</span><span class="p">;</span>
+            <span class="n">DWORD</span> <span class="n">Reserved1</span> <span class="o">:</span> <span class="mi">8</span><span class="p">;</span>
+        <span class="p">}</span> <span class="n">DUMMYSTRUCTNAME</span><span class="p">;</span>
+    <span class="p">}</span> <span class="n">DUMMYUNIONNAME</span><span class="p">;</span>
+
+<span class="p">}</span> <span class="n">IMAGE_TLS_DIRECTORY64</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>在装载 pe 的时候，ntdll 使用 LdrpAllocateTlsEntry 为每个 image 分配 tls 表项，具体来说就是找到 image 的 tls 表，然后在内存中分配一个 buffer 将表中的数据拷贝到 buffer 中，并调用 <code class="language-plaintext highlighter-rouge">LdrpAcquireTlsIndex</code> 为这个 tls entry 分配一个 index（也就是 tls index），最后将这块 buffer 加入一个双向链表 <code class="language-plaintext highlighter-rouge">LdrpTlsList</code>。</p>
+
+<p>在分配完 index 后，对于 LdrpTlsList 中的每个 tls entry，ntdll 将其包含的静态 tls data 写入 teb 中的 ThreadLocalStoragePointer 指向的数组中。</p>
+
+<p>如果反汇编一段读取静态 tls 数据的代码，我们就可以看到，程序通过 tlsindex 在 ThreadLocalStoragePointer 中读取了数据。</p>
+
+<pre><code class="language-asm"> mov eax,108                            
+ mov eax,eax                            
+ mov ecx,dword ptr ds:[&lt;_tls_index&gt;]    
+ mov rdx,qword ptr gs:[58]           
+ add rax,qword ptr ds:[rdx+rcx*8]       
+ mov r9d,1                              
+ xor r8d,r8d                            
+ mov rdx,rax               
+ xor ecx,ecx                            
+ call qword ptr ds:[&lt;&amp;MessageBoxA&gt;]     
+
+</code></pre>
+
+<hr />
+
+<p>最近几个月一直没有写博客，这篇文章写得也很简略，一方面因为脑子里确实没什么东西，另一方面也因为工作换了，精力少了很多，我也不确定这个系列是否能写完。虽然本文技术上的内容没有写多少，但是还有其他话想说正。如我去年所写的，“事情的发展总是凡人难以预料的，通过渗透入门安全的时候我无论如何也不会想到三年后已经早已不再接触渗透”，如今这似乎像预言一样的东西确实兑现了。尽管现在做的东西已经不属于安全行业了，但是我仍然认为它跟安全有着联系，我也仍然认为我是一个搞安全的。</p>
+
+<p>最后仿写一段本人刚刚接触二进制时看到的一篇大佬的文章末尾写的话，我觉得此时此刻恰如彼时彼刻：</p>
+
+<p>写这篇文章时笔者不禁想起了几年前刚成为黑客只是想绕过 360 做免杀的自己，如今几年过去了以笔者的能力自认为做到完美的免杀变成易如反掌的事情了，但是笔者却成为了一个送外卖的外卖小哥. 安全路漫漫, 要学的东西还有很多。</p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>

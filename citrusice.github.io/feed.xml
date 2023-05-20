@@ -1,5 +1,151 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2023-03-23T12:28:41+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">What It Says Is Not What It eXecute</title><link href="https://citrusice.github.io/posts/what-it-says-is-not-what-it-execute/" rel="alternate" type="text/html" title="What It Says Is Not What It eXecute" /><published>2023-02-24T16:08:51+08:00</published><updated>2023-02-24T16:08:51+08:00</updated><id>https://citrusice.github.io/posts/what-it-says-is-not-what-it-execute</id><content type="html" xml:base="https://citrusice.github.io/posts/what-it-says-is-not-what-it-execute/">&lt;p&gt;对于每个程序员来说，编程时最依赖也最为可靠的便是官方给的文档以及 sdk 中的种种信息。然而即便是官网文档，其内容也并非完全正确。本文将分享我最近调试的两个bug。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2023-05-20T11:06:55+08:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">From Memory Loading to Everything - Part 1</title><link href="http://localhost:4000/posts/from-memory-loading-to-everyting-part-1/" rel="alternate" type="text/html" title="From Memory Loading to Everything - Part 1" /><published>2023-05-20T11:02:16+08:00</published><updated>2023-05-20T11:02:16+08:00</updated><id>http://localhost:4000/posts/from-memory-loading-to-everyting-part-1</id><content type="html" xml:base="http://localhost:4000/posts/from-memory-loading-to-everyting-part-1/">&lt;p&gt;我接触 Windows 最开始看的两本书是《PE 权威指南》和《Windows 核心编程》，学这两本书的目的也很简单：实现内存加载。我们知道，要实现内存加载，最重要的是处理 PE 中的三个表：导入表，iat 和重定位表。然而跟 pe 装载有关系的表却不仅仅只有这三个，那么剩下的表都有着怎样的内容？在 PE 的装在过程中发挥了什么样的作用？&lt;/p&gt;
+
+&lt;p&gt;毫无疑问，仅仅处理导入表和重定位表的内存加载是不完美的，只能实现部分 pe 的加载。&lt;/p&gt;
+
+&lt;p&gt;这个系列目的在于提供 pe 装载部分细节的&lt;strong&gt;索引&lt;/strong&gt;，希望读者能通过这些索引去更深入的学习，以实现完美的内存加载技术。当然，不会有现成的代码，甚至不会有太多细节。&lt;/p&gt;
+
+&lt;p&gt;对 pe 这些表的了解过程一定程度上也代表了我的二进制学习历程。&lt;/p&gt;
+
+&lt;h1 id=&quot;peb_ldr_data&quot;&gt;PEB_LDR_DATA&lt;/h1&gt;
+
+&lt;p&gt;尽管 PEB_LDR_DATA 并非是 pe 中的一个表，但是它记录了当前进程中到底有哪些模块被装载，如果要实现完美的内存加载，它是少不了的，因为 GetModuleHandle 是依赖于 LdrpCheckForLoadedDll ，而 LdrpCheckForLoadedDll 最终就是检查 PEB_LDR_DATA。&lt;/p&gt;
+
+&lt;p&gt;另外，如果要将内存加载的模块设置为主模块，需要修改 ` (HMODULE)(PVOID)NtCurrentPeb()-&amp;gt;ImageBaseAddress`&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//0x58 bytes (sizeof)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_PEB_LDR_DATA&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                           &lt;span class=&quot;c1&quot;&gt;//0x0&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;UCHAR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Initialized&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                      &lt;span class=&quot;c1&quot;&gt;//0x4&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SsHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                         &lt;span class=&quot;c1&quot;&gt;//0x8&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InLoadOrderModuleList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                               &lt;span class=&quot;c1&quot;&gt;//0x10&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InMemoryOrderModuleList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                             &lt;span class=&quot;c1&quot;&gt;//0x20&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InInitializationOrderModuleList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                     &lt;span class=&quot;c1&quot;&gt;//0x30&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EntryInProgress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                  &lt;span class=&quot;c1&quot;&gt;//0x40&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;UCHAR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ShutdownInProgress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                               &lt;span class=&quot;c1&quot;&gt;//0x48&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ShutdownThreadId&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                 &lt;span class=&quot;c1&quot;&gt;//0x50&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt; 
+
+&lt;span class=&quot;c1&quot;&gt;//0x120 bytes (sizeof)&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LDR_DATA_TABLE_ENTRY&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InLoadOrderLinks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x0&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InMemoryOrderLinks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                  &lt;span class=&quot;c1&quot;&gt;//0x10&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InInitializationOrderLinks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                          &lt;span class=&quot;c1&quot;&gt;//0x20&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DllBase&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                          &lt;span class=&quot;c1&quot;&gt;//0x30&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EntryPoint&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                       &lt;span class=&quot;c1&quot;&gt;//0x38&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SizeOfImage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                      &lt;span class=&quot;c1&quot;&gt;//0x40&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_UNICODE_STRING&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FullDllName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                     &lt;span class=&quot;c1&quot;&gt;//0x48&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_UNICODE_STRING&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BaseDllName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                     &lt;span class=&quot;c1&quot;&gt;//0x58&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;union&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;UCHAR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FlagGroup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;                                                 &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                        &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PackagedBinary&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MarkedForRemoval&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                       &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ImageDll&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                               &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadNotificationsSent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                  &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TelemetryEntryProcessed&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ProcessStaticImport&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InLegacyLists&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                          &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InIndexes&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                              &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ShimDll&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InExceptionTable&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                       &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReservedFlags1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadInProgress&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadConfigProcessed&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EntryProcessed&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ProtectDelayLoad&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                       &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReservedFlags3&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DontCallForThreads&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                     &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ProcessAttachCalled&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ProcessAttachFailed&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CorDeferredValidate&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CorImage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                               &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DontRelocate&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                           &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CorILOnly&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                              &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ChpeImage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                              &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReservedFlags5&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Redirected&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                             &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReservedFlags6&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CompatDatabaseProcessed&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;USHORT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ObsoleteLoadCount&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                               &lt;span class=&quot;c1&quot;&gt;//0x6c&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;USHORT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TlsIndex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                        &lt;span class=&quot;c1&quot;&gt;//0x6e&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HashLinks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                           &lt;span class=&quot;c1&quot;&gt;//0x70&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TimeDateStamp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                    &lt;span class=&quot;c1&quot;&gt;//0x80&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_ACTIVATION_CONTEXT&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EntryPointActivationContext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                &lt;span class=&quot;c1&quot;&gt;//0x88&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                             &lt;span class=&quot;c1&quot;&gt;//0x90&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LDR_DDAG_NODE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DdagNode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                        &lt;span class=&quot;c1&quot;&gt;//0x98&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NodeModuleLink&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                      &lt;span class=&quot;c1&quot;&gt;//0xa0&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LDRP_LOAD_CONTEXT&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadContext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                 &lt;span class=&quot;c1&quot;&gt;//0xb0&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ParentDllBase&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                    &lt;span class=&quot;c1&quot;&gt;//0xb8&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SwitchBackContext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                &lt;span class=&quot;c1&quot;&gt;//0xc0&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_RTL_BALANCED_NODE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BaseAddressIndexNode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                         &lt;span class=&quot;c1&quot;&gt;//0xc8&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_RTL_BALANCED_NODE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MappingInfoIndexNode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                         &lt;span class=&quot;c1&quot;&gt;//0xe0&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONGLONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OriginalBase&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                 &lt;span class=&quot;c1&quot;&gt;//0xf8&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;union&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_LARGE_INTEGER&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadTime&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                          &lt;span class=&quot;c1&quot;&gt;//0x100&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BaseNameHashValue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                &lt;span class=&quot;c1&quot;&gt;//0x108&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;enum&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_LDR_DLL_LOAD_REASON&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadReason&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                   &lt;span class=&quot;c1&quot;&gt;//0x10c&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ImplicitPathOptions&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                              &lt;span class=&quot;c1&quot;&gt;//0x110&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReferenceCount&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                   &lt;span class=&quot;c1&quot;&gt;//0x114&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DependentLoadFlags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                               &lt;span class=&quot;c1&quot;&gt;//0x118&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;UCHAR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SigningLevel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                     &lt;span class=&quot;c1&quot;&gt;//0x11c&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt; 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h1 id=&quot;tls-表&quot;&gt;TLS 表&lt;/h1&gt;
+
+&lt;p&gt;Windows TLS (Thread Local Storage) 机制意在为每个线程提供的独立的存储空间，分为动态 TLS 和静态 TLS，动态 TLS 自然不必多说，通过 Windows Api 实现，而静态 TLS 则关乎 PE 的 TLS 表。&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_IMAGE_TLS_DIRECTORY64&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONGLONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StartAddressOfRawData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONGLONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EndAddressOfRawData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONGLONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AddressOfIndex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;         &lt;span class=&quot;c1&quot;&gt;// PDWORD&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ULONGLONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AddressOfCallBacks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;     &lt;span class=&quot;c1&quot;&gt;// PIMAGE_TLS_CALLBACK *;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SizeOfZeroFill&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;union&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Characteristics&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Reserved0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Alignment&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Reserved1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DUMMYSTRUCTNAME&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DUMMYUNIONNAME&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IMAGE_TLS_DIRECTORY64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;在装载 pe 的时候，ntdll 使用 LdrpAllocateTlsEntry 为每个 image 分配 tls 表项，具体来说就是找到 image 的 tls 表，然后在内存中分配一个 buffer 将表中的数据拷贝到 buffer 中，并调用 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LdrpAcquireTlsIndex&lt;/code&gt; 为这个 tls entry 分配一个 index（也就是 tls index），最后将这块 buffer 加入一个双向链表 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LdrpTlsList&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;在分配完 index 后，对于 LdrpTlsList 中的每个 tls entry，ntdll 将其包含的静态 tls data 写入 teb 中的 ThreadLocalStoragePointer 指向的数组中。&lt;/p&gt;
+
+&lt;p&gt;如果反汇编一段读取静态 tls 数据的代码，我们就可以看到，程序通过 tlsindex 在 ThreadLocalStoragePointer 中读取了数据。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt; mov eax,108                            
+ mov eax,eax                            
+ mov ecx,dword ptr ds:[&amp;lt;_tls_index&amp;gt;]    
+ mov rdx,qword ptr gs:[58]           
+ add rax,qword ptr ds:[rdx+rcx*8]       
+ mov r9d,1                              
+ xor r8d,r8d                            
+ mov rdx,rax               
+ xor ecx,ecx                            
+ call qword ptr ds:[&amp;lt;&amp;amp;MessageBoxA&amp;gt;]     
+
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;最近几个月一直没有写博客，这篇文章写得也很简略，一方面因为脑子里确实没什么东西，另一方面也因为工作换了，精力少了很多，我也不确定这个系列是否能写完。虽然本文技术上的内容没有写多少，但是还有其他话想说正。如我去年所写的，“事情的发展总是凡人难以预料的，通过渗透入门安全的时候我无论如何也不会想到三年后已经早已不再接触渗透”，如今这似乎像预言一样的东西确实兑现了。尽管现在做的东西已经不属于安全行业了，但是我仍然认为它跟安全有着联系，我也仍然认为我是一个搞安全的。&lt;/p&gt;
+
+&lt;p&gt;最后仿写一段本人刚刚接触二进制时看到的一篇大佬的文章末尾写的话，我觉得此时此刻恰如彼时彼刻：&lt;/p&gt;
+
+&lt;p&gt;写这篇文章时笔者不禁想起了几年前刚成为黑客只是想绕过 360 做免杀的自己，如今几年过去了以笔者的能力自认为做到完美的免杀变成易如反掌的事情了，但是笔者却成为了一个送外卖的外卖小哥. 安全路漫漫, 要学的东西还有很多。&lt;/p&gt;</content><author><name></name></author><category term="windows" /><summary type="html">我接触 Windows 最开始看的两本书是《PE 权威指南》和《Windows 核心编程》，学这两本书的目的也很简单：实现内存加载。我们知道，要实现内存加载，最重要的是处理 PE 中的三个表：导入表，iat 和重定位表。然而跟 pe 装载有关系的表却不仅仅只有这三个，那么剩下的表都有着怎样的内容？在 PE 的装在过程中发挥了什么样的作用？</summary></entry><entry><title type="html">What It Says Is Not What It eXecute</title><link href="http://localhost:4000/posts/what-it-says-is-not-what-it-execute/" rel="alternate" type="text/html" title="What It Says Is Not What It eXecute" /><published>2023-02-24T16:08:51+08:00</published><updated>2023-02-24T16:08:51+08:00</updated><id>http://localhost:4000/posts/what-it-says-is-not-what-it-execute</id><content type="html" xml:base="http://localhost:4000/posts/what-it-says-is-not-what-it-execute/">&lt;p&gt;对于每个程序员来说，编程时最依赖也最为可靠的便是官方给的文档以及 sdk 中的种种信息。然而即便是官网文档，其内容也并非完全正确。本文将分享我最近调试的两个bug。&lt;/p&gt;
 
 &lt;h1 id=&quot;enumdesktops&quot;&gt;EnumDesktops&lt;/h1&gt;
 
@@ -88,7 +234,7 @@
 
 &lt;hr /&gt;
 
-&lt;p&gt;之前读了一篇关于代码分析的论文，名字叫《What You See Is Not What You eXecute》，所以我就也模仿了一下起了这么一个标题。&lt;/p&gt;</content><author><name></name></author><category term="debugging" /><summary type="html">对于每个程序员来说，编程时最依赖也最为可靠的便是官方给的文档以及 sdk 中的种种信息。然而即便是官网文档，其内容也并非完全正确。本文将分享我最近调试的两个bug。</summary></entry><entry><title type="html">CVE-2018-8453 利用（下）</title><link href="https://citrusice.github.io/posts/cve-2018-8453-exploit-2/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（下）" /><published>2023-01-11T15:11:34+08:00</published><updated>2023-01-11T15:11:34+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-exploit-2</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-exploit-2/">&lt;p&gt;上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。&lt;/p&gt;
+&lt;p&gt;之前读了一篇关于代码分析的论文，名字叫《What You See Is Not What You eXecute》，所以我就也模仿了一下起了这么一个标题。&lt;/p&gt;</content><author><name></name></author><category term="debugging" /><summary type="html">对于每个程序员来说，编程时最依赖也最为可靠的便是官方给的文档以及 sdk 中的种种信息。然而即便是官网文档，其内容也并非完全正确。本文将分享我最近调试的两个bug。</summary></entry><entry><title type="html">CVE-2018-8453 利用（下）</title><link href="http://localhost:4000/posts/cve-2018-8453-exploit-2/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（下）" /><published>2023-01-11T15:11:34+08:00</published><updated>2023-01-11T15:11:34+08:00</updated><id>http://localhost:4000/posts/cve-2018-8453-exploit-2</id><content type="html" xml:base="http://localhost:4000/posts/cve-2018-8453-exploit-2/">&lt;p&gt;上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。&lt;/p&gt;
 
 &lt;p&gt;本文利用环境依然为 win10 x64 1703&lt;/p&gt;
 
@@ -151,7 +297,7 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;blockquote&gt;
   &lt;p&gt;有点忙，能学东西的时间不多，有点苦恼于自己什么都不会，但是转念一想才开始学习3个月不到，这也正常。我已经见过不少的例子，只要保持学习，就可以从什么都不会到小有所成&lt;/p&gt;
-&lt;/blockquote&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。</summary></entry><entry><title type="html">CVE-2018-8453 利用（上）</title><link href="https://citrusice.github.io/posts/cve-2018-8453-exploit-1/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（上）" /><published>2022-12-27T13:11:32+08:00</published><updated>2022-12-27T13:11:32+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-exploit-1</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-exploit-1/">&lt;p&gt;在有了一些漏洞利用知识后，回过头来再看这个洞。在这个洞中，攻击者可以通过在 HMAssignmentUnlock 中提前释放 SBTrack 来达到 double free 的效果，那么如何利用这个漏洞呢？&lt;/p&gt;
+&lt;/blockquote&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。</summary></entry><entry><title type="html">CVE-2018-8453 利用（上）</title><link href="http://localhost:4000/posts/cve-2018-8453-exploit-1/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（上）" /><published>2022-12-27T13:11:32+08:00</published><updated>2022-12-27T13:11:32+08:00</updated><id>http://localhost:4000/posts/cve-2018-8453-exploit-1</id><content type="html" xml:base="http://localhost:4000/posts/cve-2018-8453-exploit-1/">&lt;p&gt;在有了一些漏洞利用知识后，回过头来再看这个洞。在这个洞中，攻击者可以通过在 HMAssignmentUnlock 中提前释放 SBTrack 来达到 double free 的效果，那么如何利用这个漏洞呢？&lt;/p&gt;
 
 &lt;p&gt;回顾之前的漏洞利用知识，我们至少需要有改变内存内容的能力，这样才能通过 gdi 对象来构成一个任意写原语（bitmap extend abuse），但是如何通过这样的 bug 来影响内存的内容？&lt;/p&gt;
 
@@ -808,7 +954,7 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;hr /&gt;
 
-&lt;p&gt;本以为在分析完漏洞后编写利用应该是很快很轻松的事，却没想到过程居然如此坎坷。并且即便是分析了漏洞的成因、编写了漏洞的 exp，对于如何挖掘这个漏洞，我觉得仍然离我十分遥远。同时在利用上，提权只是开始，能做到从 ring3 直接打到内核才应该是终极目标。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">在有了一些漏洞利用知识后，回过头来再看这个洞。在这个洞中，攻击者可以通过在 HMAssignmentUnlock 中提前释放 SBTrack 来达到 double free 的效果，那么如何利用这个漏洞呢？</summary></entry><entry><title type="html">Job, Session, and CreateProcessAsUser</title><link href="https://citrusice.github.io/posts/job-session-and-createprocessasuser/" rel="alternate" type="text/html" title="Job, Session, and CreateProcessAsUser" /><published>2022-12-23T15:05:27+08:00</published><updated>2022-12-23T15:05:27+08:00</updated><id>https://citrusice.github.io/posts/job-session-and-createprocessasuser</id><content type="html" xml:base="https://citrusice.github.io/posts/job-session-and-createprocessasuser/">&lt;p&gt;起因是因为要实现一个在 Session0 启动进程的功能（注意是在 Session0 启动，不是从 Session0 启动），本以为没什么难度，却没想到还是踩坑了。&lt;/p&gt;
+&lt;p&gt;本以为在分析完漏洞后编写利用应该是很快很轻松的事，却没想到过程居然如此坎坷。并且即便是分析了漏洞的成因、编写了漏洞的 exp，对于如何挖掘这个漏洞，我觉得仍然离我十分遥远。同时在利用上，提权只是开始，能做到从 ring3 直接打到内核才应该是终极目标。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">在有了一些漏洞利用知识后，回过头来再看这个洞。在这个洞中，攻击者可以通过在 HMAssignmentUnlock 中提前释放 SBTrack 来达到 double free 的效果，那么如何利用这个漏洞呢？</summary></entry><entry><title type="html">Job, Session, and CreateProcessAsUser</title><link href="http://localhost:4000/posts/job-session-and-createprocessasuser/" rel="alternate" type="text/html" title="Job, Session, and CreateProcessAsUser" /><published>2022-12-23T15:05:27+08:00</published><updated>2022-12-23T15:05:27+08:00</updated><id>http://localhost:4000/posts/job-session-and-createprocessasuser</id><content type="html" xml:base="http://localhost:4000/posts/job-session-and-createprocessasuser/">&lt;p&gt;起因是因为要实现一个在 Session0 启动进程的功能（注意是在 Session0 启动，不是从 Session0 启动），本以为没什么难度，却没想到还是踩坑了。&lt;/p&gt;
 
 &lt;p&gt;流程很简单：&lt;/p&gt;
 
@@ -887,7 +1033,7 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;hr /&gt;
 
-&lt;p&gt;最近有尝试在用 vscode+cmake 构建工程，调试的话主要是靠 windbg，有时候会用到 cdb，毕竟直接在命令行里调也还是蛮方便的（gdb 或者 lldb 感觉都不太好用，windows 上还是得用 windows 的东西）。相比于 gui 的 windbg 把任何能展示的都直接展示出来，用 cdb 的时候往往需要去认真的想“我想要什么样的信息才能解决这个问题”，因为每个信息都需要靠命令敲出来，无形中增加了成本。但我觉得“知道自己想要什么”是一种很重要的能力。&lt;/p&gt;</content><author><name></name></author><category term="调试" /><category term="windows" /><summary type="html">起因是因为要实现一个在 Session0 启动进程的功能（注意是在 Session0 启动，不是从 Session0 启动），本以为没什么难度，却没想到还是踩坑了。</summary></entry><entry><title type="html">GDI Handle Manager</title><link href="https://citrusice.github.io/posts/gdi-handle-manager/" rel="alternate" type="text/html" title="GDI Handle Manager" /><published>2022-11-23T20:40:29+08:00</published><updated>2022-11-23T20:40:29+08:00</updated><id>https://citrusice.github.io/posts/gdi-handle-manager</id><content type="html" xml:base="https://citrusice.github.io/posts/gdi-handle-manager/">&lt;p&gt;Windows 10 rs1 1607 Anniversary Update 后，微软针对 gdi abuse 实施了缓解措施，让 gdicell 结构体无法在泄露 kernel address，同时 gdi handle manager 也有了一系列更新。&lt;/p&gt;
+&lt;p&gt;最近有尝试在用 vscode+cmake 构建工程，调试的话主要是靠 windbg，有时候会用到 cdb，毕竟直接在命令行里调也还是蛮方便的（gdb 或者 lldb 感觉都不太好用，windows 上还是得用 windows 的东西）。相比于 gui 的 windbg 把任何能展示的都直接展示出来，用 cdb 的时候往往需要去认真的想“我想要什么样的信息才能解决这个问题”，因为每个信息都需要靠命令敲出来，无形中增加了成本。但我觉得“知道自己想要什么”是一种很重要的能力。&lt;/p&gt;</content><author><name></name></author><category term="调试" /><category term="windows" /><summary type="html">起因是因为要实现一个在 Session0 启动进程的功能（注意是在 Session0 启动，不是从 Session0 启动），本以为没什么难度，却没想到还是踩坑了。</summary></entry><entry><title type="html">GDI Handle Manager</title><link href="http://localhost:4000/posts/gdi-handle-manager/" rel="alternate" type="text/html" title="GDI Handle Manager" /><published>2022-11-23T20:40:29+08:00</published><updated>2022-11-23T20:40:29+08:00</updated><id>http://localhost:4000/posts/gdi-handle-manager</id><content type="html" xml:base="http://localhost:4000/posts/gdi-handle-manager/">&lt;p&gt;Windows 10 rs1 1607 Anniversary Update 后，微软针对 gdi abuse 实施了缓解措施，让 gdicell 结构体无法在泄露 kernel address，同时 gdi handle manager 也有了一系列更新。&lt;/p&gt;
 
 &lt;p&gt;首先有了新的全局变量 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;win32kbase!gpHandleManager&lt;/code&gt;，由 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GdiHandleManager::Create&lt;/code&gt; 创建&lt;/p&gt;
 
@@ -945,7 +1091,7 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;p&gt;Reference：&lt;/p&gt;
 
-&lt;p&gt;&lt;a href=&quot;http://cvr-data.blogspot.com/2016/11/windows-10-anniversary-update-gdi.html&quot;&gt;Center of Vulnerability Research: Windows 10 Anniversary Update: GDI handle management and vulnerabilities exploitation&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><category term="windows" /><category term="re" /><category term="pwn" /><summary type="html">Windows 10 rs1 1607 Anniversary Update 后，微软针对 gdi abuse 实施了缓解措施，让 gdicell 结构体无法在泄露 kernel address，同时 gdi handle manager 也有了一系列更新。</summary></entry><entry><title type="html">ByPassAVTeam ShellcodeLoader后门分析</title><link href="https://citrusice.github.io/posts/shellcode-loader-backdoor-analysis/" rel="alternate" type="text/html" title="ByPassAVTeam ShellcodeLoader后门分析" /><published>2022-10-23T13:29:16+08:00</published><updated>2022-10-23T13:29:16+08:00</updated><id>https://citrusice.github.io/posts/shellcode-loader-backdoor-analysis</id><content type="html" xml:base="https://citrusice.github.io/posts/shellcode-loader-backdoor-analysis/">&lt;p&gt;看到有人转发&lt;a href=&quot;https://github.com/ByPassAVTeam/ShellcodeLoader&quot;&gt;这个项目&lt;/a&gt;说带后门，因为很眼熟这个项目，所以下载下来分析一下。&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;http://cvr-data.blogspot.com/2016/11/windows-10-anniversary-update-gdi.html&quot;&gt;Center of Vulnerability Research: Windows 10 Anniversary Update: GDI handle management and vulnerabilities exploitation&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><category term="windows" /><category term="re" /><category term="pwn" /><summary type="html">Windows 10 rs1 1607 Anniversary Update 后，微软针对 gdi abuse 实施了缓解措施，让 gdicell 结构体无法在泄露 kernel address，同时 gdi handle manager 也有了一系列更新。</summary></entry><entry><title type="html">ByPassAVTeam ShellcodeLoader后门分析</title><link href="http://localhost:4000/posts/shellcode-loader-backdoor-analysis/" rel="alternate" type="text/html" title="ByPassAVTeam ShellcodeLoader后门分析" /><published>2022-10-23T13:29:16+08:00</published><updated>2022-10-23T13:29:16+08:00</updated><id>http://localhost:4000/posts/shellcode-loader-backdoor-analysis</id><content type="html" xml:base="http://localhost:4000/posts/shellcode-loader-backdoor-analysis/">&lt;p&gt;看到有人转发&lt;a href=&quot;https://github.com/ByPassAVTeam/ShellcodeLoader&quot;&gt;这个项目&lt;/a&gt;说带后门，因为很眼熟这个项目，所以下载下来分析一下。&lt;/p&gt;
 
 &lt;p&gt;项目主要部分是个带mfc框架的shellcode loader加上使用冷门函数(PfxInitialize)反沙箱，这种东西只能说躲得过初一躲不过十五。还配了一个自动化配置shellcode的程序，根据别人的消息，后门就在这个自动化配置shellcode的工具里，LoaderMaker.exe。&lt;/p&gt;
 
@@ -995,7 +1141,7 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;p&gt;不得不说作者还是非常懂逆向人员的心态的，看到输出字符串的函数就会忽略过去，因此就把后门代码藏在这种不显眼的位置。&lt;/p&gt;
 
-&lt;p&gt;对脚本小子们的一记重拳，利好红队开发&lt;/p&gt;</content><author><name></name></author><category term="逆向" /><summary type="html">看到有人转发这个项目说带后门，因为很眼熟这个项目，所以下载下来分析一下。</summary></entry><entry><title type="html">记一次解决explorer占用cpu过高</title><link href="https://citrusice.github.io/posts/debugging-explorer-high-cpu-usage/" rel="alternate" type="text/html" title="记一次解决explorer占用cpu过高" /><published>2022-10-19T16:25:58+08:00</published><updated>2022-10-19T16:25:58+08:00</updated><id>https://citrusice.github.io/posts/debugging-explorer-high-cpu-usage</id><content type="html" xml:base="https://citrusice.github.io/posts/debugging-explorer-high-cpu-usage/">&lt;p&gt;占用cpu高的进程是explorer.exe，并非是创建桌面和任务栏的那个explorer，而是有着如下命令行&lt;/p&gt;
+&lt;p&gt;对脚本小子们的一记重拳，利好红队开发&lt;/p&gt;</content><author><name></name></author><category term="逆向" /><summary type="html">看到有人转发这个项目说带后门，因为很眼熟这个项目，所以下载下来分析一下。</summary></entry><entry><title type="html">记一次解决explorer占用cpu过高</title><link href="http://localhost:4000/posts/debugging-explorer-high-cpu-usage/" rel="alternate" type="text/html" title="记一次解决explorer占用cpu过高" /><published>2022-10-19T16:25:58+08:00</published><updated>2022-10-19T16:25:58+08:00</updated><id>http://localhost:4000/posts/debugging-explorer-high-cpu-usage</id><content type="html" xml:base="http://localhost:4000/posts/debugging-explorer-high-cpu-usage/">&lt;p&gt;占用cpu高的进程是explorer.exe，并非是创建桌面和任务栏的那个explorer，而是有着如下命令行&lt;/p&gt;
 
 &lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;C:\WINDOWS\explorer.exe /factory,{ceff45ee-c862-41de-aee2-a022c81eda92} -Embedding
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
@@ -1024,7 +1170,7 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;p&gt;解决：&lt;/p&gt;
 
-&lt;p&gt;卸载或者删除该dll模块&lt;/p&gt;</content><author><name></name></author><category term="debugging" /><summary type="html">占用cpu高的进程是explorer.exe，并非是创建桌面和任务栏的那个explorer，而是有着如下命令行</summary></entry><entry><title type="html">The Story of GDI Abusing</title><link href="https://citrusice.github.io/posts/the-story-of-gdi-abusing/" rel="alternate" type="text/html" title="The Story of GDI Abusing" /><published>2022-10-19T12:24:32+08:00</published><updated>2022-10-19T12:24:32+08:00</updated><id>https://citrusice.github.io/posts/the-story-of-gdi-abusing</id><content type="html" xml:base="https://citrusice.github.io/posts/the-story-of-gdi-abusing/">&lt;p&gt;真正开始要写利用了才发现我对利用这块一无所知，要说 win32k 我还稍微具备点前置知识，什么窗口过程用户回调巴拉巴拉，但利用是一点没有接触过，所以还是先补补漏洞利用手法，这篇是关于利用 gdi 对象实现任意内存写原语的。&lt;/p&gt;
+&lt;p&gt;卸载或者删除该dll模块&lt;/p&gt;</content><author><name></name></author><category term="debugging" /><summary type="html">占用cpu高的进程是explorer.exe，并非是创建桌面和任务栏的那个explorer，而是有着如下命令行</summary></entry><entry><title type="html">The Story of GDI Abusing</title><link href="http://localhost:4000/posts/the-story-of-gdi-abusing/" rel="alternate" type="text/html" title="The Story of GDI Abusing" /><published>2022-10-19T12:24:32+08:00</published><updated>2022-10-19T12:24:32+08:00</updated><id>http://localhost:4000/posts/the-story-of-gdi-abusing</id><content type="html" xml:base="http://localhost:4000/posts/the-story-of-gdi-abusing/">&lt;p&gt;真正开始要写利用了才发现我对利用这块一无所知，要说 win32k 我还稍微具备点前置知识，什么窗口过程用户回调巴拉巴拉，但利用是一点没有接触过，所以还是先补补漏洞利用手法，这篇是关于利用 gdi 对象实现任意内存写原语的。&lt;/p&gt;
 
 &lt;h1 id=&quot;bitmap-abuse&quot;&gt;Bitmap Abuse&lt;/h1&gt;
 
@@ -1646,7 +1792,7 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;hr /&gt;
 
-&lt;p&gt;花了三周时间学习 gdi 系列的利用手法以及 windows 池之类的相关知识，深感不易，然而这大概也只是漏洞的冰山一角。有时候会觉得自己接触安全太晚了，如果从 xp 时代开始弄，那么就不会有那么多安全机制和缓解措施，接触前沿技术的门槛会低很多。而现在我感觉要能看到安全的前沿都十分费力，不过也有好处就是了，那就是现在有大量的资料可以参考，学起来比那时候要轻松很多。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">真正开始要写利用了才发现我对利用这块一无所知，要说 win32k 我还稍微具备点前置知识，什么窗口过程用户回调巴拉巴拉，但利用是一点没有接触过，所以还是先补补漏洞利用手法，这篇是关于利用 gdi 对象实现任意内存写原语的。</summary></entry><entry><title type="html">CVE-2018-8453 分析</title><link href="https://citrusice.github.io/posts/cve-2018-8453-analysis/" rel="alternate" type="text/html" title="CVE-2018-8453 分析" /><published>2022-09-27T17:17:21+08:00</published><updated>2022-09-27T17:17:21+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-analysis</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-analysis/">&lt;p&gt;由于是第一次接触 win32k，先准备一点前置知识&lt;/p&gt;
+&lt;p&gt;花了三周时间学习 gdi 系列的利用手法以及 windows 池之类的相关知识，深感不易，然而这大概也只是漏洞的冰山一角。有时候会觉得自己接触安全太晚了，如果从 xp 时代开始弄，那么就不会有那么多安全机制和缓解措施，接触前沿技术的门槛会低很多。而现在我感觉要能看到安全的前沿都十分费力，不过也有好处就是了，那就是现在有大量的资料可以参考，学起来比那时候要轻松很多。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">真正开始要写利用了才发现我对利用这块一无所知，要说 win32k 我还稍微具备点前置知识，什么窗口过程用户回调巴拉巴拉，但利用是一点没有接触过，所以还是先补补漏洞利用手法，这篇是关于利用 gdi 对象实现任意内存写原语的。</summary></entry><entry><title type="html">CVE-2018-8453 分析</title><link href="http://localhost:4000/posts/cve-2018-8453-analysis/" rel="alternate" type="text/html" title="CVE-2018-8453 分析" /><published>2022-09-27T17:17:21+08:00</published><updated>2022-09-27T17:17:21+08:00</updated><id>http://localhost:4000/posts/cve-2018-8453-analysis</id><content type="html" xml:base="http://localhost:4000/posts/cve-2018-8453-analysis/">&lt;p&gt;由于是第一次接触 win32k，先准备一点前置知识&lt;/p&gt;
 &lt;h1 id=&quot;相关函数&quot;&gt;相关函数&lt;/h1&gt;
 &lt;h2 id=&quot;hmassignmentunlock&quot;&gt;HMAssignmentUnlock&lt;/h2&gt;
 &lt;p&gt;实际上会调 HMUnlockObject，HMUnlockObject 实际是个宏&lt;/p&gt;
@@ -1963,58 +2109,4 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;hr /&gt;
 
-&lt;p&gt;很庆幸现在有 xp 的代码作为参考，通过源代码能快速了解模块的内部，对 wink32 的了解也增进了不少。在分析这个漏洞的时候时不时冒出来一些绕过这个补丁或者挖相近漏洞的思路，但是一一验证后无一所获。离出洞最近的一次是看到了 xxxClientAllocWindowClassExtraBytes 与 xxxSetWindowLong 的时候想出来一个思路可以内核任意写，那时候感觉自己真的要挖出 0day 了，但事实总是不尽人意的，一方面这个位置的洞已经被人挖出来过了，并且已经有了 patch，另一方面自己的思路实际上与真正的那个洞也有一点区别，只是利用点一样，但是没有想到靠类型混淆+oob 来实现任意写，所以离真的挖出洞还是差了点，下次再分析漏洞的话就分析这个 cve 吧。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">由于是第一次接触 win32k，先准备一点前置知识 相关函数 HMAssignmentUnlock 实际上会调 HMUnlockObject，HMUnlockObject 实际是个宏</summary></entry><entry><title type="html">《Kernel Attacks through User-Mode Callbacks》的一些笔记</title><link href="https://citrusice.github.io/posts/note-of-kernel-attack-through-usermode-callbacks/" rel="alternate" type="text/html" title="《Kernel Attacks through User-Mode Callbacks》的一些笔记" /><published>2022-09-02T12:59:04+08:00</published><updated>2022-09-02T12:59:04+08:00</updated><id>https://citrusice.github.io/posts/note-of-kernel-attack-through-usermode-callbacks</id><content type="html" xml:base="https://citrusice.github.io/posts/note-of-kernel-attack-through-usermode-callbacks/">&lt;p&gt;读《Kernel Attacks through User-Mode Callbacks》这篇论文做的一些笔记，主要是摘录和翻译。&lt;/p&gt;
-
-&lt;p&gt;“win32k calls win32k!xxxInitProcessInfo to initialize the per-process W32PROCESS/PROCESSINFO2 structure” (Mandt, p. 4)&lt;/p&gt;
-
-&lt;p&gt;win32k!xxxInitProcessInfo 初始化W32PROCESS/PROCESSINFO&lt;/p&gt;
-
-&lt;p&gt;该结构包含进程gui相关信息，如桌面句柄、windows station句柄以及gdi句柄等。&lt;/p&gt;
-
-&lt;p&gt;“Additionally, win32k also initializes a per-thread W32THREAD/THREADINFO structure for all threads that are converted to GUI threads. This structure holds thread specific information related to the GUI subsystem such as information on the thread message queues, registered windows hooks, owner desktop, menu state, and so on. Here, W32pThreadCallout calls win32k!AllocateW32Thread to allocate the structure, followed by GdiThreadCallout and UserThreadCallout to initialize information peculiar to the GDI and USER subsystems respectively.” (Mandt, p. 4)&lt;/p&gt;
-
-&lt;p&gt;W32THREAD/THREADINFO包含线程gui信息，如线程消息队列，注册的窗口钩子，所属的desktop，菜单状态等。&lt;/p&gt;
-
-&lt;p&gt;“win32k!AllocateW32Thread” (Mandt, p. 4)&lt;/p&gt;
-
-&lt;p&gt;“USER32!_fnDWORD” (Mandt, p. 8) fnDWORD用于dispatch message&lt;/p&gt;
-
-&lt;p&gt;(Mandt, p. 11) 如果一个usermode callback在执行过程中修改了某些窗口属性，而在callback之后返回到内核中时内核没有做相应的检查，则可能会会导致一些安全问题&lt;/p&gt;
-
-&lt;p&gt;“Functions prefixed xxx will in most cases leave the critical section and invoke a user-mode callback.” (Mandt, p. 11)&lt;/p&gt;
-
-&lt;p&gt;“Functions prefixed zzz invoke asynchronous or deferred callbacks.” (Mandt, p. 11)&lt;/p&gt;
-
-&lt;h2 id=&quot;user-object-locking&quot;&gt;User Object Locking&lt;/h2&gt;
-
-&lt;p&gt;“Window Object Use-After-Free (CVE-2011-1237)” (Mandt, p. 13) 当程序设置了CBT HOOK的时候，可以接收打HCBT_CREATEWND 消息，这个消息中程序可以使用一个已存在的窗口句柄来设置新创建窗口z轴上的位置（操作系统使用hwndInsertAfter实现），在设置了这个z轴位置的属性后，操作系统将使用这个句柄将将要创建的窗口加入到z轴的链表里去。然而操作系统并没有在回调函数设置窗口位置后将用于设置窗口位置的窗口句柄锁定，因此在之后攻击者可以将该窗口句柄指向的窗口销毁，从而使操作系统操作一块被释放的内存，造成uaf。&lt;/p&gt;
-
-&lt;p&gt;“Keyboard Layout Object Use-After-Free (CVE-2011-1241)” (Mandt, p. 14) LoadKeyboardLayoutEx 函数需要传入一个键盘布局的句柄，而该函数在接收到句柄后没有锁定该句柄指向的对象，导致攻击者可以在callback中卸载该对象，从而触发uaf&lt;/p&gt;
-
-&lt;h2 id=&quot;object-state-validation&quot;&gt;Object State Validation&lt;/h2&gt;
-
-&lt;p&gt;“DDE Conversation State Vulnerabilities” (Mandt, p. 16) 双方使用dde通讯的时候，攻击者（其中一方）可以在用户回调中结束通讯，导致对方的通讯对象被释放，当对方再次使用通讯对象时，由于没有对其进行安全验证，继续使用该指针，导致安全问题。&lt;/p&gt;
-
-&lt;p&gt;“Menu State Handling Vulnerabilities” (Mandt, p. 17) 在处理多种菜单消息时，win32k在usercallback之后没有验证菜单的状态，导致安全问题&lt;/p&gt;
-
-&lt;h2 id=&quot;buffer-reallocation&quot;&gt;Buffer Reallocation&lt;/h2&gt;
-
-&lt;p&gt;许多对象都使用array来存放一些东西，array会随着元素的增加或减少而改变大小。重要的是任何可以在usercallback中被修改的array需要在调用结束后进行检查，否则将导致安全问题。&lt;/p&gt;
-
-&lt;p&gt;“Menu Item Array Use-After-Free” (Mandt, p. 19) 菜单对象定义了一个指向数组菜单item的指针，可以用使用InsertMenuItem或DeleteMenu函数操作该数组，同时有一个cItems变量来存储数组元素的个数。一些win32k中的函数没有在用户回调之后校验菜单数组，并且由于数组不存在锁的机制，所以任何一个用户回调函数都可以修改该数组。如果一块用户数组的内存在用户回调中被重新分配内存，而之后的代码没有进行校验，则会导致之后都的代码操作在一块被释放的内存上。“SetMenuInfo” (Mandt, p. 19) 允许应用为菜单设置属性。在设置MIM_APPLYTOSUBMENUS flag后，win32开会更新所有子菜单的属性。其内部实现为xxxSetMenuInfo 函数。xxxSetMenuInfo 在递归更新子菜单属性前首先将菜单items的数量以及指向该数组的指针存在栈中。一旦xxxSetMenuInfo 递归找到最底层的菜单，递归停止，并且这时有可能会在xxxMNUpdateShownMenu中调用用户回调，因此此时可以在用户回调中修改菜单item 数组的大小。并且，在xxxMNUpdateShownMenu返回后，上层函数(xxxSetMenuInfo )并没有校验菜单数组指针和菜单item数量的正确性。因此当攻击者在回调中修改了数组时，xxxSetMenuInfo将有可能操作一块空的内存。&lt;/p&gt;
-
-&lt;p&gt;“SetWindowPos Array Use-After-Free” (Mandt, p. 21) 大同小异，懒得写了&lt;/p&gt;
-
-&lt;p&gt;“Use-After-Free Exploitation” (Mandt, p. 24) 为了利用uaf漏洞，攻击者需要重新分配那块已经被释放的内存并且能在一定程度上控制该内存。对于desktop heap的uaf，可以使用SetWindowTextW去强制分配一个特定大小的堆内存；对于session pool的uaf，则可以使用SetClassLongPtr并且指定GCLP_MENUNAME来达到效果。win32k中一些对象会包含指向永久锁的指针，当被uaf影响的对象再次被释放后，win32k会将该对象中永久锁的的引用减一，这就实现了一个任意地址减一的操作。使用这个任意地址减一的操作，可以将窗口对象的类型(bType)设置为0，当该窗口对象销毁时，这回引起free type为0的销毁函数被调用，而该函数是未被定义的（指向该函数的函数指针为null），因此用户可以通过映射0页导致内核代码执行。&lt;/p&gt;
-
-&lt;p&gt;“Null Pointer Exploitation” (Mandt, p. 25) 通过调用NtAllocateVirtualMemory，用户可以在0页分配内存，进而导致攻击者可以在0页创建一个假的对象然后触发任意内存写或者控制函数指针指向的内容。&lt;/p&gt;
-
-&lt;h2 id=&quot;缓解措施&quot;&gt;缓解措施&lt;/h2&gt;
-
-&lt;p&gt;win32k中的uaf关键在于攻击者有能力在回调中释放对象并且在win32k重新使用该对象的时候重新分配内存。因此可以通过隔离某一些资源的分配（如字符串），使它们从不同的资源内配内存来减少内核pool以及heap的可预测性。&lt;/p&gt;
-
-&lt;p&gt;由于系统可以知道何时回调处于激活状态，因此可以使用延时释放内存。这将组织攻击者立刻重用被释放的内存空间。然而这种方式对于那些在uaf触发前有多个回调被调用的漏洞无效。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;文章和笔记都是六月份弄的，回首一下这两三个月，感觉确实在随机漫步，搞一些杂七杂八的东西。不过也无所谓，就相当于休息了。之前代码写得实在太投入，等到写完才感觉到好累。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">读《Kernel Attacks through User-Mode Callbacks》这篇论文做的一些笔记，主要是摘录和翻译。</summary></entry></feed>
+&lt;p&gt;很庆幸现在有 xp 的代码作为参考，通过源代码能快速了解模块的内部，对 wink32 的了解也增进了不少。在分析这个漏洞的时候时不时冒出来一些绕过这个补丁或者挖相近漏洞的思路，但是一一验证后无一所获。离出洞最近的一次是看到了 xxxClientAllocWindowClassExtraBytes 与 xxxSetWindowLong 的时候想出来一个思路可以内核任意写，那时候感觉自己真的要挖出 0day 了，但事实总是不尽人意的，一方面这个位置的洞已经被人挖出来过了，并且已经有了 patch，另一方面自己的思路实际上与真正的那个洞也有一点区别，只是利用点一样，但是没有想到靠类型混淆+oob 来实现任意写，所以离真的挖出洞还是差了点，下次再分析漏洞的话就分析这个 cve 吧。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">由于是第一次接触 win32k，先准备一点前置知识 相关函数 HMAssignmentUnlock 实际上会调 HMUnlockObject，HMUnlockObject 实际是个宏</summary></entry></feed>
