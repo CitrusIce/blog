@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>From Memory Loading to Everything - Part 2</title>
+<script data-goatcounter="https://citrusice.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"><div class="navbar">
+	<ul>
+		<a href="/index"><li>Home</li></a>
+		<a href="/about"><li>About</li></a>
+		<a href="/friends"><li>Friends</li></a>
+		<!-- <a href="/archive"><li>Archive</li></a> -->
+	</ul>
+</div></div><div class="container">
+	<h1>From Memory Loading to Everything - Part 2</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Aug 29, 2023
+	</div>
+	<ul class="post-tags"><li>windows</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>上一篇文章中我介绍了 tls 表以及 ldr，本文将介绍资源表、LdrpHashTable、异常表和 MFC 程序加载时出现的问题等相关内容。</p>
+
+<h1 id="resource-table">Resource Table</h1>
+
+<p>pe 的资源表用于存放资源文件，我们 <code class="language-plaintext highlighter-rouge">FindResourceA</code> 与 <code class="language-plaintext highlighter-rouge">LoadResource</code> 来从资源表中获取资源。</p>
+
+<p><code class="language-plaintext highlighter-rouge">FindResourceA</code> 是依赖 <code class="language-plaintext highlighter-rouge">BasepMapModuleHandle</code> 获取到 image 的句柄（基址）的，当我们传入 <code class="language-plaintext highlighter-rouge">NULL</code> 时，<code class="language-plaintext highlighter-rouge">BasepMapModuleHandle</code> 将取 <code class="language-plaintext highlighter-rouge">NtCurrentPeb()-&gt;ImageBaseAddress</code> 作为返回结果</p>
+
+<h1 id="ldrphashtable">LdrpHashTable</h1>
+
+<p>编程中往往会用到 <code class="language-plaintext highlighter-rouge">GetModuleHandle</code> 找到模块的基址，这跟 LdrpHashTable 有关。</p>
+
+<p>LdrpHashTable 是一个存放模块列表的 hash 表，而 GetModuleHandle 就是通过这个表进行模块的查询</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">LIST_ENTRY</span> <span class="n">LdrpHashTable</span><span class="p">[</span><span class="n">LDRP_HASH_TABLE_SIZE</span><span class="p">];</span>
+</code></pre></div></div>
+
+<p>LdrDataTableEntry-&gt;HashLink 这个 hashlink 就与一个 listentry 相连接，因此可以通过找到一个模块的 ldrentry 间接找到这个整个 LdrpHashTable。</p>
+
+<h1 id="exception-table">Exception Table</h1>
+
+<p>x64 的异常与 x86 不同，不再依赖异常链表，而是将异常相关信息写在 pe 的 exception table 中，在 pe 装载后对 exception table 调用 <code class="language-plaintext highlighter-rouge">RtlAddFunctionTable</code> 注册异常。</p>
+
+<h1 id="mfc-程序">MFC 程序</h1>
+
+<p>尝试加载一下 mfc 程序，发现失败了。研究了一下发现是 <code class="language-plaintext highlighter-rouge">GetModuldeFileName</code> 的问题。</p>
+
+<p><code class="language-plaintext highlighter-rouge">GetModuldeFileName</code> 根据传入的 handle 在 InMemoryOrderLinks 链表中寻找对应的 ldr entry，然后返回 entry 中的 <code class="language-plaintext highlighter-rouge">FullDllName</code>。</p>
+
+<p>对于内存加载的模块我没有添加对应的 ldr entry，因此导致 <code class="language-plaintext highlighter-rouge">GetModuldeFileName</code> 失败。而如果要添加 ldr entry，由于各个 windows 版本中的 ldr entry 结构并不一样，如何处理以保证兼容性也是一个问题。</p>
+
+<p>报错的位置：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">v6</span> <span class="o">=</span> <span class="n">GetModuleFileNameW</span><span class="p">(</span><span class="k">this</span><span class="o">-&gt;</span><span class="n">m_hInstance</span><span class="p">,</span> <span class="n">Filename</span><span class="p">,</span> <span class="mh">0x104u</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span> <span class="p">(</span><span class="o">!</span><span class="n">v6</span> <span class="o">||</span> <span class="n">v6</span> <span class="o">==</span> <span class="mi">260</span><span class="p">)</span>
+    <span class="o">&amp;&amp;</span> <span class="n">AfxAssertFailedLine</span><span class="p">(</span><span class="s">"D:</span><span class="se">\\</span><span class="s">agent</span><span class="se">\\</span><span class="s">_work</span><span class="se">\\</span><span class="s">13</span><span class="se">\\</span><span class="s">s</span><span class="se">\\</span><span class="s">src</span><span class="se">\\</span><span class="s">vctools</span><span class="se">\\</span><span class="s">VC7Libs</span><span class="se">\\</span><span class="s">Ship</span><span class="se">\\</span><span class="s">ATLMFC</span><span class="se">\\</span><span class="s">Src</span><span class="se">\\</span><span class="s">MFC</span><span class="se">\\</span><span class="s">appinit.cpp"</span><span class="p">,</span> <span class="mi">75</span><span class="p">)</span> <span class="p">)</span>
+  <span class="p">{</span>
+    <span class="n">__debugbreak</span><span class="p">();</span>
+  <span class="p">}</span>
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>0:000&gt; k
+ # Child-SP          RetAddr               Call Site
+00 000000ed`ba2f7958 00007ffd`37294d13     ntdll!RtlPcToFileHeader
+01 000000ed`ba2f7960 00000001`40b14d8f     KERNELBASE!GetModuleHandleExW+0x83
+02 000000ed`ba2f79a0 00000001`40b17233     encrytStringTool!common_message_window&lt;char&gt;+0x6f [minkernel\crts\ucrt\src\appcrt\misc\dbgrpt.cpp @ 333] 
+03 000000ed`ba2f9c30 00000001`40b518dc     encrytStringTool!__acrt_MessageWindowA+0x43 [minkernel\crts\ucrt\src\appcrt\misc\dbgrpt.cpp @ 453] 
+04 000000ed`ba2f9c70 00000001`40b170b0     encrytStringTool!_VCrtDbgReportA+0x99c [minkernel\crts\ucrt\src\appcrt\misc\dbgrptt.cpp @ 420] 
+05 000000ed`ba2fed60 00000001`404352b4     encrytStringTool!_CrtDbgReport+0x60 [minkernel\crts\ucrt\src\appcrt\misc\dbgrpt.cpp @ 263] 
+06 000000ed`ba2fedc0 00000001`40493f70     encrytStringTool!AfxAssertFailedLine+0x94 [C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30037\atlmfc\include\afx.h @ 317] 
+07 000000ed`ba2fef60 00000001`40493e03     encrytStringTool!CWinApp::SetCurrentHandles+0x110 [D:\agent\_work\13\s\src\vctools\VC7Libs\Ship\ATLMFC\Src\MFC\appinit.cpp @ 75] 
+08 000000ed`ba2ff860 00000001`40baba30     encrytStringTool!AfxWinInit+0xc3 [D:\agent\_work\13\s\src\vctools\VC7Libs\Ship\ATLMFC\Src\MFC\appinit.cpp @ 46] 
+09 000000ed`ba2ff8a0 00000001`40bab992     encrytStringTool!AfxWinMain+0x80 [D:\agent\_work\13\s\src\vctools\VC7Libs\Ship\ATLMFC\Src\MFC\winmain.cpp @ 29] 
+0a 000000ed`ba2ff960 00000001`40aadd72     encrytStringTool!wWinMain+0x32 [D:\agent\_work\13\s\src\vctools\VC7Libs\Ship\ATLMFC\Src\MFC\appmodul.cpp @ 26] 
+0b 000000ed`ba2ff990 00000001`40aadc1e     encrytStringTool!invoke_main+0x32 [D:\agent\_work\13\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 123] 
+0c 000000ed`ba2ff9d0 00000001`40aadade     encrytStringTool!__scrt_common_main_seh+0x12e [D:\agent\_work\13\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 288] 
+0d 000000ed`ba2ffa40 00000001`40aade0e     encrytStringTool!__scrt_common_main+0xe [D:\agent\_work\13\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 331] 
+*** WARNING: Unable to verify checksum for test.exe
+0e 000000ed`ba2ffa70 00007ff7`99381ed2     encrytStringTool!wWinMainCRTStartup+0xe [D:\agent\_work\13\s\src\vctools\crt\vcstartup\src\startup\exe_wwinmain.cpp @ 17] 
+0f 000000ed`ba2ffaa0 00007ff7`9938256f     test!CallEntry+0xb2 
+</code></pre></div></div>
+
+<p>深入这个函数，GetModuleFileNameW-&gt;LdrGetDllFullName-&gt;LdrpFindLoadedDllByHandle
+最终通过 LdrpModuleBaseAddressIndex 这个东西找到 dllentry。</p>
+
+<p>继续研究，通过 <code class="language-plaintext highlighter-rouge">LdrpModuleBaseAddressIndex</code> 的引用找到了函数 <code class="language-plaintext highlighter-rouge">LdrpInsertModuleToIndexLockHeld</code> ，这个函数处理了 LdrpMappingInfoIndex 和 LdrpModuleBaseAddressIndex，可见这两个东西都是我们需要处理的。</p>
+
+<p>那么这两个东西到底是个什么结构？在一些逆向以及查找资料后，得知这个东西是个红黑树</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>RtlRbInsertNodeEx((unsigned __int64 *)&amp;LdrpMappingInfoIndex, v7, v8, (unsigned __int64)&amp;a1-&gt;MappingInfoIndexNode);
+ result = RtlRbInsertNodeEx(
+             (unsigned __int64 *)&amp;LdrpModuleBaseAddressIndex,
+             v10,
+             v4,
+             (unsigned __int64)&amp;a1-&gt;BaseAddressIndexNode);
+</code></pre></div></div>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="k">struct</span> <span class="nc">_RTL_BALANCED_NODE</span>
+<span class="p">{</span>
+    <span class="k">union</span>
+    <span class="p">{</span>
+        <span class="k">struct</span> <span class="nc">_RTL_BALANCED_NODE</span> <span class="o">*</span><span class="n">Children</span><span class="p">[</span><span class="mi">2</span><span class="p">];</span>
+        <span class="k">struct</span>
+        <span class="p">{</span>
+            <span class="k">struct</span> <span class="nc">_RTL_BALANCED_NODE</span> <span class="o">*</span><span class="n">Left</span><span class="p">;</span>
+            <span class="k">struct</span> <span class="nc">_RTL_BALANCED_NODE</span> <span class="o">*</span><span class="n">Right</span><span class="p">;</span>
+        <span class="p">};</span>
+    <span class="p">};</span>
+    <span class="k">union</span>
+    <span class="p">{</span>
+        <span class="n">UCHAR</span> <span class="n">Red</span> <span class="o">:</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="n">UCHAR</span> <span class="n">Balance</span> <span class="o">:</span> <span class="mi">2</span><span class="p">;</span>
+        <span class="n">ULONG_PTR</span> <span class="n">ParentValue</span><span class="p">;</span>
+    <span class="p">};</span>
+<span class="p">}</span> <span class="n">RTL_BALANCED_NODE</span><span class="p">,</span> <span class="o">*</span><span class="n">PRTL_BALANCED_NODE</span><span class="p">;</span>
+
+<span class="k">typedef</span> <span class="k">struct</span> <span class="nc">_RTL_RB_TREE</span> <span class="p">{</span>
+	<span class="n">PRTL_BALANCED_NODE</span> <span class="n">Root</span><span class="p">;</span>
+	<span class="n">PRTL_BALANCED_NODE</span> <span class="n">Min</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">RTL_RB_TREE</span><span class="p">,</span> <span class="o">*</span> <span class="n">PRTL_RB_TREE</span><span class="p">;</span>
+
+</code></pre></div></div>
+
+<p>搞清楚了这两个东西是个红黑树，那么还需要知道这两个结构存的是什么内容的数据，继续逆向，得知 ldr data table entry 的 MappingInfoIndexNode 对应的 LdrpMappingInfoIndex，BaseAddressIndexNode 对应 LdrpModuleBaseAddressIndex。</p>
+
+<p>红黑树的节点是可以通过 ParentValue 找到父节点的，因此定位到一棵树的 root 是可以做到，只要能找到任意一个节点就可以追寻到 root。定位到 root 以后直接调用 <code class="language-plaintext highlighter-rouge">RtlRbInsertNodeEx</code> 即可。</p>
+
+<hr />
+
+<p>断断续续总算是把这篇文章弄完了。由于实在是没有精力，脑子里根本构建不出整个文章的思路，所以写得很散，只是潜意识觉得文章应该有什么就把该有的堆上去，还请见谅。</p>
+
+<p>搞区块链以后常常会后悔，因为自己抛弃了一个安逸的环境。虽然这些后悔是我早已预料的，但是我还是高估了我对变化的环境的承受能力，我往往感到精疲力尽，并在想如果我当时没有做出这样的选择，我应该沉浸在 ida 和 windows 的世界里，享受轻松无压力的生活。尽管有一些言论是说“让自己走出舒适区”，但我却并不认同。只要这个舒适区是可持续的，那么一直待在里面没有什么不好。不过，虽然我嘴上是不认同这种观点，但是我实际的选择上却是倾向于认同的，也许是因为我还是想做一点事才这样选择。</p>
+
+<p>博客我还是会尽力写，因为一方面我不想说让我二进制这块的学习就这样停滞，另外我也仍然想在安全这块有所成就，不过写的速度是不会像以前那样一个月一篇了。不过也无所谓，贵在坚持。</p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>

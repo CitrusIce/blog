@@ -1,5 +1,118 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2023-05-20T11:08:10+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">From Memory Loading to Everything - Part 1</title><link href="https://citrusice.github.io/posts/from-memory-loading-to-everyting-part-1/" rel="alternate" type="text/html" title="From Memory Loading to Everything - Part 1" /><published>2023-05-20T11:02:16+08:00</published><updated>2023-05-20T11:02:16+08:00</updated><id>https://citrusice.github.io/posts/from-memory-loading-to-everyting-part-1</id><content type="html" xml:base="https://citrusice.github.io/posts/from-memory-loading-to-everyting-part-1/">&lt;p&gt;我接触 Windows 最开始看的两本书是《PE 权威指南》和《Windows 核心编程》，学这两本书的目的也很简单：实现内存加载。我们知道，要实现内存加载，最重要的是处理 PE 中的三个表：导入表，iat 和重定位表。然而跟 pe 装载有关系的表却不仅仅只有这三个，那么剩下的表都有着怎样的内容？在 PE 的装在过程中发挥了什么样的作用？&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2023-08-29T10:27:00+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">From Memory Loading to Everything - Part 2</title><link href="https://citrusice.github.io/posts/from-memory-loading-to-everything-part-2/" rel="alternate" type="text/html" title="From Memory Loading to Everything - Part 2" /><published>2023-08-29T10:20:56+08:00</published><updated>2023-08-29T10:20:56+08:00</updated><id>https://citrusice.github.io/posts/from-memory-loading-to-everything-part-2</id><content type="html" xml:base="https://citrusice.github.io/posts/from-memory-loading-to-everything-part-2/">&lt;p&gt;上一篇文章中我介绍了 tls 表以及 ldr，本文将介绍资源表、LdrpHashTable、异常表和 MFC 程序加载时出现的问题等相关内容。&lt;/p&gt;
+
+&lt;h1 id=&quot;resource-table&quot;&gt;Resource Table&lt;/h1&gt;
+
+&lt;p&gt;pe 的资源表用于存放资源文件，我们 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;FindResourceA&lt;/code&gt; 与 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LoadResource&lt;/code&gt; 来从资源表中获取资源。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;FindResourceA&lt;/code&gt; 是依赖 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;BasepMapModuleHandle&lt;/code&gt; 获取到 image 的句柄（基址）的，当我们传入 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NULL&lt;/code&gt; 时，&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;BasepMapModuleHandle&lt;/code&gt; 将取 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;NtCurrentPeb()-&amp;gt;ImageBaseAddress&lt;/code&gt; 作为返回结果&lt;/p&gt;
+
+&lt;h1 id=&quot;ldrphashtable&quot;&gt;LdrpHashTable&lt;/h1&gt;
+
+&lt;p&gt;编程中往往会用到 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GetModuleHandle&lt;/code&gt; 找到模块的基址，这跟 LdrpHashTable 有关。&lt;/p&gt;
+
+&lt;p&gt;LdrpHashTable 是一个存放模块列表的 hash 表，而 GetModuleHandle 就是通过这个表进行模块的查询&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LdrpHashTable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;LDRP_HASH_TABLE_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;LdrDataTableEntry-&amp;gt;HashLink 这个 hashlink 就与一个 listentry 相连接，因此可以通过找到一个模块的 ldrentry 间接找到这个整个 LdrpHashTable。&lt;/p&gt;
+
+&lt;h1 id=&quot;exception-table&quot;&gt;Exception Table&lt;/h1&gt;
+
+&lt;p&gt;x64 的异常与 x86 不同，不再依赖异常链表，而是将异常相关信息写在 pe 的 exception table 中，在 pe 装载后对 exception table 调用 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;RtlAddFunctionTable&lt;/code&gt; 注册异常。&lt;/p&gt;
+
+&lt;h1 id=&quot;mfc-程序&quot;&gt;MFC 程序&lt;/h1&gt;
+
+&lt;p&gt;尝试加载一下 mfc 程序，发现失败了。研究了一下发现是 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GetModuldeFileName&lt;/code&gt; 的问题。&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GetModuldeFileName&lt;/code&gt; 根据传入的 handle 在 InMemoryOrderLinks 链表中寻找对应的 ldr entry，然后返回 entry 中的 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;FullDllName&lt;/code&gt;。&lt;/p&gt;
+
+&lt;p&gt;对于内存加载的模块我没有添加对应的 ldr entry，因此导致 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GetModuldeFileName&lt;/code&gt; 失败。而如果要添加 ldr entry，由于各个 windows 版本中的 ldr entry 结构并不一样，如何处理以保证兼容性也是一个问题。&lt;/p&gt;
+
+&lt;p&gt;报错的位置：&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;v6&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GetModuleFileNameW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;m_hInstance&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x104u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v6&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v6&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;260&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AfxAssertFailedLine&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;D:&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;agent&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;_work&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;13&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;s&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;src&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;vctools&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;VC7Libs&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;Ship&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;ATLMFC&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;Src&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;MFC&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\\&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;appinit.cpp&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;75&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;__debugbreak&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0:000&amp;gt; k
+ # Child-SP          RetAddr               Call Site
+00 000000ed`ba2f7958 00007ffd`37294d13     ntdll!RtlPcToFileHeader
+01 000000ed`ba2f7960 00000001`40b14d8f     KERNELBASE!GetModuleHandleExW+0x83
+02 000000ed`ba2f79a0 00000001`40b17233     encrytStringTool!common_message_window&amp;lt;char&amp;gt;+0x6f [minkernel\crts\ucrt\src\appcrt\misc\dbgrpt.cpp @ 333] 
+03 000000ed`ba2f9c30 00000001`40b518dc     encrytStringTool!__acrt_MessageWindowA+0x43 [minkernel\crts\ucrt\src\appcrt\misc\dbgrpt.cpp @ 453] 
+04 000000ed`ba2f9c70 00000001`40b170b0     encrytStringTool!_VCrtDbgReportA+0x99c [minkernel\crts\ucrt\src\appcrt\misc\dbgrptt.cpp @ 420] 
+05 000000ed`ba2fed60 00000001`404352b4     encrytStringTool!_CrtDbgReport+0x60 [minkernel\crts\ucrt\src\appcrt\misc\dbgrpt.cpp @ 263] 
+06 000000ed`ba2fedc0 00000001`40493f70     encrytStringTool!AfxAssertFailedLine+0x94 [C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.29.30037\atlmfc\include\afx.h @ 317] 
+07 000000ed`ba2fef60 00000001`40493e03     encrytStringTool!CWinApp::SetCurrentHandles+0x110 [D:\agent\_work\13\s\src\vctools\VC7Libs\Ship\ATLMFC\Src\MFC\appinit.cpp @ 75] 
+08 000000ed`ba2ff860 00000001`40baba30     encrytStringTool!AfxWinInit+0xc3 [D:\agent\_work\13\s\src\vctools\VC7Libs\Ship\ATLMFC\Src\MFC\appinit.cpp @ 46] 
+09 000000ed`ba2ff8a0 00000001`40bab992     encrytStringTool!AfxWinMain+0x80 [D:\agent\_work\13\s\src\vctools\VC7Libs\Ship\ATLMFC\Src\MFC\winmain.cpp @ 29] 
+0a 000000ed`ba2ff960 00000001`40aadd72     encrytStringTool!wWinMain+0x32 [D:\agent\_work\13\s\src\vctools\VC7Libs\Ship\ATLMFC\Src\MFC\appmodul.cpp @ 26] 
+0b 000000ed`ba2ff990 00000001`40aadc1e     encrytStringTool!invoke_main+0x32 [D:\agent\_work\13\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 123] 
+0c 000000ed`ba2ff9d0 00000001`40aadade     encrytStringTool!__scrt_common_main_seh+0x12e [D:\agent\_work\13\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 288] 
+0d 000000ed`ba2ffa40 00000001`40aade0e     encrytStringTool!__scrt_common_main+0xe [D:\agent\_work\13\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl @ 331] 
+*** WARNING: Unable to verify checksum for test.exe
+0e 000000ed`ba2ffa70 00007ff7`99381ed2     encrytStringTool!wWinMainCRTStartup+0xe [D:\agent\_work\13\s\src\vctools\crt\vcstartup\src\startup\exe_wwinmain.cpp @ 17] 
+0f 000000ed`ba2ffaa0 00007ff7`9938256f     test!CallEntry+0xb2 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;深入这个函数，GetModuleFileNameW-&amp;gt;LdrGetDllFullName-&amp;gt;LdrpFindLoadedDllByHandle
+最终通过 LdrpModuleBaseAddressIndex 这个东西找到 dllentry。&lt;/p&gt;
+
+&lt;p&gt;继续研究，通过 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LdrpModuleBaseAddressIndex&lt;/code&gt; 的引用找到了函数 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LdrpInsertModuleToIndexLockHeld&lt;/code&gt; ，这个函数处理了 LdrpMappingInfoIndex 和 LdrpModuleBaseAddressIndex，可见这两个东西都是我们需要处理的。&lt;/p&gt;
+
+&lt;p&gt;那么这两个东西到底是个什么结构？在一些逆向以及查找资料后，得知这个东西是个红黑树&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;RtlRbInsertNodeEx((unsigned __int64 *)&amp;amp;LdrpMappingInfoIndex, v7, v8, (unsigned __int64)&amp;amp;a1-&amp;gt;MappingInfoIndexNode);
+ result = RtlRbInsertNodeEx(
+             (unsigned __int64 *)&amp;amp;LdrpModuleBaseAddressIndex,
+             v10,
+             v4,
+             (unsigned __int64)&amp;amp;a1-&amp;gt;BaseAddressIndexNode);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_RTL_BALANCED_NODE&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;union&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_RTL_BALANCED_NODE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Children&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_RTL_BALANCED_NODE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Left&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_RTL_BALANCED_NODE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Right&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;union&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;UCHAR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Red&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;UCHAR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Balance&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;ULONG_PTR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ParentValue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RTL_BALANCED_NODE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PRTL_BALANCED_NODE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_RTL_RB_TREE&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;PRTL_BALANCED_NODE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Root&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;PRTL_BALANCED_NODE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Min&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RTL_RB_TREE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PRTL_RB_TREE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;搞清楚了这两个东西是个红黑树，那么还需要知道这两个结构存的是什么内容的数据，继续逆向，得知 ldr data table entry 的 MappingInfoIndexNode 对应的 LdrpMappingInfoIndex，BaseAddressIndexNode 对应 LdrpModuleBaseAddressIndex。&lt;/p&gt;
+
+&lt;p&gt;红黑树的节点是可以通过 ParentValue 找到父节点的，因此定位到一棵树的 root 是可以做到，只要能找到任意一个节点就可以追寻到 root。定位到 root 以后直接调用 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;RtlRbInsertNodeEx&lt;/code&gt; 即可。&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;断断续续总算是把这篇文章弄完了。由于实在是没有精力，脑子里根本构建不出整个文章的思路，所以写得很散，只是潜意识觉得文章应该有什么就把该有的堆上去，还请见谅。&lt;/p&gt;
+
+&lt;p&gt;搞区块链以后常常会后悔，因为自己抛弃了一个安逸的环境。虽然这些后悔是我早已预料的，但是我还是高估了我对变化的环境的承受能力，我往往感到精疲力尽，并在想如果我当时没有做出这样的选择，我应该沉浸在 ida 和 windows 的世界里，享受轻松无压力的生活。尽管有一些言论是说“让自己走出舒适区”，但我却并不认同。只要这个舒适区是可持续的，那么一直待在里面没有什么不好。不过，虽然我嘴上是不认同这种观点，但是我实际的选择上却是倾向于认同的，也许是因为我还是想做一点事才这样选择。&lt;/p&gt;
+
+&lt;p&gt;博客我还是会尽力写，因为一方面我不想说让我二进制这块的学习就这样停滞，另外我也仍然想在安全这块有所成就，不过写的速度是不会像以前那样一个月一篇了。不过也无所谓，贵在坚持。&lt;/p&gt;</content><author><name></name></author><category term="windows" /><summary type="html">上一篇文章中我介绍了 tls 表以及 ldr，本文将介绍资源表、LdrpHashTable、异常表和 MFC 程序加载时出现的问题等相关内容。</summary></entry><entry><title type="html">From Memory Loading to Everything - Part 1</title><link href="https://citrusice.github.io/posts/from-memory-loading-to-everyting-part-1/" rel="alternate" type="text/html" title="From Memory Loading to Everything - Part 1" /><published>2023-05-20T11:02:16+08:00</published><updated>2023-05-20T11:02:16+08:00</updated><id>https://citrusice.github.io/posts/from-memory-loading-to-everyting-part-1</id><content type="html" xml:base="https://citrusice.github.io/posts/from-memory-loading-to-everyting-part-1/">&lt;p&gt;我接触 Windows 最开始看的两本书是《PE 权威指南》和《Windows 核心编程》，学这两本书的目的也很简单：实现内存加载。我们知道，要实现内存加载，最重要的是处理 PE 中的三个表：导入表，iat 和重定位表。然而跟 pe 装载有关系的表却不仅仅只有这三个，那么剩下的表都有着怎样的内容？在 PE 的装在过程中发挥了什么样的作用？&lt;/p&gt;
 
 &lt;p&gt;毫无疑问，仅仅处理导入表和重定位表的内存加载是不完美的，只能实现部分 pe 的加载。&lt;/p&gt;
 
@@ -1792,321 +1905,4 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;hr /&gt;
 
-&lt;p&gt;花了三周时间学习 gdi 系列的利用手法以及 windows 池之类的相关知识，深感不易，然而这大概也只是漏洞的冰山一角。有时候会觉得自己接触安全太晚了，如果从 xp 时代开始弄，那么就不会有那么多安全机制和缓解措施，接触前沿技术的门槛会低很多。而现在我感觉要能看到安全的前沿都十分费力，不过也有好处就是了，那就是现在有大量的资料可以参考，学起来比那时候要轻松很多。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">真正开始要写利用了才发现我对利用这块一无所知，要说 win32k 我还稍微具备点前置知识，什么窗口过程用户回调巴拉巴拉，但利用是一点没有接触过，所以还是先补补漏洞利用手法，这篇是关于利用 gdi 对象实现任意内存写原语的。</summary></entry><entry><title type="html">CVE-2018-8453 分析</title><link href="https://citrusice.github.io/posts/cve-2018-8453-analysis/" rel="alternate" type="text/html" title="CVE-2018-8453 分析" /><published>2022-09-27T17:17:21+08:00</published><updated>2022-09-27T17:17:21+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-analysis</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-analysis/">&lt;p&gt;由于是第一次接触 win32k，先准备一点前置知识&lt;/p&gt;
-&lt;h1 id=&quot;相关函数&quot;&gt;相关函数&lt;/h1&gt;
-&lt;h2 id=&quot;hmassignmentunlock&quot;&gt;HMAssignmentUnlock&lt;/h2&gt;
-&lt;p&gt;实际上会调 HMUnlockObject，HMUnlockObject 实际是个宏&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;--&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PHEAD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pobj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cLockObj&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;?&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HMUnlockObjectInternal&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pobj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pobj&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;先对 obj-&amp;gt;cLockObj 进行减一，减一后如果等于 0 则调用 HMUnlockObjectInternal&lt;/p&gt;
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;PVOID&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;HMUnlockObjectInternal&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PVOID&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pobj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PHE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;phe&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;c1&quot;&gt;//如果handle entry没有被标记上HANDLEF_DESTROY则返回&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;phe&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HMPheFromObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pobj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;phe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bFlags&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HANDLEF_DESTROY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pobj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;c1&quot;&gt;//如果该对象正在destroy的过程中同样返回&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;phe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bFlags&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HANDLEF_INDESTROY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pobj&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;n&quot;&gt;HMDestroyUnlockedObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;phe&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;HMDestroyUnlockedObject 是销毁对象的部分&lt;/p&gt;
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;HMDestroyUnlockedObject&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PHE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;phe&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;//把对象标记为正在destroy的过程中&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;phe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bFlags&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HANDLEF_INDESTROY&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;c1&quot;&gt;//调用destroy函数&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;gahti&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;phe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bType&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fnDestroy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;phe&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;phead&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;HMAssignmentUnlock 简单来说就是会将对象的锁减一，如果锁的数量减为 0，则调用该对象的销毁函数&lt;/p&gt;
-
-&lt;h2 id=&quot;xxxdestroywindow&quot;&gt;xxxDestroyWindow&lt;/h2&gt;
-&lt;p&gt;一堆检查后调用 xxxFreeWindow&lt;/p&gt;
-&lt;h2 id=&quot;xxxfreewindow&quot;&gt;xxxFreeWindow&lt;/h2&gt;
-&lt;p&gt;如果一个还有其他对象对这个窗口存在引用，那么就不会真正释放这个窗口，同时把这个窗口的默认窗口过程改为默认窗口过程；如果没有其他引用了，那么就真正释放这个窗口（&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;HMFreeObject&lt;/code&gt;）&lt;/p&gt;
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;xxxFreeWindow&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PWND&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PTL&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;ptlpwndFree&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//...&lt;/span&gt;
-    &lt;span class=&quot;cm&quot;&gt;/*
-     * Try to free the object. The object won't free if it is locked - but
-     * it will be marked for destruction. If the window is locked, change
-     * it's wndproc to xxxDefWindowProc().
-     *
-     * HMMarkObjectDestroy() will clear the HANDLEF_INDESTROY flag if the
-     * object isn't about to go away (so it can be destroyed again!)
-     */&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;HMMarkObjectDestroy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-
-        &lt;span class=&quot;cm&quot;&gt;/*
-         * Delete the window's property list. Wait until now in case some
-         * thread keeps a property pointer around across a callback.
-         */&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ppropList&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;DeleteProperties&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-        &lt;span class=&quot;n&quot;&gt;pti&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cWindows&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;--&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-        &lt;span class=&quot;cm&quot;&gt;/*
-         * Since we're freeing the memory for this window, we need
-         * to unlock the parent (which is the desktop for zombie windows).
-         */&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;Unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndParent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-        &lt;span class=&quot;n&quot;&gt;ThreadLockDesktop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pti&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;head&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rpdesk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tlpdesk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LDLT_FN_FREEWINDOW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;HMFreeObject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;ThreadUnlockDesktop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pti&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tlpdesk&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LDUT_FN_FREEWINDOW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-    &lt;span class=&quot;cm&quot;&gt;/*
-     * Turn this into an object that the app won't see again - turn
-     * it into an icon title window - the window is still totally
-     * valid and useable by any structures that has this window locked.
-     */&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;lpfnWndProc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;xxxDefWindowProc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;//...&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;h2 id=&quot;xxxsbtrackinit&quot;&gt;xxxSBTrackInit&lt;/h2&gt;
-&lt;p&gt;首先分配一块内存，存放 SBTrack 结构体，然后做一些初始化。然后一些杂七杂八的操作后会去调用 xxxSBTrackLoop。在 xxxSBTrackLoop 返回后再释放 SBTrack 这块内存&lt;/p&gt;
-&lt;h2 id=&quot;xxxsbtrackloop&quot;&gt;xxxSBTrackLoop&lt;/h2&gt;
-&lt;p&gt;消息循环中接收消息，根据 SBTrack 中的函数指针去调用回调
-会通过 xxxDispatchMessage 调用 fnDWORD 回调&lt;/p&gt;
-&lt;h2 id=&quot;xxxendscroll&quot;&gt;xxxEndScroll&lt;/h2&gt;
-&lt;p&gt;会释放 SBTrack 结构体&lt;/p&gt;
-&lt;h2 id=&quot;keusermodecallback&quot;&gt;KeUserModeCallback&lt;/h2&gt;
-&lt;p&gt;用户回调函数&lt;/p&gt;
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;KeUserModeCallback&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ApiNumber&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PVOID&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InputBuffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InputLength&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OUT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PVOID&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;OutputBuffer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OutputLength&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;第一个参数为 apinumber，是 peb 中 KernelCallbackTable 的一个 index&lt;/p&gt;
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;dt nt!_PEB @$peb -y Kernel
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;不同系统 apinumber 是有差异的，需要根据系统适配&lt;/p&gt;
-
-&lt;h1 id=&quot;漏洞分析&quot;&gt;漏洞分析&lt;/h1&gt;
-&lt;p&gt;通过网上各种文章，带上调试，整理出了漏洞的流程&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;注册窗口类并产生一个主窗口，以主窗口为父窗口再创建一个滚动条子控件，hook fnDWORD、xxxClientAllocWindowClassExtraBytes&lt;/li&gt;
-  &lt;li&gt;向滚动条发送 WM_LBUTTONDOWN 消息，这时滚动条回调函数 xxxSBWndProc 会调用 xxxSBTrackInit 来实现滚动条的鼠标跟随并且创建结构体 SBTrack 来保存鼠标位置，之后会调用 xxxSBTrackLoop 循环获取鼠标消息&lt;/li&gt;
-  &lt;li&gt;xxxSBTrackLoop 循环会调用 fnDWORD 回调函数来回到 R3，这时在 fnDWORD 中释放之前创建的主窗口
-    &lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;00 fffff882`c4892338 ffffc69c`3c42e146     nt!KeUserModeCallback
-01 fffff882`c4892340 ffffc69c`3c42e5b0     win32kfull!SfnDWORD+0x226
-02 fffff882 `c4892450 ffffc69c` 3c62e19a     win32kfull! xxxDispatchMessage+0x240
-03 fffff882 `c4892500 ffffc69c` 3c62f052     win32kfull! xxxSBTrackLoop+0x1be
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
-  &lt;/li&gt;
-  &lt;li&gt;在释放过程中，如果窗口存在扩展结构，则会调用 xxxClientFreeWindowClassExtraBytes 函数释放扩展空间，也就是会调用之前 hook 的函数。&lt;/li&gt;
-  &lt;li&gt;此时在 xxxClientFreeWindowClassExtraBytes 中设置之前创建的父窗口的 fnid，由 0x8000 改为 0x82a1，&lt;strong&gt;同时创建一个新的滚动条&lt;/strong&gt;，并对其调用 SetCapture。继续返回执行 xxxFreeWindow&lt;/li&gt;
-  &lt;li&gt;在 xxxFreeWindow 中，此时由于还在 xxxSBTrackLoop 中，因此滚动条还有对主窗口的引用，所以这时 xxxFreeWindow 不会真的释放主窗口，xxxFreeWindow 执行结束，返回到 xxxSBTrackLoop。&lt;/li&gt;
-  &lt;li&gt;由于主窗口处于正在释放的状态，xxxSBTrackLoop 结束，这时解除对主窗口的引用，导致主窗口的真正释放，再次进入 xxxFreeWindow。&lt;/li&gt;
-  &lt;li&gt;xxxFreeWindow 中代码判断了 fnid 值，决定要不要调用 fnDWORD，由于之前设置了 fnid ，再次进入 fnDWORD 回调，在 fnDWORD 中&lt;strong&gt;向新的滚动条&lt;/strong&gt;发送窗口消息 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;WM_CANCLEMODE&lt;/code&gt; 间接调用 xxxEndScroll 提前释放 SBTrack 占用的内存。&lt;/li&gt;
-  &lt;li&gt;在 xxxSBTrackLoop 结束后， xxxSBTrackInit 会释放 SBTrack 占用的内存，而这时 SBTrack 已被释放了，造成 double free。&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;看起来这个漏洞只是由于 xxxendscroll 与 sbtrackinit 同时释放了 sbtrack 结构体导致的，但是单单整理完流程，其实对这个漏洞还是处于一种不清不楚的状态。仍旧有许多疑问，下面就是一些我的问题以及研究的结果。&lt;/p&gt;
-
-&lt;h2 id=&quot;sbtrackinit-与之后发送消息的窗口并非是同一个窗口为什么用两个-scrollbar-可以成功&quot;&gt;sbtrackinit 与之后发送消息的窗口并非是同一个窗口，为什么用两个 scrollbar 可以成功？&lt;/h2&gt;
-&lt;p&gt;尽管两个窗口是不同的，但是 xxxEndScroll 是从当前线程的线程信息中取 pSBTrack，而程序是单线程的，在 xxxSBTrackInit 中，会将创建的 SBTrack 结构体存到线程信息中去，也就是新滚动条释放的 SBTrack 实际上就是原来旧滚动条创建的 SBTrack，两个 scrollbar 是共用一个 SBTrack 结构体的，代码中也可以看到 pwnd 实际上是一个 PTHROBJHEAD（thread object），而上述操作都是在同一个线程中进行的，自然是一个 SBTrack。&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cp&quot;&gt;#define _GETPTI(p)      (((PTHROBJHEAD)p)-&amp;gt;pti)
-#define GETPTI(p)       _GETPTI(p)
-#define PWNDTOPSBTRACK(pwnd) (((GETPTI(pwnd)-&amp;gt;pSBTrack)))
-&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;xxxSBTrackInit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PWND&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;LPARAM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lParam&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;curArea&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;UINT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;uType&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//...&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;PWNDTOPSBTRACK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//...&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;xxxEndScroll&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PWND&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;BOOL&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fCancel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;UINT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;oldcmd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PSBTRACK&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;CheckLock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;UserAssert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IsWinEventNotifyDeferred&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;());&lt;/span&gt;
-
-    &lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PWNDTOPSBTRACK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//...&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;为什么要用两个-scrolbar为什么用一个-scrollbar-不行&quot;&gt;为什么要用两个 scrolbar？为什么用一个 scrollbar 不行？&lt;/h2&gt;
-&lt;p&gt;在向旧 scrollbar 发送消息时，该 scrollbar 句柄已经不可用，user32! ValidateHwnd 返回 0 导致发送消息失败。那么什么导致了该句柄不可用呢？在第一次调用我们的 fnDWORD hook 函数时，我们调用了 destroywindow 函数，该函数会调用 xxxFreeWIndow，在 xxxFreeWindow 中，会继续调用 xxxFW_DestroyAllChildren，该函数会遍历该窗口的所有子窗口，取消其父子关系，并对其子窗口调用 xxxFreeWindow。xxxFreeWindow 会将句柄标记为 Destroy 状态，因此旧 scrollbar 作为原有窗口的子窗口，在这时句柄已经不可用了（但没有完全释放，因为此时我们还在 xxxSBTrackLoop 中）。&lt;/p&gt;
-
-&lt;h2 id=&quot;既然漏洞的关键在于释放两次-sbtrack那为什么不能在第一次-fndword-回调中直接向自己发送消息调用-xxxendscroll-释放-sbtrack&quot;&gt;既然漏洞的关键在于释放两次 SBtrack，那为什么不能在第一次 fnDWORD 回调中直接向自己发送消息调用 xxxEndScroll 释放 SBTrack？&lt;/h2&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;xxxEndScroll&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PWND&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;BOOL&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fCancel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//...&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;Unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndSB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;Unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndSBNotify&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;Unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;UserFreePool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PWNDTOPSBTRACK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;   
-&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;xxxSBTrackInit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;PWND&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;LPARAM&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lParam&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;curArea&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;UINT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;uType&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//...&lt;/span&gt;
- &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fCtlSB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;cm&quot;&gt;/*
-         * This is a scroll bar control.
-         */&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;Lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndSB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fTrackVert&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PSBWND&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fVert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;Lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndSBNotify&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndParent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;wDisable&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PSBWND&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;wDisableFlags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;pSBCalc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PSBWND&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SBCalc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nBar&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SB_CTL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;//...&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;  
-&lt;span class=&quot;c1&quot;&gt;//...&lt;/span&gt;
- &lt;span class=&quot;n&quot;&gt;xxxSBTrackLoop&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lParam&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pSBCalc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-      &lt;span class=&quot;c1&quot;&gt;// After xxx, re-evaluate pSBTrack&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;REEVALUATE_PSBTRACK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;xxxTrackLoop&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;Unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndSBNotify&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;Unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndSB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;Unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;UserFreePool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; 
-        &lt;span class=&quot;n&quot;&gt;PWNDTOPSBTRACK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;可以看到在 xxxEndScroll 函数中，在释放 sbtrack 后，会把通过 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;PWNDTOPSBTRACK&lt;/code&gt; 宏把线程信息中的 SBTrack 字段置 0。而在 xxxSBTrackInit 中，首先通过 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;REEVALUATE_PSBTRACK&lt;/code&gt; 宏从线程信息中重新获取 SBTrack 指针，如果为 0 则不进行释放，说白了就是在释放前有一个检查。因此调用 xxxEndScroll 的时机就非常重要。在释放 pSBTrack 前，有三个 unlock 操作，实际上调用的是 HMAssignmentUnlock，如果此时 unlock 的对象引用计数减为 0，那么就会调用该对象的销毁函数进行释放。
-第一个 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;Unlock(&amp;amp;pSBTrack-&amp;gt;spwndSBNotify);&lt;/code&gt; 这个 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pSBTrack-&amp;gt;spwndSBNotify&lt;/code&gt; 实际上是 scrollbar 的父窗口，因此，我们可以操纵父窗口引用计数，让此时引用计数为 0 调用 xxxfreewindow。&lt;/p&gt;
-
-&lt;h2 id=&quot;为什么要设置-fnidfnid-在这个漏洞流程中起到了什么作用&quot;&gt;为什么要设置 fnid？fnid 在这个漏洞流程中起到了什么作用？&lt;/h2&gt;
-&lt;p&gt;设置 fnid 是为了要能在 xxxFreeWindow 中获取执行代码的机会。这个漏洞中在 xxxFreeWindow 有两次不同的回调，一个是 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;xxxClientAllocWindowClassExtraBytes&lt;/code&gt;，另一个就是 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fnDWORD&lt;/code&gt;。其中前者的回调机会只有一次，在调用前会将 v19+0x128 这个位置置空，这个位置也就是 pExtractByte 的位置，因此在第一次调用 DestroyWindow 的时候，该窗口的扩展字节已经被清空了，所以在第二次 xxxFreeWindow 的时候就没有这个回调了，因此 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;fnDWORD&lt;/code&gt; 是唯一的机会，而设置 fnid 就是为了能通过判断，顺利调用 fnDWORD。&lt;/p&gt;
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//xxxFreewindow部分代码&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//调用xxxClientAllocWindowClassExtraBytes的逻辑&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;v19&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;v20&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v19&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x128&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v20&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v20&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_DWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v19&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xE8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x800&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;RtlFreeHeap&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PVOID&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;128&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PVOID&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v20&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;128&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)));&lt;/span&gt;
-      &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x128&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v19&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x128&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_DWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PsGetCurrentProcess&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v19&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v17&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x304&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x40000008&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_DWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;gptiCurrent&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;480&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-      &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;xxxClientFreeWindowClassExtraBytes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;//调用fnDWORD的逻辑&lt;/span&gt;
- &lt;span class=&quot;n&quot;&gt;v15&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x3FFF&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;v16&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;__int16&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v15&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;42&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;//v16 是fnid&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;v17&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;672&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;LOWORD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v16&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x3FFF&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;__int16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v16&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x3FFFu&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x29A&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v16&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x4000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;__int16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x2A0u&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kr&quot;&gt;__fastcall&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;tagWND&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__int64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mpFnidPfn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_BYTE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v16&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x1F&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;112&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;__int16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x2AAu&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_DWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;gptiCurrent&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;480&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-    &lt;span class=&quot;c1&quot;&gt;//pti+480 是 TIF_flags&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;SfnDWORD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;112u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;gpsi&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;__int16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4608&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_WORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;42&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x4000u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;v15&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;进入 fnDWORD 分支的条件为，fnid&amp;gt;0x2a0&amp;amp;&amp;amp;fnid&amp;lt;=0x2aa 并且 fnid 的 0x4000 这位不为 1，而在正常情况下，fnid 的值 0x8000 (FNID_DELETED_BIT)，因此只要通过调用 NtUserSetWindowFNID 设置 fnid 为符合条件的值即可。&lt;/p&gt;
-
-&lt;h2 id=&quot;为什么要在-xxxclientfreewindowclassextrabytes-回调中设置-fnid-在-destroywindow-前设置-fnid-是否可行&quot;&gt;为什么要在 xxxClientFreeWindowClassExtraBytes 回调中设置 fnid? 在 destroywindow 前设置 fnid 是否可行？&lt;/h2&gt;
-&lt;p&gt;如果在 destroywindow 前设置 fnid，那么在 destroywindow 调用 xxxFreeWindow 的时候，函数将直接进入调用 fnDWORD 的分支，调用结束后再给 fnid 设置上 0x4000 这个标志位，而进入该分支的条件就是 fnid 的 0x4000 标志位没有被设置，因此在第二次通过 HMAssignmentUnlock 调用 xxxFreeWindow 的时候就不会再次进入这个分支了。&lt;/p&gt;
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; &lt;span class=&quot;n&quot;&gt;LOWORD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v16&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x3FFF&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;__int16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v16&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x3FFFu&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x29A&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v16&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x4000&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;__int16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x2A0u&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kr&quot;&gt;__fastcall&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;tagWND&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__int64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mpFnidPfn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_BYTE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v16&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x1F&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x70&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;__int16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x2AAu&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_DWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;gptiCurrent&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x1E0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;SfnDWORD&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x70u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;gpsi&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kr&quot;&gt;__int16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v18&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x1200&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_WORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x2A&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x4000u&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;v15&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_QWORD&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;a1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;那么应该在什么时机设置设置这个标志位呢？在 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pwnd-&amp;gt;cLock==1&lt;/code&gt; 同时 SBTrackLoop 返回之前，并且 fnid 没有被设置 0x4000 的时候能设置好 fnid 即可实现触发漏洞。回头再看一下整个流程：&lt;/p&gt;
-&lt;ol&gt;
-  &lt;li&gt;xxxSBTrackLoop 给了我们一次用户回调的机会&lt;/li&gt;
-  &lt;li&gt;为了使主窗口 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;pwnd-&amp;gt;cLock==1&lt;/code&gt;，只留有 scrollbar 的引用，我们调用 DestroyWindow&lt;/li&gt;
-  &lt;li&gt;DestroyWindow 调用 xxxFreeWindow 有两个回调机会，&lt;strong&gt;按顺序&lt;/strong&gt;分别是 fnDWORD  和  xxxClientFreeWindowClassExtraBytes。&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;为了能在第二次 xxxFreeWindow 时触发 xxxEndScroll，我们需要保证在第一次不触发某一个回调，把这个回调留在第二次。由于我们有设置 fnid 的能力，可以让 fnDWORD 在第二次回调触发，而 xxxClientFreeWindowClassExtraBytes 又刚好在 fnDWORD 的后面，因此在这个回调中设置 fnid，正好可以不触发第一次 xxxFreeWindow 中的 fnDWORD 回调，而在第二次 xxxFreeWindow 中触发。&lt;/p&gt;
-
-&lt;h2 id=&quot;总结&quot;&gt;总结&lt;/h2&gt;
-&lt;p&gt;首先，对于同一个结构体，两个不同的功能点都会对其做释放操作，即 xxxSBtrackInit 与 xxxEndScroll 都会释放当先线程信息中的 SBTrack。&lt;/p&gt;
-
-&lt;p&gt;但是仅有这两个功能点是不够的，在这两个功能点释放前后都有对 SBTrack 指针做校验，因此第二点就在于时机。在 xxxSBTrackInit 校验 SBTrack 指针后，内存释放前，代码对 SBTrack 中的某些成员做了 HMAssignmentUnlock 操作，配合 fnid 的设置，这给了攻击者操作的时机，有了回到 usermode callback 的机会去调用另外一个释放功能点，造成 double free。&lt;/p&gt;
-
-&lt;h1 id=&quot;修复&quot;&gt;修复&lt;/h1&gt;
-&lt;p&gt;patch 中对 NtUserSetWindowFNID 增加了一个校验，多了一个 IsWindowBeingDestroyed 函数调用，判断该窗口 fnid 是否已经被赋上标志位 0x8000 (FNID_DELETED_BIT)，也就是说当我们 Destroy 一个窗口后，无法再对该窗口设置 fnid 值了。&lt;/p&gt;
-
-&lt;p&gt;如果是这种修复方式行不行呢？&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;n&quot;&gt;REEVALUATE_PSBTRACK&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;xxxTrackLoop&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;spwndSBNotify&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;spwndSB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;spwndTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;spwndSBNotify&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndSBNotify&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;spwndSB&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndSB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;spwndTrack&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;UserFreePool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSBTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;PWNDTOPSBTRACK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pwnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;Unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndSBNotify&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;Unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndSB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;Unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;spwndTrack&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;这种修复没有解决一个问题，就是攻击者在 HMAssignmentUnlock 的时候仍然拥有回到用户回调的能力，在其他组件中依旧可能会有这种 unlock 然后 free ojbect 的写法，因此这种方法治标不治本。而修复 NtUserSetWindowFNID 的方式则让攻击者失去了在通过 HMAssignmentUnlock 回到用户回调的机会。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;很庆幸现在有 xp 的代码作为参考，通过源代码能快速了解模块的内部，对 wink32 的了解也增进了不少。在分析这个漏洞的时候时不时冒出来一些绕过这个补丁或者挖相近漏洞的思路，但是一一验证后无一所获。离出洞最近的一次是看到了 xxxClientAllocWindowClassExtraBytes 与 xxxSetWindowLong 的时候想出来一个思路可以内核任意写，那时候感觉自己真的要挖出 0day 了，但事实总是不尽人意的，一方面这个位置的洞已经被人挖出来过了，并且已经有了 patch，另一方面自己的思路实际上与真正的那个洞也有一点区别，只是利用点一样，但是没有想到靠类型混淆+oob 来实现任意写，所以离真的挖出洞还是差了点，下次再分析漏洞的话就分析这个 cve 吧。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">由于是第一次接触 win32k，先准备一点前置知识 相关函数 HMAssignmentUnlock 实际上会调 HMUnlockObject，HMUnlockObject 实际是个宏</summary></entry></feed>
+&lt;p&gt;花了三周时间学习 gdi 系列的利用手法以及 windows 池之类的相关知识，深感不易，然而这大概也只是漏洞的冰山一角。有时候会觉得自己接触安全太晚了，如果从 xp 时代开始弄，那么就不会有那么多安全机制和缓解措施，接触前沿技术的门槛会低很多。而现在我感觉要能看到安全的前沿都十分费力，不过也有好处就是了，那就是现在有大量的资料可以参考，学起来比那时候要轻松很多。&lt;/p&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">真正开始要写利用了才发现我对利用这块一无所知，要说 win32k 我还稍微具备点前置知识，什么窗口过程用户回调巴拉巴拉，但利用是一点没有接触过，所以还是先补补漏洞利用手法，这篇是关于利用 gdi 对象实现任意内存写原语的。</summary></entry></feed>
