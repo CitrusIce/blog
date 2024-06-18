@@ -1,17 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2024-06-18T15:49:45+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2024-06-18T15:51:58+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
 </subtitle><entry><title type="html">git运行很慢的解决方法</title><link href="https://citrusice.github.io/posts/git-running-slow-solution/" rel="alternate" type="text/html" title="git运行很慢的解决方法" /><published>2024-06-18T15:49:05+08:00</published><updated>2024-06-18T15:49:05+08:00</updated><id>https://citrusice.github.io/posts/git-running-slow-solution</id><content type="html" xml:base="https://citrusice.github.io/posts/git-running-slow-solution/">&lt;p&gt;最近发现 git 总是很慢，操作起来卡的不行，于是准备解决一下。网上搜索了一下相关信息再加上跟朋友讨论得出大概两点原因：&lt;/p&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;显卡驱动兼容&lt;/strong&gt;：我不懂绘制之类的事情，只是搜到了几个讨论这个 issue。不过我本人在设置了默认用集显后情况确实好了不少。
-参考链接：
-&lt;a href=&quot;https://stackoverflow.com/questions/42888024/git-bash-mintty-is-extremely-slow-on-windows-10-os&quot;&gt;Git Bash (mintty) is extremely slow on Windows 10 OS - Stack Overflow&lt;/a&gt;
-&lt;a href=&quot;https://github.com/git-for-windows/git/issues/1129&quot;&gt;git commands running slow as hell · Issue #1129 · git-for-windows/git&lt;/a&gt;
-&lt;a href=&quot;https://github.com/git-for-windows/git/issues/1070&quot;&gt;Git commands have a 2-3 second delay before returning to the prompt · Issue #1070 · git-for-windows/git&lt;/a&gt;&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;&lt;strong&gt;杀软原因&lt;/strong&gt;：这点解释得挺有道理。Linux 上有 fork 这个功能，是很多程序会&lt;strong&gt;大量&lt;/strong&gt;调用的。但是Windows 上没有，为了兼容，在 windows 上都是使用 windows api 来模拟的，本身性能不够好。同时，而很多杀毒软件会在创建进程时对进程进行扫描并注入 DLL 监控行为，这就更卡了。除了卸载杀软之外，还可以使用 Windows 11 的新功能 Dev Driver 来禁用过滤驱动。&lt;/p&gt;
-  &lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;显卡驱动兼容&lt;/strong&gt;：我不懂绘制之类的事情，只是搜到了几个讨论这个 issue。不过我本人在设置了默认用集显后情况确实好了不少。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;参考链接：&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://stackoverflow.com/questions/42888024/git-bash-mintty-is-extremely-slow-on-windows-10-os&quot;&gt;Git Bash (mintty) is extremely slow on Windows 10 OS - Stack Overflow&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/git-for-windows/git/issues/1129&quot;&gt;git commands running slow as hell · Issue #1129 · git-for-windows/git&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://github.com/git-for-windows/git/issues/1070&quot;&gt;Git commands have a 2-3 second delay before returning to the prompt · Issue #1070 · git-for-windows/git&lt;/a&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;杀软原因&lt;/strong&gt;：这点解释得挺有道理。Linux 上有 fork 这个功能，是很多程序会&lt;strong&gt;大量&lt;/strong&gt;调用的。但是Windows 上没有，为了兼容，在 windows 上都是使用 windows api 来模拟的，本身性能不够好。同时，而很多杀毒软件会在创建进程时对进程进行扫描并注入 DLL 监控行为，这就更卡了。除了卸载杀软之外，还可以使用 Windows 11 的新功能 Dev Driver 来禁用过滤驱动。&lt;/li&gt;
 &lt;/ul&gt;</content><author><name></name></author><category term="杂" /><summary type="html">最近发现 git 总是很慢，操作起来卡的不行，于是准备解决一下。网上搜索了一下相关信息再加上跟朋友讨论得出大概两点原因：</summary></entry><entry><title type="html">记一次给自己应急</title><link href="https://citrusice.github.io/posts/respond-to-a-hack-for-myself/" rel="alternate" type="text/html" title="记一次给自己应急" /><published>2024-04-12T18:19:58+08:00</published><updated>2024-04-12T18:19:58+08:00</updated><id>https://citrusice.github.io/posts/respond-to-a-hack-for-myself</id><content type="html" xml:base="https://citrusice.github.io/posts/respond-to-a-hack-for-myself/">&lt;p&gt;很久没分析样本了，这次朋友发了个样本过来我看很有意思就想分析一下。但是终究是太自信，也是嫌麻烦，都没有把样本扔虚拟机分析，本机打开 ida 就开始逆向了。然后不出意外的我就手抖不小心把样本跑了起来，于是就有了这篇文章。&lt;/p&gt;
 
 &lt;p&gt;样本是一个带签名的 exe，附带了一个 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;.dat&lt;/code&gt; 文件，这是最开始吸引我的地方。因为众所周知，一般白加黑都是一个签名 exe 带个黑 dll，而这样本只有个 dat 文件，所以肯定有点意思。经过一通逆向后在样本里找到了很多 lua 相关的字符串，我大概猜到这个白加黑是靠 lua 脚本实现的白加黑了。网上搜了一下这个样本的信息同样确认了这个样本是从 dat 文件提取 lua 脚本执行的，作者会在 lua 脚本中插入执行shellcode 的代码，而这个 dat 文件是一个加密的压缩包。&lt;/p&gt;
