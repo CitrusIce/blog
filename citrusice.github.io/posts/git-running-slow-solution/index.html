@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>git运行很慢的解决方法</title>
+<script data-goatcounter="https://citrusice.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"><div class="navbar">
+	<ul>
+		<a href="/index"><li>Home</li></a>
+		<a href="/about"><li>About</li></a>
+		<a href="/friends"><li>Friends</li></a>
+		<!-- <a href="/archive"><li>Archive</li></a> -->
+	</ul>
+</div></div><div class="container">
+	<h1>git运行很慢的解决方法</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Jun 18, 2024
+	</div>
+	<ul class="post-tags"><li>杂</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>最近发现 git 总是很慢，操作起来卡的不行，于是准备解决一下。网上搜索了一下相关信息再加上跟朋友讨论得出大概两点原因：</p>
+
+<ul>
+  <li>
+    <p><strong>显卡驱动兼容</strong>：我不懂绘制之类的事情，只是搜到了几个讨论这个 issue。不过我本人在设置了默认用集显后情况确实好了不少。
+参考链接：
+<a href="https://stackoverflow.com/questions/42888024/git-bash-mintty-is-extremely-slow-on-windows-10-os">Git Bash (mintty) is extremely slow on Windows 10 OS - Stack Overflow</a>
+<a href="https://github.com/git-for-windows/git/issues/1129">git commands running slow as hell · Issue #1129 · git-for-windows/git</a>
+<a href="https://github.com/git-for-windows/git/issues/1070">Git commands have a 2-3 second delay before returning to the prompt · Issue #1070 · git-for-windows/git</a></p>
+  </li>
+  <li>
+    <p><strong>杀软原因</strong>：这点解释得挺有道理。Linux 上有 fork 这个功能，是很多程序会<strong>大量</strong>调用的。但是Windows 上没有，为了兼容，在 windows 上都是使用 windows api 来模拟的，本身性能不够好。同时，而很多杀毒软件会在创建进程时对进程进行扫描并注入 DLL 监控行为，这就更卡了。除了卸载杀软之外，还可以使用 Windows 11 的新功能 Dev Driver 来禁用过滤驱动。</p>
+  </li>
+</ul>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
