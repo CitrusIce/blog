@@ -1,5 +1,53 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2024-06-18T15:51:58+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">git运行很慢的解决方法</title><link href="https://citrusice.github.io/posts/git-running-slow-solution/" rel="alternate" type="text/html" title="git运行很慢的解决方法" /><published>2024-06-18T15:49:05+08:00</published><updated>2024-06-18T15:49:05+08:00</updated><id>https://citrusice.github.io/posts/git-running-slow-solution</id><content type="html" xml:base="https://citrusice.github.io/posts/git-running-slow-solution/">&lt;p&gt;最近发现 git 总是很慢，操作起来卡的不行，于是准备解决一下。网上搜索了一下相关信息再加上跟朋友讨论得出大概两点原因：&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2024-08-10T13:37:34+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">nop word ptr ds:[rax+rax*1], ax 到底是什么东西</title><link href="https://citrusice.github.io/posts/what-exactly-is-multi-bytes-nop/" rel="alternate" type="text/html" title="nop word ptr ds:[rax+rax*1], ax 到底是什么东西" /><published>2024-08-10T13:35:55+08:00</published><updated>2024-08-10T13:35:55+08:00</updated><id>https://citrusice.github.io/posts/what-exactly-is-multi-bytes-nop</id><content type="html" xml:base="https://citrusice.github.io/posts/what-exactly-is-multi-bytes-nop/">&lt;p&gt;在逆向的时候我们经常会看到如下指令：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;nop                                       
+nop dword ptr [eax]                        
+nop dword ptr [eax + 00h]                  
+nop dword ptr [eax + eax*1 + 00h]            
+nop dword ptr [eax + 00000000h]            
+nop dword ptr [eax + eax*1 + 00000000h]  
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;虽然我们都知道他们没什么用，但是我们不知道的是为什么会出现这些指令。&lt;/p&gt;
+
+&lt;p&gt;理论上我们只需要一个nop就足以，但是为什么有这么多多字节组成的nop呢？&lt;/p&gt;
+
+&lt;p&gt;搜索一番我有了答案：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;用于解决旧芯片的bug (https://devblogs.microsoft.com/oldnewthing/20110112-00/?p=11773)&lt;/li&gt;
+  &lt;li&gt;用于指令对齐或者其他优化&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;多字节的nop在优化中用于将它之后的指令对齐到16字节，因为cpu抓取指令通常以16字节为一个单元，这样如果下一个指令是一个会被多次执行的指令（如循环最开始的一个指令）,那么将不用再次抓取下一个16字节而能够直接解码。这块我不太懂但我觉得似乎有点道理。另外intel在手册中也有提到：&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;&lt;em&gt;3.4.1.5 - Assembly/Compiler Coding Rule 12. (M impact, H generality)&lt;/em&gt;
+All branch targets should be 16-byte aligned.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;另外我在bfd库中发现了相关代码，显示这些多字节指令用于填充buffer&lt;/p&gt;
+
+&lt;p&gt;https://android.googlesource.com/toolchain/binutils/+/f226517827d64cc8f9dccb0952731601ac13ef2a/binutils-2.23/bfd/cpu-i386.c#51&lt;/p&gt;
+
+&lt;p&gt;另外，多个单字节nop相比于一个多字节nop所画的的cpu时间更长，这也是一个原因&lt;/p&gt;
+
+&lt;p&gt;参考：&lt;/p&gt;
+
+&lt;p&gt;https://devblogs.microsoft.com/oldnewthing/20110112-00/?p=11773&lt;/p&gt;
+
+&lt;p&gt;https://stackoverflow.com/questions/43991155/what-does-nop-dword-ptr-raxrax-x64-assembly-instruction-do&lt;/p&gt;
+
+&lt;p&gt;https://softwareengineering.stackexchange.com/questions/158624/are-some-nop-codes-treated-differently-than-others&lt;/p&gt;
+
+&lt;p&gt;https://android.googlesource.com/toolchain/binutils/+/f226517827d64cc8f9dccb0952731601ac13ef2a/binutils-2.23/bfd/cpu-i386.c#51&lt;/p&gt;
+
+&lt;p&gt;https://stackoverflow.com/questions/27714524/x86-multi-byte-nop-and-instruction-prefix&lt;/p&gt;
+
+&lt;p&gt;https://news.ycombinator.com/item?id=12369414&lt;/p&gt;
+
+&lt;p&gt;https://stackoverflow.com/questions/18113995/performance-optimisations-of-x86-64-assembly-alignment-and-branch-prediction/18279617#18279617&lt;/p&gt;</content><author><name></name></author><category term="cpu" /><summary type="html">在逆向的时候我们经常会看到如下指令：</summary></entry><entry><title type="html">git运行很慢的解决方法</title><link href="https://citrusice.github.io/posts/git-running-slow-solution/" rel="alternate" type="text/html" title="git运行很慢的解决方法" /><published>2024-06-18T15:49:05+08:00</published><updated>2024-06-18T15:49:05+08:00</updated><id>https://citrusice.github.io/posts/git-running-slow-solution</id><content type="html" xml:base="https://citrusice.github.io/posts/git-running-slow-solution/">&lt;p&gt;最近发现 git 总是很慢，操作起来卡的不行，于是准备解决一下。网上搜索了一下相关信息再加上跟朋友讨论得出大概两点原因：&lt;/p&gt;
 
 &lt;ul&gt;
   &lt;li&gt;&lt;strong&gt;显卡驱动兼容&lt;/strong&gt;：我不懂绘制之类的事情，只是搜到了几个讨论这个 issue。不过我本人在设置了默认用集显后情况确实好了不少。&lt;/li&gt;
@@ -1245,62 +1293,4 @@ PAL_ULONG  apalColor     0x0000000000000000
 
 &lt;hr /&gt;
 
-&lt;p&gt;最近有尝试在用 vscode+cmake 构建工程，调试的话主要是靠 windbg，有时候会用到 cdb，毕竟直接在命令行里调也还是蛮方便的（gdb 或者 lldb 感觉都不太好用，windows 上还是得用 windows 的东西）。相比于 gui 的 windbg 把任何能展示的都直接展示出来，用 cdb 的时候往往需要去认真的想“我想要什么样的信息才能解决这个问题”，因为每个信息都需要靠命令敲出来，无形中增加了成本。但我觉得“知道自己想要什么”是一种很重要的能力。&lt;/p&gt;</content><author><name></name></author><category term="调试" /><category term="windows" /><summary type="html">起因是因为要实现一个在 Session0 启动进程的功能（注意是在 Session0 启动，不是从 Session0 启动），本以为没什么难度，却没想到还是踩坑了。</summary></entry><entry><title type="html">GDI Handle Manager</title><link href="https://citrusice.github.io/posts/gdi-handle-manager/" rel="alternate" type="text/html" title="GDI Handle Manager" /><published>2022-11-23T20:40:29+08:00</published><updated>2022-11-23T20:40:29+08:00</updated><id>https://citrusice.github.io/posts/gdi-handle-manager</id><content type="html" xml:base="https://citrusice.github.io/posts/gdi-handle-manager/">&lt;p&gt;Windows 10 rs1 1607 Anniversary Update 后，微软针对 gdi abuse 实施了缓解措施，让 gdicell 结构体无法在泄露 kernel address，同时 gdi handle manager 也有了一系列更新。&lt;/p&gt;
-
-&lt;p&gt;首先有了新的全局变量 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;win32kbase!gpHandleManager&lt;/code&gt;，由 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;GdiHandleManager::Create&lt;/code&gt; 创建&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;00000000 HandleManager   struc ; (sizeof=0x20, mappedto_28)
-00000000 field_0         dd ?
-00000004 field_4         dd ?
-00000008 MaxHandleCount  dd ?
-0000000C field_C         dd ?
-00000010 HandleEntryDirectory dq ?
-00000018 field_18        dq ?
-00000020 HandleManager   ends
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;HandleEntryDirectory 是个 0x810 大小的表，其中包含了 256 个指向 EntryTable 的指针&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;00000000 HandleEntryDirectory struc ; (sizeof=0x810, mappedto_29)
-00000000 header          dq ?
-00000008 EntryTableArray dq 256 dup(?)
-00000808 MaxHandle       dq ?
-00000810 HandleEntryDirectory ends
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;HandleEntryTable 是个动态大小的结构，其 header 为 0x20 大小，整体大小为 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;0x18*MaxHandleCount+0x20&lt;/code&gt;。TableContentPtr 指向 Table 的 content 部分。&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;00000000 HandleEntryTable struc ; (sizeof=0x20, mappedto_30)
-00000000 TableContentPtr dq ?
-00000008 MaxHandleCount  dd ?
-0000000C field_C         dd ?
-00000010 field_10        dq ?
-00000018 LookupTable     dq ?
-00000020 HandleEntryTable ends
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;在 header 的 0x18 位置还有一个指向 lookup table 的指针，lookup table 为如下结构&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;00000000 HandleLookupTable struc ; (sizeof=0x10, mappedto_31)
-00000000 TableContentPtr dq ?
-00000008 MaxHandleCount  dq ?
-00000010 HandleLookupTable ends
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;整个 lookup table 的大小为 ` size = 0x10 + (8 * ((unsigned __int64)(unsigned int)(handle_num + 0xFF) » 8))`，0x10 为 header 大小。&lt;/p&gt;
-
-&lt;p&gt;lookuptable 的内容没逆出来，不知道从哪入手，参考了一下别人的最终搞明白了。每个 lookup table 中的 entry 是一个指针，指向一个数组，数组中存的是真正的 LOOKUP_ENTRY，第一个字段是个锁，第二个字段就是真正的 gdi object 地址&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;LookupEntryAddress&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;  
- &lt;span class=&quot;n&quot;&gt;LOOKUP_ENTRY&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;leaddress&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;  
- &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; 
-
- &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;LOOKUP_ENTRY&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;  
- &lt;span class=&quot;n&quot;&gt;DWORD64&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;  
- &lt;span class=&quot;n&quot;&gt;PVOID64&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;GdiObjectAddress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;  
- &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt; 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Reference：&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;http://cvr-data.blogspot.com/2016/11/windows-10-anniversary-update-gdi.html&quot;&gt;Center of Vulnerability Research: Windows 10 Anniversary Update: GDI handle management and vulnerabilities exploitation&lt;/a&gt;&lt;/p&gt;</content><author><name></name></author><category term="windows" /><category term="re" /><category term="pwn" /><summary type="html">Windows 10 rs1 1607 Anniversary Update 后，微软针对 gdi abuse 实施了缓解措施，让 gdicell 结构体无法在泄露 kernel address，同时 gdi handle manager 也有了一系列更新。</summary></entry></feed>
+&lt;p&gt;最近有尝试在用 vscode+cmake 构建工程，调试的话主要是靠 windbg，有时候会用到 cdb，毕竟直接在命令行里调也还是蛮方便的（gdb 或者 lldb 感觉都不太好用，windows 上还是得用 windows 的东西）。相比于 gui 的 windbg 把任何能展示的都直接展示出来，用 cdb 的时候往往需要去认真的想“我想要什么样的信息才能解决这个问题”，因为每个信息都需要靠命令敲出来，无形中增加了成本。但我觉得“知道自己想要什么”是一种很重要的能力。&lt;/p&gt;</content><author><name></name></author><category term="调试" /><category term="windows" /><summary type="html">起因是因为要实现一个在 Session0 启动进程的功能（注意是在 Session0 启动，不是从 Session0 启动），本以为没什么难度，却没想到还是踩坑了。</summary></entry></feed>
