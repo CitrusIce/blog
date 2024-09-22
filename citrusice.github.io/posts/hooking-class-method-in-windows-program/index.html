@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>Hook Windows 程序的类成员函数</title>
+<script data-goatcounter="https://citrusice.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"><div class="navbar">
+	<ul>
+		<a href="/index"><li>Home</li></a>
+		<a href="/about"><li>About</li></a>
+		<a href="/friends"><li>Friends</li></a>
+		<!-- <a href="/archive"><li>Archive</li></a> -->
+	</ul>
+</div></div><div class="container">
+	<h1>Hook Windows 程序的类成员函数</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Sep 22, 2024
+	</div>
+	<ul class="post-tags"><li>hook</li><li>windows</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>对于 inline hook 这种技术我相信大家早已耳熟能详，我们往往使用 detours 或者 minhook 等框架来对函数进行挂钩。然而，hook 类成员函数却并不那么容易。</p>
+
+<p>假设有这么个类：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ClassA</span>
+<span class="p">{</span>
+  <span class="nl">public:</span>
+    <span class="kt">void</span> <span class="n">funcA</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p>我们的目标是对 funcA 进行 hook。</p>
+
+<p>遇到的第一个问题就是我们很难获取目标函数的地址。像 hook 框架如 minhook，都需要我们传入一个函数目标地址，这个地址类型是 <code class="language-plaintext highlighter-rouge">void*</code> 类型的:</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">MH_STATUS</span> <span class="n">WINAPI</span> <span class="n">MH_CreateHook</span><span class="p">(</span><span class="n">LPVOID</span> <span class="n">pTarget</span><span class="p">,</span> <span class="n">LPVOID</span> <span class="n">pDetour</span><span class="p">,</span> <span class="n">LPVOID</span> <span class="o">*</span><span class="n">ppOriginal</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>但是当我们想直接对 <code class="language-plaintext highlighter-rouge">ClassA::funcA</code> 取地址的时候就会遇到报错：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//invalid type conversionC/C++(171)</span>
+<span class="kt">void</span><span class="o">*</span> <span class="n">funcAPtr</span> <span class="o">=</span> <span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="o">&amp;</span><span class="n">ClassA</span><span class="o">::</span><span class="n">funcA</span><span class="p">;</span>
+<span class="c1">//invalid type conversionC/C++(171)</span>
+<span class="kt">void</span><span class="o">*</span> <span class="n">funcAPtr</span> <span class="o">=</span> <span class="k">reinterpret_cast</span><span class="o">&lt;</span><span class="kt">void</span><span class="o">*&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ClassA</span><span class="o">::</span><span class="n">funcA</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>那么难道对于类成员函数，就不能有一个指向类成员函数的指针吗？不是的，只是它必须是指向该类成员函数的函数指针，也就是 <code class="language-plaintext highlighter-rouge">void(ClassA::*)()</code>，用代码来说就是你必须得这样：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="nf">void</span> <span class="p">(</span><span class="n">ClassA</span><span class="o">::*</span><span class="n">PFN_FUNC_A</span><span class="p">)();</span>
+<span class="n">PFN_FUNC_A</span> <span class="n">funcAPtr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">ClassA</span><span class="o">::</span><span class="n">funcA</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>但这仍然不解决我们的问题，我们需要的是一个 <code class="language-plaintext highlighter-rouge">void*</code> 类型的指针而不是指向成员函数的指针，但 cpp 标准中这两者之间恰恰无法相互转换。幸好，msvc 有一个比较 hack 的方法来解决这个问题：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">auto</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">ClassA</span><span class="o">::</span><span class="n">funcA</span><span class="p">;</span>
+<span class="kt">void</span><span class="o">*</span> <span class="n">funcAPtr</span> <span class="o">=</span> <span class="p">(</span><span class="kt">void</span><span class="o">*&amp;</span><span class="p">)</span><span class="n">ptr</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>这实际上是未定行为但是它刚好解决了我们的问题，现在我们有了指向这个类成员函数的地址。</p>
+
+<p>另外在看了 StackOverflow 的回答后我看到了另外一种更优雅的办法，适用于任何编译器：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">union</span> <span class="p">{</span>
+    <span class="n">PFN_FUNC_A</span> <span class="n">funcAMethodPtr</span><span class="p">;</span>
+    <span class="kt">void</span><span class="o">*</span> <span class="n">funcAPtr</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">autoPtr</span> <span class="o">=</span> <span class="p">{</span><span class="o">&amp;</span><span class="n">ClassA</span><span class="o">::</span><span class="n">funcA</span><span class="p">};</span>
+<span class="kt">void</span><span class="o">*</span> <span class="n">funcAPtr</span> <span class="o">=</span> <span class="n">autoPtr</span><span class="p">.</span><span class="n">funcAPtr</span><span class="p">;</span>
+<span class="n">printf</span><span class="p">(</span><span class="s">"ClassA::funcA:0x%p</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">funcAPtr</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>因为我们知道指针长度是相等的，通过 union 结构我们可以轻松的做数据类型转换。</p>
+
+<p>现在还需要编写 stub 函数。由于成员函数的调用预定是 thiscall，但是正常来说你不能直接这样</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="n">__thiscall</span> <span class="nf">stub</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>在 x64 情况下所有调用约定都是直接 rcx/rdx/r8/r9 这么顺序传参，并且由调用者创建栈帧，因此我们可以直接编写 stub 函数</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">stub</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span> <span class="k">this</span><span class="p">)</span> <span class="p">{}</span>
+</code></pre></div></div>
+
+<p>而在 x86 下，cdecl 方式全部通过栈传递参数，而 thiscall 却需要通过 ecx 传递，所以没办法直接用 cdecl 函数来做 stub。那么有哪些其他的方式呢？最简单的就是再创建一个 class，在新 class 中定义一个相同的参数的函数来作为 stub，例如：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">StubClassA</span><span class="p">{</span>
+<span class="nl">public:</span>
+    <span class="kt">void</span> <span class="n">stubFuncA</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>这样的方式又有点麻烦，毕竟光是获取这个 stubFuncA 的地址就需要一番操作。幸好我们还有其他选择，那就是 fastcall。</p>
+
+<p>fastcall 通过 ecx/edx 传递前两个参数，并且与 thiscall 一样都是由被调用者平栈，因此通过 fastcall 我们就能获取到 this 指针了，我们可以这样写：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="kr">__fastcall</span> <span class="nf">stubFuncA</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span> <span class="k">this</span><span class="p">,</span><span class="kt">void</span><span class="o">*</span> <span class="n">edx</span><span class="p">,</span><span class="kt">void</span><span class="o">*</span> <span class="n">arg1</span><span class="err">，</span><span class="kt">void</span><span class="o">*</span> <span class="n">arg2</span><span class="p">,</span> <span class="p">.....);</span>
+</code></pre></div></div>
+
+<p>这样我们便可以通过 stub 函数来接收参数。</p>
+
+<p>最后一个问题，在 stub 中我们还需要调用原始被 hook 的函数，如何通过成员函数指针来调用成员函数呢？</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">typedef</span> <span class="nf">void</span> <span class="p">(</span><span class="n">ClassA</span><span class="o">::*</span><span class="n">PFN_FUNC_A</span><span class="p">)();</span>
+<span class="n">PFN_FUNC_A</span> <span class="n">originalFuncA</span><span class="p">;</span>
+<span class="kt">void</span> <span class="kr">__fastcall</span> <span class="nf">hookFuncA</span><span class="p">(</span><span class="n">ClassA</span><span class="o">*</span> <span class="n">thisPtr</span><span class="p">){</span>
+    <span class="p">(</span><span class="n">thisPtr</span><span class="o">-&gt;*</span><span class="n">originalFuncA</span><span class="p">)();</span>
+    <span class="c1">// or</span>
+    <span class="p">((</span><span class="o">*</span><span class="n">thisPtr</span><span class="p">).</span><span class="o">*</span><span class="n">originalFuncA</span><span class="p">)();</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>至此，类成员函数的hook就可以实现了。</p>
+
+<p>文章中出现的代码：</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cp">#include &lt;iostream&gt;
+</span>
+<span class="k">class</span> <span class="nc">ClassA</span>
+<span class="p">{</span>
+  <span class="nl">public:</span>
+    <span class="kt">void</span> <span class="n">funcA</span><span class="p">()</span> <span class="p">{}</span>
+<span class="p">};</span>
+
+<span class="k">class</span> <span class="nc">StubClassA</span><span class="p">{</span>
+<span class="nl">public:</span>
+    <span class="kt">void</span> <span class="n">stubFuncA</span><span class="p">();</span>
+<span class="p">};</span>
+
+<span class="k">typedef</span> <span class="nf">void</span> <span class="p">(</span><span class="n">ClassA</span><span class="o">::*</span><span class="n">PFN_FUNC_A</span><span class="p">)();</span>
+<span class="n">PFN_FUNC_A</span> <span class="n">originalFuncA</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="kr">__fastcall</span> <span class="nf">hookFuncA</span><span class="p">(</span><span class="n">ClassA</span><span class="o">*</span> <span class="n">thisPtr</span><span class="p">){</span>
+    <span class="p">(</span><span class="n">thisPtr</span><span class="o">-&gt;*</span><span class="n">originalFuncA</span><span class="p">)();</span>
+    <span class="c1">// or</span>
+    <span class="p">((</span><span class="o">*</span><span class="n">thisPtr</span><span class="p">).</span><span class="o">*</span><span class="n">originalFuncA</span><span class="p">)();</span>
+<span class="p">}</span>
+
+<span class="kt">int</span> <span class="nf">main</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">ClassA</span> <span class="n">objA</span><span class="p">;</span>
+    <span class="n">PFN_FUNC_A</span> <span class="n">funcAMethodPtr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">ClassA</span><span class="o">::</span><span class="n">funcA</span><span class="p">;</span>
+    <span class="p">{</span>
+        <span class="k">auto</span> <span class="n">ptr</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">ClassA</span><span class="o">::</span><span class="n">funcA</span><span class="p">;</span>
+        <span class="kt">void</span><span class="o">*</span> <span class="n">funcAPtr</span> <span class="o">=</span> <span class="p">(</span><span class="kt">void</span><span class="o">*&amp;</span><span class="p">)</span><span class="n">ptr</span><span class="p">;</span>
+        <span class="n">printf</span><span class="p">(</span><span class="s">"ClassA::funcA:0x%p</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">funcAPtr</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="p">{</span>
+        <span class="k">union</span> <span class="p">{</span>
+            <span class="n">PFN_FUNC_A</span> <span class="n">funcAMethodPtr</span><span class="p">;</span>
+            <span class="kt">void</span><span class="o">*</span> <span class="n">funcAPtr</span><span class="p">;</span>
+        <span class="p">}</span> <span class="n">autoPtr</span> <span class="o">=</span> <span class="p">{</span><span class="o">&amp;</span><span class="n">ClassA</span><span class="o">::</span><span class="n">funcA</span><span class="p">};</span>
+
+        <span class="kt">void</span><span class="o">*</span> <span class="n">funcAPtr</span> <span class="o">=</span> <span class="n">autoPtr</span><span class="p">.</span><span class="n">funcAPtr</span><span class="p">;</span>
+        <span class="n">printf</span><span class="p">(</span><span class="s">"ClassA::funcA:0x%p</span><span class="se">\n</span><span class="s">"</span><span class="p">,</span> <span class="n">funcAPtr</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<hr />
+
+<p>参考：</p>
+
+<p>https://isocpp.org/wiki/faq/pointers-to-members</p>
+
+<p>https://stackoverflow.com/questions/8121320/get-memory-address-of-member-function</p>
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
