@@ -32,29 +32,29 @@
       <div class="post-container">
           <p>逆向从wdigest的SpAcceptCredentials开始，当使用windows账户凭据做认证时lsass将会调用这个函数。</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211161323616.png" alt="image-20201211161323616" /></p>
+<p><img src="/assets/images/image-20201211161323616.png" alt="image-20201211161323616" /></p>
 
 <p>第二个参数是用户名，第三个结构是一个指向未知结构体的指针，其中包含用户名，主机名，以及明文的密码</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211161700795.png" alt="image-20201211161700795" /></p>
+<p><img src="/assets/images/image-20201211161700795.png" alt="image-20201211161700795" /></p>
 
 <p>之后会根据传入的参数，开辟一块buffer，将数据写入，实际上这里是一个未公开的结构</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211162019658.png" alt="image-20201211162019658" /></p>
+<p><img src="/assets/images/image-20201211162019658.png" alt="image-20201211162019658" /></p>
 
 <p>可以看到写入了用户名、主机名等信息</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211162321781.png" alt="image-20201211162321781" /></p>
+<p><img src="/assets/images/image-20201211162321781.png" alt="image-20201211162321781" /></p>
 
 <p>将刚刚的结构体放入了l_LogSessList双向链表中</p>
 
 <p>wdigest同样也会将密码写入这个buffer，以加密形式存储。这意味着我们可以通过获取密钥的方式来解密这块内存来获得wdigest中存储的密码。</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211162435396.png" alt="image-20201211162435396" /></p>
+<p><img src="/assets/images/image-20201211162435396.png" alt="image-20201211162435396" /></p>
 
 <p>经过调试发现使用的加密函数是位于lsasrv.dll中的LsaProtectMemory</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201211162648348.png" alt="image-20201211162648348" /></p>
+<p><img src="/assets/images/image-20201211162648348.png" alt="image-20201211162648348" /></p>
 
 <p>可以看出根据输入的密钥长度不同，LsaEncryptMemory会使用aes加密或3des加密，最终调用的函数都是BCrypt</p>
 

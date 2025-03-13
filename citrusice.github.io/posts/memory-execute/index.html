@@ -114,7 +114,7 @@
 
 <p>正如 JRE 是 JAVA 的运行环境一样，CLR是.Net的运行环境，不同的是它可以为多种语言提供支持。</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200227192210.png" alt="" /></p>
+<p><img src="/assets/images/20200227192210.png" alt="" /></p>
 
 <p><em>著名的.Net体系</em></p>
 
@@ -161,7 +161,7 @@
 
 <p>在64位系统，任何进程中首先执行的代码是64位的ntdll.dll，它会初始化一个64位的进程。而稍后32位的应用程序将运行在一个名为WoW64的子系统下（说到子系统有没有想到WSL），这个子系统加载32位的ntdll.dll，将cpu转换为32位模式以执行Win32程序中的代码。</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200227221306.png" alt="" /></p>
+<p><img src="/assets/images/20200227221306.png" alt="" /></p>
 
 <p>在x64系统下观察一个Win32程序，发现会同时加载了两个ntdll.dll，其中有一个处在64位的地址空间，这就是64位的ntdll.dll。32位的ntdll.dll并没有包含任何sysenter的指令，因此当Win32程序尝试通过32位的ntdll.dll与系统交互时，32位的ntdll.dll将参数转发给64位的ntdll.dll并再一次进行cpu的模式转换，回到64位完成这次系统调用。</p>
 

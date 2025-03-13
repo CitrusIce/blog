@@ -32,7 +32,7 @@
       <div class="post-container">
           <p>事情的起因源于朋友问我关于 com 劫持能否用于过 uac，在我的认知里，无论是注册 com、修改 com 相关注册表都需要管理员权限，因为那些项一般都是在 HKLM 中的，因此 com 劫持肯定无法用于过 UAC。然而第二天他就丢来了一个文章 <a href="http://payloads.online/archivers/2018-10-14/1/">COM Hijacking « 倾旋的博客</a>，文章的最后写了利用 eventvwr.exe 进行 com 劫持的利用。</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/Pasted%20image%2020220331205325.png" alt="" /></p>
+<p><img src="/assets/images/Pasted_image_20220331205325.png" alt="" /></p>
 
 <p>首先这打破了我认知上的误区，注册 com 其实并不一定需要管理员，将 com 组件注册到 HKLM 下面确实是需要管理员权限的，但是我们还可以将 com 组件注册在 HKCU 下面，这样这个 com 组件只有当前用户可以使用。</p>
 
@@ -58,13 +58,13 @@
 
 <p>结论：</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/Pasted%20image%2020220331213409.png" alt="" /></p>
+<p><img src="/assets/images/Pasted_image_20220331213409.png" alt="" /></p>
 
 <p>那么为什么 eventvwr 又可以进行 uac bypass 呢？</p>
 
 <p>eventvwr 实际上会去直接调用 mmc 打开事件查看器，mmc 加载 com 时会去读取相应的注册表项，其调用栈如下：</p>
 
-<p><img src="https://raw.githubusercontent.com/CitrusIce/blog_pic/master/Pasted%20image%2020220402151116.png" alt="" /></p>
+<p><img src="/assets/images/Pasted_image_20220402151116.png" alt="" /></p>
 
 <p>ida 分析其读取注册表加载 com 组件的代码，其流程大致如下</p>
 
