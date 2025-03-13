@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/style.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/4.7.0/css/font-awesome.css">
+<title>Termius破解小记</title>
+<script data-goatcounter="https://citrusice.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+  <header class="texture-black">
+    <div class="container"><div class="navbar">
+	<ul>
+		<a href="/index"><li>Home</li></a>
+		<a href="/about"><li>About</li></a>
+		<a href="/friends"><li>Friends</li></a>
+		<!-- <a href="/archive"><li>Archive</li></a> -->
+	</ul>
+</div></div><div class="container">
+	<h1>Termius破解小记</h1>
+	<h4 class="post-description"></h4>
+	<div class="post-date" style="margin-top:20px">
+		Published on Mar 13, 2025
+	</div>
+	<ul class="post-tags"><li>re</li></ul>
+</div>
+</header>
+  <main>
+    <div class="container">
+      <div class="post-container">
+          <p>因为windows上一直用的win terminal，但是这玩意用ssh的时候传文件不方便所以就想换个工具。其实一直有在用mobaXterm，但是这个免费版有session上限，而且我垂涎termius和tabby的ui很久了，就准备换一下。tabby这东西bug有点多，根本没法用公私钥连接我的服务器，应该是跟windows生成的密钥有关系，所以只好选择termius。</p>
+
+<p>termius的问题在于他现在打开就让你注册登录，实在是不想为了个ssh工具搞一个账号，于是准备破解一下。</p>
+
+<p><img src="/assets/images/image-20250312164827250.png" alt="image-20250312164827250" /></p>
+
+<p>termius是基于electron的，之前并没有接触过，网上稍微翻了翻，先解个包：</p>
+
+<div class="language-powershell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">npx</span><span class="w"> </span><span class="err">@</span><span class="nx">electron/asar</span><span class="w"> </span><span class="nx">extract</span><span class="w"> </span><span class="nx">app.asar</span><span class="w"> </span><span class="nx">app</span><span class="w">
+</span></code></pre></div></div>
+
+<p>解码出来后把原始的asar备份一下删除，这样electron应用会自动从app文件夹都读取代码加载，方便调试。</p>
+
+<p>调试有两种，一种是开remote debug，在命令行中启动electron应用，加上参数<code class="language-plaintext highlighter-rouge">--remote-debugging-port=xxxx</code>就打开了远程调试端口，然后在chrome <code class="language-plaintext highlighter-rouge">chrome://inspect/</code>页面就可以附加上去。</p>
+
+<p>另外一种是修改代码开启控制台，electron中要打开控制台要使用BrowserWindow来开启</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nx">BrowserWindow</span><span class="p">().</span><span class="nx">webContents</span><span class="p">.</span><span class="nx">openDevTools</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p>于是全局搜<code class="language-plaintext highlighter-rouge">BrowserWindow(</code>来找到创建窗口的代码，定位到这里：</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="nx">yt</span><span class="p">.</span><span class="nx">linux</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">icon</span> <span class="o">=</span> <span class="nx">Ch</span><span class="p">),</span>
+            <span class="nx">yt</span><span class="p">.</span><span class="nx">macOS</span><span class="p">()</span> <span class="o">&amp;&amp;</span>
+                <span class="p">((</span><span class="nx">p</span><span class="p">.</span><span class="nx">titleBarStyle</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">customButtonsOnHover</span><span class="dl">"</span><span class="p">),</span>
+                <span class="k">this</span><span class="p">.</span><span class="nx">type</span> <span class="o">===</span> <span class="dl">"</span><span class="s2">primary</span><span class="dl">"</span> <span class="o">&amp;&amp;</span>
+                    <span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">trafficLightPosition</span> <span class="o">=</span> <span class="p">{</span> <span class="na">x</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span> <span class="na">y</span><span class="p">:</span> <span class="mi">17</span> <span class="p">}),</span>
+                <span class="k">this</span><span class="p">.</span><span class="nx">type</span> <span class="o">===</span> <span class="dl">"</span><span class="s2">primary</span><span class="dl">"</span> <span class="o">&amp;&amp;</span>
+                    <span class="p">((</span><span class="nx">p</span><span class="p">.</span><span class="nx">show</span> <span class="o">=</span> <span class="o">!</span><span class="mi">1</span><span class="p">),</span>
+                    <span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">vibrancy</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">hud</span><span class="dl">"</span><span class="p">),</span>
+                    <span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">backgroundColor</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">#00000000</span><span class="dl">"</span><span class="p">),</span>
+                    <span class="p">(</span><span class="nx">p</span><span class="p">.</span><span class="nx">visualEffectState</span> <span class="o">=</span> <span class="dl">"</span><span class="s2">active</span><span class="dl">"</span><span class="p">))),</span>
+            <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">browserWindow</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">q</span><span class="p">.</span><span class="nx">BrowserWindow</span><span class="p">(</span><span class="nx">p</span><span class="p">)),</span>
+            <span class="nx">PE</span><span class="p">.</span><span class="nx">enable</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">browserWindow</span><span class="p">.</span><span class="nx">webContents</span><span class="p">),</span>
+            <span class="c1">// 添加：this.browserWindow.webContents.openDevTools(),</span>
+            <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">id</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">browserWindow</span><span class="p">.</span><span class="nx">id</span><span class="p">),</span>
+            <span class="k">this</span><span class="p">.</span><span class="nx">browserWindow</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="dl">"</span><span class="s2">page-title-updated</span><span class="dl">"</span><span class="p">,</span> <span class="p">(</span><span class="nx">v</span><span class="p">)</span> <span class="o">=&gt;</span>
+                <span class="nx">v</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">()</span>
+            <span class="p">),</span>
+            <span class="k">this</span><span class="p">.</span><span class="nx">browserWindow</span><span class="p">.</span><span class="nx">webContents</span><span class="p">.</span><span class="nx">setWindowOpenHandler</span><span class="p">(</span>
+</code></pre></div></div>
+
+<p>至此可以开启窗口进行调试。</p>
+
+<p>在调试Termius的过程中遇到了断点触发后就crash的问题，我也没搞清除是有反调试机制还是怎么回事，研究了半天调试最后其实没怎么用上，最后还是通过搜字符串定位的关键代码。</p>
+
+<p><img src="/assets/images/image-20250312133351683.png" alt="image-20250312133351683" /></p>
+
+<p>搜索界面上的字符串定位到文件reconnectSaga</p>
+
+<p><img src="/assets/images/image-20250312133406053.png" alt="image-20250312133406053" /></p>
+
+<p>压缩的js很大，需要先格式化一下，vscode默认的格式化不行，全选代码用命令 Format Selection With 选择Prettier进行格式化。</p>
+
+<p>然后就是慢慢分析代码了，我对electron整个技术只有基本的了解，对vue以及js稍微懂一点，大概分析下来，这个文件每个function基本都是一个窗口，然后根据状态机去显示某个窗口，我们要做的就是找到termius最开始显示初次使用的窗口的位置然后进行patch，详细分析的过程很复杂，还要结合调试来判断代码功能。</p>
+
+<p>最终追踪到了这么个函数：</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">function</span><span class="o">*</span> <span class="nx">PGt</span><span class="p">(</span><span class="nx">e</span><span class="p">,</span> <span class="nx">t</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kd">const</span> <span class="nx">n</span> <span class="o">=</span> <span class="nx">IGt</span><span class="p">(</span><span class="nx">SGt</span><span class="p">),</span>
+        <span class="nx">r</span> <span class="o">=</span> <span class="k">yield</span><span class="o">*</span> <span class="nx">wte</span><span class="p">(</span><span class="nx">n</span><span class="p">,</span> <span class="p">{</span> <span class="na">from</span><span class="p">:</span> <span class="nx">e</span> <span class="p">},</span> <span class="k">void</span> <span class="mi">0</span><span class="p">,</span> <span class="nx">t</span><span class="p">);</span>
+    <span class="nx">eM</span><span class="p">.</span><span class="nx">userJustSawSuggestionToTryPremium</span><span class="p">(),</span>
+        <span class="nx">r</span> <span class="o">===</span> <span class="dl">"</span><span class="s2">continue-without-account</span><span class="dl">"</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="k">yield</span><span class="o">*</span> <span class="nx">Wn</span><span class="p">(</span><span class="nx">wEe</span><span class="p">()));</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>通过符号也能判断这里最后<code class="language-plaintext highlighter-rouge">yield* Wn(wEe())</code>的逻辑是不需要账户就继续使用的，于是我们进行patch。</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">function</span><span class="o">*</span> <span class="nx">PGt</span><span class="p">(</span><span class="nx">e</span><span class="p">,</span> <span class="nx">t</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// const n = IGt(SGt),</span>
+    <span class="c1">//     r = yield* wte(n, { from: e }, void 0, t);</span>
+    <span class="c1">// eM.userJustSawSuggestionToTryPremium(),</span>
+        <span class="c1">// r === "continue-without-account" &amp;&amp; (yield* Wn(wEe()));</span>
+  <span class="k">yield</span><span class="o">*</span> <span class="nx">Wn</span><span class="p">(</span><span class="nx">wEe</span><span class="p">());</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>成功进入主界面：</p>
+
+<p><img src="/assets/images/image-20250312134547498.png" alt="image-20250312134547498" /></p>
+
+
+      </div>
+
+        <!-- Configure Disqus --></div>
+  </main></body>
+</html>
