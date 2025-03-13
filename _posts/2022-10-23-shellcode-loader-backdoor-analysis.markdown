@@ -13,37 +13,37 @@ categories: 逆向
 
 先看一眼导入表
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022230914572.png)
+![](/assets/images/image-20221022230914572.png)
 
 OpenProcess，CreateToolhelp32Snapshot，一股进程注入的味道扑面而来。
 
 ida粗略看一眼大致流程，其实会发现还是挺正常的，正常的打banner，正常的读文件，正常的写入shellcode，要说有一点点可疑，那也就是那个sedebug提权和anti_sandbox，但是也没见到什么恶意行为。
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022231746749.png)
+![](/assets/images/image-20221022231746749.png)
 
 那么作者是将后门藏在哪里了呢，我第一反应是tls，第二反应是cruntime初始化阶段。但是既然咱们上面已经看到了可以的OpenProcess和CreateToolhelp32Snapshot，就不需要那么麻烦一个一个找了，找到CreateToolhelp32Snapshot，然后看一眼交叉引用，对着代码一顿分析。
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022232245207.png)
+![](/assets/images/image-20221022232245207.png)
 
 通过函数名获取pid，不用多说了吧。
 
 继续看引用了get_pid的函数
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022232341446.png)
+![](/assets/images/image-20221022232341446.png)
 
 栈字符串解密->get_pid->sub401290，接着看这个sub_401290
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221023120322393.png)
+![](/assets/images/image-20221023120322393.png)
 
 栈字符串解密->动态获取VirutalAllocEx->动态获取WriteProcessMemory->alloc+write将shellcode1写入内存->创建一块可执行内存并写入sub_41a8b0处的shellcode2->执行shellcode2。shellcode1大小经典929，cs stager基本没跑了
 
 其实看到这里基本已经差不多了，按一般套路来说shellcode2的功能就是createthread、apc、setthreadcontext三选一，但是既然分析还是要分析完，继续看这个shellcode什么功能吧
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221023130424471.png)
+![](/assets/images/image-20221023130424471.png)
 
 push 0x33+far ret，哟这不天堂之门么，作者还是有点意思的，将shellcode dump出来，又是一顿分析
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022233049093.png)
+![](/assets/images/image-20221022233049093.png)
 
 先调sub_A3然后返回值作为函数指针调用，那么sub_A3就是动态获取函数了，那么把sub_A3单独提取出来，跑了一下，发现获取到的是NtCreatethreadEx，那么到此就结束了。
 
@@ -51,7 +51,7 @@ push 0x33+far ret，哟这不天堂之门么，作者还是有点意思的，将
 
 一通交叉引用，发现后门居然是在最开始标注的printf里
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20221022233636692.png)
+![](/assets/images/image-20221022233636692.png)
 
 不得不说作者还是非常懂逆向人员的心态的，看到输出字符串的函数就会忽略过去，因此就把后门代码藏在这种不显眼的位置。
 

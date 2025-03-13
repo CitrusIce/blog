@@ -11,7 +11,7 @@ categories: reverse-engineering
 
 知道了大概流程就简单了，直接在相关内存加载相关代码下断 dump 下来 shellcode 做分析。从 dump 出的 shellcode 中翻了一下找到了 mz 头，那么估计就是个内存加载 pe 的代码了：
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/Pasted%20image%2020240412173558.png)
+![](/assets/images/Pasted_image_20240412173558.png)
 
 不过为了安全起见我还是用调试器跟了一遍，确定就是内存加载的代码，然后直接提取出来被内存加载的 pe 分析
 

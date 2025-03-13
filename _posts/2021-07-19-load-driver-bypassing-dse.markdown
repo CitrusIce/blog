@@ -11,21 +11,21 @@ categories: driver re
 
 kdmapper通过加载有签名的漏洞驱动并利用漏洞来实现加载未签名驱动的功能。漏洞的位置位于驱动ioctl处理函数中，驱动在初始化过程中注册了ioctl处理函数并在控制码为0x80862007的对应函数中提供了任意地址读写、获取物理地址、映射任意地址等功能
 
-![image-20210719111311394](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210719111311394.png)
+![image-20210719111311394](/assets/images/image-20210719111311394.png)
 
 映射地址功能
 
-![image-20210719111346099](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210719111346099.png)
+![image-20210719111346099](/assets/images/image-20210719111346099.png)
 
 获取物理地址
 
-![image-20210719111406927](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210719111406927.png)
+![image-20210719111406927](/assets/images/image-20210719111406927.png)
 
 
 
 任意地址读写
 
-![image-20210719111433722](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210719111433722.png)
+![image-20210719111433722](/assets/images/image-20210719111433722.png)
 
 ## 从任意地址写到代码执行
 

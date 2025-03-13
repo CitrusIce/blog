@@ -87,7 +87,7 @@ JSONScanner的初始化
 
 在com.alibaba.fastjson.parser.DefaultJSONParser#parseObject(java.lang.reflect.Type, java.lang.Object)中会获取要反序列化的类所对应的deserializer，如果没有则进行创建
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801153731844.png)
+![](/assets/images/image-20200801153731844.png)
 
 进入这个函数
 
@@ -155,15 +155,15 @@ JSONScanner的初始化
 
 之后还会根据一些情况进行匹配，在所有匹配均不成功后，就会创建一个新的deserializer
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801155439336.png)
+![](/assets/images/image-20200801155439336.png)
 
 createJavaBeanDeserializer里，会根据asmEnable分两种情况去创建并返回一个JavaBeanDeserializer
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801175636270.png)
+![](/assets/images/image-20200801175636270.png)
 
 如果目标class的父类中有非public的成员变量，则asmEnable为false，除此之外还有许多条件，如果不成立则asmEnable都为false
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801171446495.png)
+![](/assets/images/image-20200801171446495.png)
 
 先跟进asm为false的情况，直接new一个JavaBeanDeserializer
 
@@ -180,11 +180,11 @@ createJavaBeanDeserializer里，会根据asmEnable分两种情况去创建并返
 
 com.alibaba.fastjson.util.JavaBeanInfo#build 获取了目标类所生命的成员变量，方法，构造方法
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801162230691.png)
+![](/assets/images/image-20200801162230691.png)
 
 最后返回一个JavaBeanInfo类
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801162539536.png)
+![](/assets/images/image-20200801162539536.png)
 
 在JavaBeanInfo的构造方法中，除了一些基本的初始化，还会讲成员变量进行排序，生成一个sortedFields数组，不知道为什么要另外弄一个sortedFields
 
@@ -221,50 +221,50 @@ public JavaBeanInfo(Class<?> clazz, //
 
 在JavaBeanDeserializer的构造函数中把刚刚返回的javaBeanInfo中的sortedFields和fields放到sortedFieldDeserializers和fieldDeserializers中
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801170946844.png)
+![](/assets/images/image-20200801170946844.png)
 
 至此deserializer创建完成，在创建好deserializer后讲其放入自己的deserializers表中，然后开始进行反序列化
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801172125235.png)
+![](/assets/images/image-20200801172125235.png)
 fastjson-1.2.24-sources.jar!/com/alibaba/fastjson/parser/deserializer/JavaBeanDeserializer.java:349
 
 从这里开始按照上文提到的sortedFieldDeserializers的顺序进行扫描，并解析对应字段中的值
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801172503527.png)
+![](/assets/images/image-20200801172503527.png)
 
 当找到对于字段相同，内容类型不同的，进一步进行解析，这里可以看到fastjson会对key值做判断，如果key值等于$ref或@type则会有特殊的处理
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801172650015.png)
+![](/assets/images/image-20200801172650015.png)
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801172727278.png)
+![](/assets/images/image-20200801172727278.png)
 
 之后继续跟进会来到这里com.alibaba.fastjson.parser.DefaultJSONParser#parse(java.lang.Object)
 
 判断当前指向的符号，如果是"{"则创建一个JSONObject继续解析
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801174009759.png)
+![](/assets/images/image-20200801174009759.png)
 
 当作为JSONObject继续解析时，同样会对key做判断，如果是@type则会获取类名并加载
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801173758418.png)
+![](/assets/images/image-20200801173758418.png)
 
 com.alibaba.fastjson.util.TypeUtils#loadClass(java.lang.String, java.lang.ClassLoader)
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801173855503.png)
+![](/assets/images/image-20200801173855503.png)
 
 之后会根据clazz获取deserializer进行反序列化
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801174629869.png)
+![](/assets/images/image-20200801174629869.png)
 
 用asm来生成处理类的情况：
 
 也就是当asmEnable为true的情况
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801180314902.png)
+![](/assets/images/image-20200801180314902.png)
 
 截一个代码随便看看，如果想看到摄功能成的处理类得抓出字节码然后反编译，感觉有点麻烦，所以就不弄了
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801202503290.png)
+![](/assets/images/image-20200801202503290.png)
 
 ## 为什么要有autoType功能
 
@@ -309,7 +309,7 @@ main:41, test (test)
 
 看了一下，是因为执行这条语句是contextArrayIndex为0导致的
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801205641550.png)
+![](/assets/images/image-20200801205641550.png)
 
 经过调试发现在最开始创建对象的时候会调用一次addContext，每次调用com.alibaba.fastjson.parser.DefaultJSONParser#parseObject(java.util.Map, java.lang.Object)会做一次popContext的操作，也就是每次解析JSONObject时都会调用一下，payload中有两个JSONObject，分别是
 
@@ -366,9 +366,9 @@ main:41, test (test)
 
 1.2.47：
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801233523275.png)
+![](/assets/images/image-20200801233523275.png)
 
 1.2.24：
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20200801233548941.png)
+![](/assets/images/image-20200801233548941.png)
 

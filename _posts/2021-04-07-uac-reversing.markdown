@@ -33,25 +33,25 @@ KERNELBASE!CreateProcessW:
 
 经过测试，CInvokeCreateProcessVerb::CallCreateProcess就是我们要找的关键函数。用ida对这个函数进行逆向，发现在以管理员身份运行程序时CInvokeCreateProcessVerb::CallCreateProcess会去调用AicLaunchAdminProcess，而AicLaunchAdminProcess本身并不拉起进程，而是做了rpc通信，看来真正拉起权限提升进程的程序并非是explorer
 
-![image-20210320132941566](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210320132941566.png)
+![image-20210320132941566](/assets/images/image-20210320132941566.png)
 
 根据创建binding handle时使用的uuid在rpcview找到对应的接口，发现是一个svchost起的服务
 
-![image-20210320132923499](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210320132923499.png)
+![image-20210320132923499](/assets/images/image-20210320132923499.png)
 
 从启动命令行中可以看到是appinfo
 
-![image-20210320133100719](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210320133100719.png)
+![image-20210320133100719](/assets/images/image-20210320133100719.png)
 
 根据rpcview中显示的procedure地址，我们可以找到对应的dll，也就是appinfo.dll
 
-![image-20210320133248408](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210320133248408.png)
+![image-20210320133248408](/assets/images/image-20210320133248408.png)
 
 根据接口地址找到对应函数RAiLaunchAdminProcess
 
 在RAiLaunchAdminProcess中，我们可以看到最终调用了AiLaunchProcess，而AiLaunchProcess又是对CreateProcessAsUserW的封装，可以看出权限提升的进程最终是由appinfo服务进程拉起来的。
 
-![image-20210406175451171](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210406175451171.png)
+![image-20210406175451171](/assets/images/image-20210406175451171.png)
 
 ## 什么样的程序可以不弹出uac窗口
 
@@ -100,7 +100,7 @@ RAiLaunchAdminProcess -> AiCheckLUA -> AiLaunchConsentUI
 
 接下来开始逆AiLaunchConsentUI这个函数
 
-![image-20210404131558600](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404131558600.png)
+![image-20210404131558600](/assets/images/image-20210404131558600.png)
 
 构造命令行后会调用AiLaunchProcess来启动consent.exe，也就是真正绘制uac窗口的程序
 
@@ -110,37 +110,37 @@ RAiLaunchAdminProcess -> AiCheckLUA -> AiLaunchConsentUI
 
 - 在consent绘制的uac窗口上，我们可以看到要进行权限提升的程序的路径，命令行等等相关信息，consent是如何获取这些信息的？
 
-  ![image-20210404133752729](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404133752729.png)
+  ![image-20210404133752729](/assets/images/image-20210404133752729.png)
 
-  ![image-20210404134511322](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404134511322.png)
+  ![image-20210404134511322](/assets/images/image-20210404134511322.png)
 
   答案就在consent的命令行中。consent的命令行中传入了父进程的pid（appinfo服务的进程pid），一个结构体长度以及一个指向结构体的指针，随后consent调用NtReadVirtualMemory从父进程的内存中读取结构体的内容，这个结构体中就包含了需要特权提升的进程信息。
 
 - 特权提升的进程最终是由appinfo服务进程拉起的，但是uac窗口则是consent绘制的，那consen如何将用户的操作反馈给appinfo服务进程？
 
-  ![image-20210404134338774](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404134338774.png)
+  ![image-20210404134338774](/assets/images/image-20210404134338774.png)
 
   同样是通过读写appinfo进程的内存实现
 
 通过逆向找到了决定是否弹窗的关键函数
 
-![image-20210404135241498](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404135241498.png)
+![image-20210404135241498](/assets/images/image-20210404135241498.png)
 
 关键代码
 
-![image-20210404135516888](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404135516888.png)
+![image-20210404135516888](/assets/images/image-20210404135516888.png)
 
 可以看到consent是否弹窗主要由父进程传入的结构体确定，因此再返回appinfo继续逆向
 
 详细细节有些复杂，所以直接贴部分代码
 
-![image-20210404135951243](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404135951243.png)
+![image-20210404135951243](/assets/images/image-20210404135951243.png)
 
-![image-20210404140004231](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404140004231.png)
+![image-20210404140004231](/assets/images/image-20210404140004231.png)
 
-![image-20210404140056297](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404140056297.png)
+![image-20210404140056297](/assets/images/image-20210404140056297.png)
 
-![image-20210404140115678](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210404140115678.png)
+![image-20210404140115678](/assets/images/image-20210404140115678.png)
 
 可以看到对程序所处的路径有限制，同时包含一些白名单校验，当满足这些条件后，consent便不会绘制uac窗口。
 
@@ -148,11 +148,11 @@ RAiLaunchAdminProcess -> AiCheckLUA -> AiLaunchConsentUI
 
 权限提升的过程位于consent中，consent从appinfo服务进程中获取未权限提升的令牌后，调用NtQueryInformationToken获取一个权限提升的令牌（undocument的用法），随后将这个token写回到appinfo服务进程中，appinfo再使用这个提升后的令牌创建进程。
 
-![image-20210406164130159](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210406164130159.png)
+![image-20210406164130159](/assets/images/image-20210406164130159.png)
 
 通过NtQueryInformationToken获取权限提升的令牌
 
-![image-20210406164314330](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210406164314330.png)
+![image-20210406164314330](/assets/images/image-20210406164314330.png)
 
 将令牌写回到appinfo的进程中去
 
