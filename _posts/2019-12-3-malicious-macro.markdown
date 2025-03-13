@@ -56,7 +56,7 @@ msf生成的宏使用shellcode动态加载技术，运行时在内存中注入sh
 
 以火绒为例:
 
-![火绒](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20191203141834.png)
+![火绒](/assets/images/20191203141834.png)
 
 思路：
 

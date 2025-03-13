@@ -30,7 +30,7 @@ make
 make install
 ```
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image_8.png)
+![](/assets/images/image_8.png)
 
 可以看到已经有了rdp2tcp选项
 
@@ -52,7 +52,7 @@ python rdp2tcp.py
 
 将本地445端口的流量通过rdp tunnel转发到目标机上
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200127194853.png)
+![](/assets/images/20200127194853.png)
 
 
 

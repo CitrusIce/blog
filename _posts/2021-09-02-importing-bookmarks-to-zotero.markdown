@@ -29,7 +29,7 @@ crx格式的文件可以同过7z直接打开，解压出来后是一个文件夹
 
 既然想通过调用插件的功能来实现将网页导入Zotero，首先要找到插件实现功能的位置。一开始想找到单击事件触发的函数，但是由于对Chrome插件的不熟悉不知道该如何找起。于是换了一种思路：从不同js代码之间的通信开始。全局搜索addListener函数，根据文件名/代码上下文找到一些看起来有意思的地方下断，几次测试之后很快就找到了关键位置，在messaging_inject.js中尾部定义了一个Listener用于监听消息。
 
-![image-20210902104536543](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210902104536543.png)
+![image-20210902104536543](/assets/images/image-20210902104536543.png)
 
 在_messageListeners中定义了事件对应的函数，继续调试几次，找出了其中的重要事件：
 

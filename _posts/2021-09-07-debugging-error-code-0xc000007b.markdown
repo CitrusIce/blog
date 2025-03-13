@@ -103,7 +103,7 @@ rax=00000000c000007b
 
 层层深入LdrpInitializeProcess，最终定位到问题位于LdrpProcessMappedModule
 
-![image-20210812171334927](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210812171334927.png)
+![image-20210812171334927](/assets/images/image-20210812171334927.png)
 
 问题来源于gs机制，由于LdrInitSecurityCookie调用失败返回0导致返回0xC000007B
 
@@ -113,7 +113,7 @@ LdrpFetchAddressOfSecurityCookie 失败 返回0
 
 LdrImageDirectoryEntryToLoadConfig失败 返回0
 
-![image-20210813102630235](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210813102630235.png)
+![image-20210813102630235](/assets/images/image-20210813102630235.png)
 
 分析代码发现LdrImageDirectoryEntryToLoadConfig会去寻找pe中的load config数据目录项，而程序经过加壳后把这块去掉了，因此无法找到
 
@@ -228,7 +228,7 @@ unhight()
 
 效果：
 
-![image-20210907150755293](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210907150755293.png)
+![image-20210907150755293](/assets/images/image-20210907150755293.png)
 
 
 

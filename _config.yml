@@ -39,3 +39,18 @@ texture:
 plugins:
   - jekyll-seo-tag
   - jekyll-feed
+
+# 图片本地化插件配置
+image_localizer:
+  enabled: true                # 是否启用插件
+  image_dir: 'assets/images'   # 图片保存目录
+  process_pages: true          # 是否处理页面
+  process_posts: true          # 是否处理文章
+  fix_existing_paths: true     # 是否修复已存在的本地图片路径
+  copy_local_images: true      # 是否复制本地绝对路径的图片
+  skip_patterns:               # 跳过的URL模式（正则表达式）
+    - '^data:'                 # 跳过 data URL
+
+# 确保图片目录被包含在构建中
+include:
+  - assets/images

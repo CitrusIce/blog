@@ -33,7 +33,7 @@ ring3下，杀软对程序无非就是各种iat hook、inline hook；在ring0由
 
 尽管知道不会是ring3下的hook，但是保险起见，一直跟入到syscall
 
-![image-20201214171817590](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20201214171817590.png)
+![image-20201214171817590](/assets/images/image-20201214171817590.png)
 
 没有hook
 
@@ -302,29 +302,29 @@ r10=fffff8023a2b3428
 
 找之前先翻了一些文档以及基于vt的hook框架，大概对vt有了一些了解。由于模块名字比较显眼，一下就看到了对应的模块。根据之前的了解，启动虚拟机需要使用VMXON指令，因此直接搜这个指令一下就可以定位到启用vmx的代码开始逆向
 
-![image-20210113174052058](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113174052058.png)
+![image-20210113174052058](/assets/images/image-20210113174052058.png)
 
-![image-20210113174325354](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113174325354.png)
+![image-20210113174325354](/assets/images/image-20210113174325354.png)
 
-![image-20210113174519268](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113174519268.png)
+![image-20210113174519268](/assets/images/image-20210113174519268.png)
 
 这段代码为启用vmx做了一些检查，然后为每个cpu分配4KB的物理空间用于记录一些信息（vmxon需要），最后调用vmxon进行启用虚拟机，随后调用vmInit进行初始化
 
-![image-20210113175449339](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113175449339.png)
+![image-20210113175449339](/assets/images/image-20210113175449339.png)
 
 vmInit函数很大，一番搜寻后我找到了设置vm host入口的代码，即处理vm事件的函数VM_handler。
 
-![image-20210113175520122](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113175520122.png)
+![image-20210113175520122](/assets/images/image-20210113175520122.png)
 
 VM_hanlder在保存现场之后，调用GetVMExitReason
 
-![image-20210113175706367](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113175706367.png)
+![image-20210113175706367](/assets/images/image-20210113175706367.png)
 
-![image-20210113180222755](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113180222755.png)
+![image-20210113180222755](/assets/images/image-20210113180222755.png)
 
 函数通过vmread读取VM_EXIT_REASON，并根据不同的值调用不同的函数。当cpu使用rdmsr指令时会触发vm_exit事件，其对应的VM_EXIT_REASON为31。当VM_handler捕获到rdmsr指令时会调用SpoofMSRFunc来欺骗调用者，返回假的msr值。
 
-![image-20210113180700346](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210113180700346.png)
+![image-20210113180700346](/assets/images/image-20210113180700346.png)
 
 可以看出来当读取msr的index为if中的那些值时这个函数会对其进行处理。
 

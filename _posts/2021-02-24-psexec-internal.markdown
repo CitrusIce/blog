@@ -13,25 +13,25 @@ https://docs.microsoft.com/en-us/troubleshoot/windows-server/networking/inter-pr
 
 使用函数WNetAddConnection2W通过ipc$共享登录到目标计算机
 
-![image-20210224110927413](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224110927413.png)
+![image-20210224110927413](/assets/images/image-20210224110927413.png)
 
 ## psexec如何在目标系统上执行命令
 
 psexec自身携带了psexesvc，在登录后会将psexesvc通过admin$共享将psexesvc拷贝过去
 
-![image-20210224111039427](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111039427.png)
+![image-20210224111039427](/assets/images/image-20210224111039427.png)
 
 ​	查看psexec的资源表，可以发现附带的psexecsvc程序
 
-![image-20210224111153742](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111153742.png)
+![image-20210224111153742](/assets/images/image-20210224111153742.png)
 
 之后打开目标系统上的服务管理器，创建psexesvc的服务并启动。
 
-![image-20210224111351331](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111351331.png)
+![image-20210224111351331](/assets/images/image-20210224111351331.png)
 
 之后使用命名管道来与psexesvc进行通信，向psexesvc发送指令来执行命令
 
-![image-20210224111747076](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224111747076.png)
+![image-20210224111747076](/assets/images/image-20210224111747076.png)
 
 ## psexesvc以什么身份（账户）在目标系统上执行
 
@@ -41,15 +41,15 @@ psexecsvc是以服务的身份启动的，因此如果执行命令，那就是�
 
 在发送指令的包中，psexec会同时将用户传入的凭据发送给psexesvc
 
-![image-20210224112856530](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224112856530.png)
+![image-20210224112856530](/assets/images/image-20210224112856530.png)
 
 psexecsvc使用LogonUserExExW进行登录，获取一个目标账户的token
 
-![image-20210224113040740](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224113040740.png)
+![image-20210224113040740](/assets/images/image-20210224113040740.png)
 
 接着使用CreateProcessAsUser，通过已获取的token来以目标账户的身份登录
 
-![image-20210224113336005](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/image-20210224113336005.png)
+![image-20210224113336005](/assets/images/image-20210224113336005.png)
 
 ---
 

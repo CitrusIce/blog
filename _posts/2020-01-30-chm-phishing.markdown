@@ -10,7 +10,7 @@ categories: apt
 
 根据@ithurricanept的twitter
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200130165102.png)
+![](/assets/images/20200130165102.png)
 
 <https://twitter.com/ithurricanept/status/534993743196090368>
 
@@ -41,13 +41,13 @@ x.Click();
 
 创建一个新的project，添加文件后进行编译
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/1580212823088.png)
+![](/assets/images/1580212823088.png)
 
 
 测试：
 
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/1580212859994.png)
+![](/assets/images/1580212859994.png)
 
 
 ## 利用
@@ -107,7 +107,7 @@ DotNetToJScript.exe -o 1.js ClassLibrary1.dll -c ClassLibrary1.Class1
 执行js脚本
 
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/1580376712378.png)
+![](/assets/images/1580376712378.png)
 
 
 ## 利用
@@ -122,4 +122,4 @@ DotNetToJScript.exe -o 1.js ClassLibrary1.dll -c ClassLibrary1.Class1
 
 360火绒均不拦截
 
-![](https://raw.githubusercontent.com/CitrusIce/blog_pic/master/20200130173719.png)
+![](/assets/images/20200130173719.png)
