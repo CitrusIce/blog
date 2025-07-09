@@ -1,5 +1,272 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2025-03-18T12:37:57+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">Termius破解小记</title><link href="https://citrusice.github.io/posts/termius-reversing/" rel="alternate" type="text/html" title="Termius破解小记" /><published>2025-03-13T13:22:55+08:00</published><updated>2025-03-13T13:22:55+08:00</updated><id>https://citrusice.github.io/posts/termius-reversing</id><content type="html" xml:base="https://citrusice.github.io/posts/termius-reversing/">&lt;p&gt;因为windows上一直用的win terminal，但是这玩意用ssh的时候传文件不方便所以就想换个工具。其实一直有在用mobaXterm，但是这个免费版有session上限，而且我垂涎termius和tabby的ui很久了，就准备换一下。tabby这东西bug有点多，根本没法用公私钥连接我的服务器，应该是跟windows生成的密钥有关系，所以只好选择termius。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2025-07-09T18:07:27+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">旁路由科学上网配置笔记</title><link href="https://citrusice.github.io/posts/sub-router-with-tproxy-configuration/" rel="alternate" type="text/html" title="旁路由科学上网配置笔记" /><published>2025-07-09T18:05:36+08:00</published><updated>2025-07-09T18:05:36+08:00</updated><id>https://citrusice.github.io/posts/sub-router-with-tproxy-configuration</id><content type="html" xml:base="https://citrusice.github.io/posts/sub-router-with-tproxy-configuration/">&lt;p&gt;之前家里科学上网一直是通过刷了个openwrt的路由装了openclash来上网的，但是受限于openwrt路由器的性能，操作openclash很是不方便，总觉得网速也受到影响，因此准备在家中内网的linux主机上配置一个旁路由用于科学上网。&lt;/p&gt;
+
+&lt;p&gt;网络环境：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;192.168.2.1 路由器&lt;/li&gt;
+  &lt;li&gt;192.168.2.2 旁路由 （这里我是&lt;strong&gt;arch系&lt;/strong&gt;）&lt;/li&gt;
+  &lt;li&gt;192.168.2.100 用户主机&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;首先是配置clash，当前clash已经改名为mihomo，直接安装&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;yay &lt;span class=&quot;nt&quot;&gt;-Sy&lt;/span&gt; mihomo
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;实现透明代理有两种方法，一个是tun一个是tproxy，这里我选用tproxy&lt;/p&gt;
+
+&lt;div class=&quot;language-yaml highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;na&quot;&gt;tproxy-port&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;7894&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# You can choose any available port, e.g., 7894 or 9898 [4, 6]&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;routing-mark&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;255&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# 这个值对应 iptables 规则中的 0xff&lt;/span&gt;
+&lt;span class=&quot;na&quot;&gt;dns&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;enable&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;true&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;listen&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;0.0.0.0:53&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;ipv6&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;false&lt;/span&gt;           &lt;span class=&quot;c1&quot;&gt;# 禁止DNS解析IPv6&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;enhanced-mode&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;redir-host&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# 使用 redir-host 模式&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;# 这些 DNS 用于解析代理服务器域名（重要！）&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;default-nameserver&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;114.114.114.114&lt;/span&gt;
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;223.5.5.5&lt;/span&gt;
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;1.1.1.1&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;nameserver&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;114.114.114.114&lt;/span&gt;
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;8.8.8.8&lt;/span&gt;
+  &lt;span class=&quot;na&quot;&gt;fallback&lt;/span&gt;&lt;span class=&quot;pi&quot;&gt;:&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;# 防止 DNS 污染&lt;/span&gt;
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;1.1.1.1&lt;/span&gt;
+    &lt;span class=&quot;pi&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;8.8.8.8&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;配置关键在于设置这三部分：tproxy-port/routing-mark以及dns&lt;/p&gt;
+
+&lt;p&gt;我的主机上已经有了systemd-resolved会运行一个stub listener占用了53端口，因此要先配置systemd-resolved，在&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/etc/systemd/resolved.conf&lt;/code&gt;的&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;[Resolve]&lt;/code&gt;部分禁用stub listener并且设置dns服务器为本地地址&lt;/p&gt;
+
+&lt;div class=&quot;language-ini highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nn&quot;&gt;[Resolve]&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;DNS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;127.0.0.1&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;DNSStubListener&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;no&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;另外由于我使用的是manjaro，使用network manager管理网络，我的 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/etc/resolv.conf&lt;/code&gt; 会被network manager自动覆盖，因此还需要配置network manager。&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;nmcli connection show &lt;span class=&quot;nt&quot;&gt;--active&lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# NAME                UUID                                  TYPE      DEVICE          &lt;/span&gt;
+&lt;span class=&quot;c&quot;&gt;# Wired connection 1  5d78f62e-5624-313a-a89d-7242ca4a3e3b  ethernet  eno1          &lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 把 &quot;Wired connection 1&quot; 替换成你自己的连接名&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 修改 IPv4 DNS&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;nmcli connection modify &lt;span class=&quot;s2&quot;&gt;&quot;Wired connection 1&quot;&lt;/span&gt; ipv4.dns &lt;span class=&quot;s2&quot;&gt;&quot;127.0.0.1&quot;&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 修改 IPv6 DNS (可选，但建议设置为空，避免走 IPv6 DNS)&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;nmcli connection modify &lt;span class=&quot;s2&quot;&gt;&quot;Wired connection 1&quot;&lt;/span&gt; ipv6.dns &lt;span class=&quot;s2&quot;&gt;&quot;&quot;&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 关键一步：设置 DNS 模式为“仅使用手动设置的 DNS”&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;nmcli connection modify &lt;span class=&quot;s2&quot;&gt;&quot;Wired connection 1&quot;&lt;/span&gt; ipv4.ignore-auto-dns &lt;span class=&quot;nb&quot;&gt;yes
+sudo &lt;/span&gt;nmcli connection modify &lt;span class=&quot;s2&quot;&gt;&quot;Wired connection 1&quot;&lt;/span&gt; ipv6.ignore-auto-dns &lt;span class=&quot;nb&quot;&gt;yes&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 重新激活&lt;/span&gt;
+&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;nmcli connection up &lt;span class=&quot;s2&quot;&gt;&quot;Wired connection 1&quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;把mihomo启动起来，测试一下能否正常代理连接&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;curl &lt;span class=&quot;nt&quot;&gt;-x&lt;/span&gt; socks5://127.0.0.1:7890 https://www.google.com &lt;span class=&quot;nt&quot;&gt;-v&lt;/span&gt; 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;接下来配置透明代理，直接抄的网上的，但是需要修改网卡名字、tproxy端口以及clash的标记&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#!/usr/sbin/nft -f
+
+## 清空旧规则
+flush ruleset
+
+## 只处理指定网卡的流量，要和ip规则中的接口操持一致
+define interface = eno1
+
+## clash的透明代理端口
+define tproxy_port = 7894
+
+## clash打的标记（routing-mark）
+define clash_mark = 255
+
+## 常规流量标记，ip rule中加的标记，要和ip规则中保持一致，对应 &quot;ip rule add fwmark 1 lookup 100&quot; 中的 &quot;1&quot;
+define default_mark = 1
+
+## 本机运行了服务并且需要在公网上访问的tcp端口（本机开放在公网上的端口），仅本地局域网访问的服务端口可不用在此变量中，以半角逗号分隔
+define local_tcp_port = {
+        3000-4000,
+        25565,     
+        8000-9000,
+        1200,   
+}
+
+## 要绕过的局域网内tcp流量经由本机访问的目标端口，也就是允许局域网内其他主机主动设置DNS服务器为其他服务器，而非旁路由
+define lan_2_dport_tcp = {
+    53     # dns查询
+}
+
+## 要绕过的局域网内udp流量经由本机访问的目标端口，也就是允许局域网内其他主机主动设置DNS服务器为其他服务器，而非旁路由；另外也允许局域网内其他主机访问远程的NTP服务器
+define lan_2_dport_udp = {
+    53,    # dns查询
+    123    # ntp端口
+}
+
+## 保留ip地址
+define private_address = {
+    127.0.0.0/8,
+    100.64.0.0/10,
+    169.254.0.0/16,
+    224.0.0.0/4,
+    240.0.0.0/4,
+    10.0.0.0/8,
+    172.16.0.0/12,
+    192.168.0.0/16
+}
+
+## 大陆ip地址
+# include &quot;/var/lib/clash/geoip4_cn.nft&quot;
+
+table ip clash {
+
+    ## 保留ipv4集合
+    set private_address_set {
+        type ipv4_addr
+        flags interval
+        elements = $private_address
+    }
+
+    ## 大陆ipv4集合
+#    set geoip4_cn_set {
+#        type ipv4_addr
+#        flags interval
+#        elements = $geoip4_cn
+#    }
+
+    ## prerouting链
+    chain prerouting {
+        type filter hook prerouting priority filter; policy accept;
+        ip protocol { tcp, udp } socket transparent 1 meta mark set $default_mark accept # 绕过已经建立的连接
+        meta mark $default_mark goto clash_tproxy                                        # 已经打上default_mark标记的属于本机流量转过来的，直接进入透明代理
+        fib daddr type { local, broadcast, anycast, multicast } accept                   # 绕过本地、单播、组播、多播地址
+        tcp dport $lan_2_dport_tcp accept                                                # 绕过经由本机到目标端口的tcp流量
+        udp dport $lan_2_dport_udp accept                                                # 绕过经由本地到目标端口的udp流量
+        ip daddr @private_address_set accept                                             # 绕过目标地址为保留ip的地址
+       # ip daddr @geoip4_cn_set accept                                                   # 绕过目标地址为大陆ip的地址
+        # ip protocol udp accept                                                         # 绕过全部udp流量（udp不进行透明代理）
+        goto clash_tproxy                                                                # 其他流量透明代理到clash
+    }
+
+    ## 透明代理
+    chain clash_tproxy {
+        ip protocol { tcp, udp } tproxy to :$tproxy_port meta mark set $default_mark
+    }
+
+    ## output链 (优化后)
+    chain output {
+        type route hook output priority filter; policy accept;
+
+        # -----------------------------------------------------------------
+        # 核心修改：将最关键的绕过规则放在最顶端，确保它们最先被匹配
+        # -----------------------------------------------------------------
+
+        # 1. 绝对优先放行：目标是本地回环地址的流量 (修复你遇到的问题)
+        #    这是最明确、最可靠的规则，用于防止本机服务（如DNS）被代理。
+        ip daddr 127.0.0.1/32 accept
+
+        # 2. 其次放行：Clash 自身发出的、已经打上标记的流量 (防止循环代理)
+        meta mark $clash_mark accept
+
+        # 3. 再次放行：目标地址是保留地址/内网地址的流量
+        #    这条规则包含了 127.0.0.1，但放在这里作为双重保险，并处理其他内网IP。
+        ip daddr @private_address_set accept
+
+        # 4. 放行本机上其他服务的流量
+        #    例如，如果你在本机运行了需要公网访问的SSH或Web服务。
+        tcp sport $local_tcp_port accept
+        
+        # -----------------------------------------------------------------
+        # 经过以上关键过滤后，剩下的流量才考虑是否需要代理
+        # -----------------------------------------------------------------
+
+        # 5. 将剩余的所有TCP/UDP流量标记，准备重路由到 prerouting 链
+        ip protocol { tcp, udp } meta mark set $default_mark
+    }
+
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;配置我稍微调整了一下，让大陆ip也走mihomo，然后通过mihomo内部规则再进行分流。&lt;/p&gt;
+
+&lt;p&gt;文件保存成&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;mynftables.nft&lt;/code&gt;，启用tproxy还要结合路由规则设置&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;# 配置透明代理&lt;/span&gt;
+ip route add &lt;span class=&quot;nb&quot;&gt;local &lt;/span&gt;default dev eno1 table 100
+ip rule add fwmark 1 lookup 100
+nft &lt;span class=&quot;nt&quot;&gt;-f&lt;/span&gt; mynftables.nft
+&lt;span class=&quot;c&quot;&gt;# 启用mihomo&lt;/span&gt;
+mihomo &lt;span class=&quot;nt&quot;&gt;-f&lt;/span&gt; config.yaml
+&lt;span class=&quot;c&quot;&gt;# 测试一下是否生效&lt;/span&gt;
+curl ipinfo.io
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;生效后就可以配置成服务了，创建文件&lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;/etc/systemd/system/mihomo.service&lt;/code&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-ini highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nn&quot;&gt;[Unit]&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;Description&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;Mihomo tproxy daemon.&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;Wants&lt;/span&gt;       &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;network-online.target subconverter.service&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;After&lt;/span&gt;       &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;network-online.target&lt;/span&gt;
+
+&lt;span class=&quot;nn&quot;&gt;[Service]&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;Environment&lt;/span&gt;   &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;Type&lt;/span&gt;          &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;simple&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;Restart&lt;/span&gt;       &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;always&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;LimitNPROC&lt;/span&gt;    &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;500&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;LimitNOFILE&lt;/span&gt;   &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;1000000&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;ExecStartPre&lt;/span&gt;  &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;sleep 1s&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;ExecStart&lt;/span&gt;     &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;mihomo -f /etc/mihomo/config.yaml&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 启动前先尝试清理，忽略可能的失败 (注意-号的用法)
+&lt;/span&gt;&lt;span class=&quot;py&quot;&gt;ExecStartPost&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;-ip route del local default dev eno1 table 100&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;ExecStartPost&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;-ip rule del fwmark 1 lookup 100&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 再执行添加操作
+&lt;/span&gt;&lt;span class=&quot;py&quot;&gt;ExecStartPost&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;ip route add local default dev eno1 table 100&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;ExecStartPost&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;ip rule add fwmark 1 lookup 100&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;ExecStartPost&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;nft -f &amp;lt;mynftables.nft path&amp;gt;&lt;/span&gt;
+
+&lt;span class=&quot;c&quot;&gt;# 停止时，确保每个清理步骤都被尝试执行
+&lt;/span&gt;&lt;span class=&quot;py&quot;&gt;ExecStop&lt;/span&gt;      &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;-nft flush ruleset&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;ExecStop&lt;/span&gt;      &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;-ip route del local default dev eno1 table 100&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;ExecStop&lt;/span&gt;      &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;-ip rule del fwmark 1 lookup 100&lt;/span&gt;
+
+&lt;span class=&quot;nn&quot;&gt;[Install]&lt;/span&gt;
+&lt;span class=&quot;py&quot;&gt;WantedBy&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;multi-user.target&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;启用服务&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;systemctl daemon-reload
+&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;systemctl &lt;span class=&quot;nb&quot;&gt;enable &lt;/span&gt;mihomo.service
+&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;systemctl start mihomo.service
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;至此这个主机已经可以作为旁路由了，将其他主机的网关手动指向它就可以实现科学上网。在此基础上，我们还可以继续配置路由器的dhcp服务，让dhcp服务自动配置网关到该路由器。&lt;/p&gt;
+
+&lt;p&gt;首先需要将旁路由设置成静态ip，不然路由器的dhcp服务修改后我们的网关会指向自己&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;nmcli connection show
+&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;nmcli connection modify &lt;span class=&quot;s2&quot;&gt;&quot;Wired connection 1&quot;&lt;/span&gt; ipv4.method manual
+&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;nmcli connection modify &lt;span class=&quot;s2&quot;&gt;&quot;Wired connection 1&quot;&lt;/span&gt; ipv4.method manual ipv4.addresses 192.168.2.2/24 ipv4.gateway 192.168.2.1 
+&lt;span class=&quot;nb&quot;&gt;sudo &lt;/span&gt;nmcli connection up &lt;span class=&quot;s2&quot;&gt;&quot;Wired connection 1&quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;我的路由器是openwrt，配置dhcp直接在lan口的dhcp服务中添加：&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;3,192.168.2.2 # 配置网关
+6,192.168.2.2 # 配置dns服务器
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;至此配置结束&lt;/p&gt;</content><author><name></name></author><category term="杂" /><summary type="html">之前家里科学上网一直是通过刷了个openwrt的路由装了openclash来上网的，但是受限于openwrt路由器的性能，操作openclash很是不方便，总觉得网速也受到影响，因此准备在家中内网的linux主机上配置一个旁路由用于科学上网。</summary></entry><entry><title type="html">Termius破解小记</title><link href="https://citrusice.github.io/posts/termius-reversing/" rel="alternate" type="text/html" title="Termius破解小记" /><published>2025-03-13T13:22:55+08:00</published><updated>2025-03-13T13:22:55+08:00</updated><id>https://citrusice.github.io/posts/termius-reversing</id><content type="html" xml:base="https://citrusice.github.io/posts/termius-reversing/">&lt;p&gt;因为windows上一直用的win terminal，但是这玩意用ssh的时候传文件不方便所以就想换个工具。其实一直有在用mobaXterm，但是这个免费版有session上限，而且我垂涎termius和tabby的ui很久了，就准备换一下。tabby这东西bug有点多，根本没法用公私钥连接我的服务器，应该是跟windows生成的密钥有关系，所以只好选择termius。&lt;/p&gt;
 
 &lt;p&gt;termius的问题在于他现在打开就让你注册登录，实在是不想为了个ssh工具搞一个账号，于是准备破解一下。&lt;/p&gt;
 
@@ -717,67 +984,4 @@ All branch targets should be 16-byte aligned.&lt;/p&gt;
 
 &lt;hr /&gt;
 
-&lt;p&gt;之前读了一篇关于代码分析的论文，名字叫《What You See Is Not What You eXecute》，所以我就也模仿了一下起了这么一个标题。&lt;/p&gt;</content><author><name></name></author><category term="debugging" /><summary type="html">对于每个程序员来说，编程时最依赖也最为可靠的便是官方给的文档以及 sdk 中的种种信息。然而即便是官网文档，其内容也并非完全正确。本文将分享我最近调试的两个bug。</summary></entry><entry><title type="html">CVE-2018-8453 利用（下）</title><link href="https://citrusice.github.io/posts/cve-2018-8453-exploit-2/" rel="alternate" type="text/html" title="CVE-2018-8453 利用（下）" /><published>2023-01-11T15:11:34+08:00</published><updated>2023-01-11T15:11:34+08:00</updated><id>https://citrusice.github.io/posts/cve-2018-8453-exploit-2</id><content type="html" xml:base="https://citrusice.github.io/posts/cve-2018-8453-exploit-2/">&lt;p&gt;上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。&lt;/p&gt;
-
-&lt;p&gt;本文利用环境依然为 win10 x64 1703&lt;/p&gt;
-
-&lt;p&gt;参考：&lt;a href=&quot;https://ti.qianxin.com/blog/articles/cve-2018-8453-win32k-elevation-of-privilege-vulnerability-targeting-the-middle-east/&quot;&gt;CVE-2018-8453：针对中东地区的Windows内核提权漏洞利用分析&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;首先回顾一下上次的流程。这个漏洞是一个 double free 漏洞，在第一次释放后我们通过 NtGdiSetLinkedUFIs 去在原始被释放的位置分配了一块新的内存，而在第二次释放前，win32k 对 sbtrack 中的字段有 unlock 的操作，由于 sbrack 的内存现在是我们可以控制的，所以此时我们有了一个任意地址减一的原语。&lt;/p&gt;
-
-&lt;p&gt;那么我们用这个任意地址减一的原语去干什么？首先想到的那就是通过两个相邻的 palette，修改前一个 palette 的 cEntries 为 0 的高位（减一后溢出变为 0xff），实现增大 cEntries 的效果，然后覆盖后一个 palette 的 apalColor 实现任意读写。&lt;/p&gt;
-
-&lt;p&gt;如果要这么实现，那么我们需要进一步解决两个问题，第一要知道这两个 palette 的地址，第二是要让这两个 palette 相邻（或者比较足够近）。&lt;/p&gt;
-
-&lt;p&gt;首先还是通过窗口 lpszMenuName 预测下一次分配一个页时的地址，因为这个预测方法需要 palette 必须大于一页（large pool 分配机制），所以相邻的 palette 一定在第二页中。因此我们设计第一个 palette 大小为 0x1b00。&lt;strong&gt;在 large pool 分配后，系统会在分配的块后面加一个 frag chunk，然后将多余的块作为待分配的 poolchunk 管理。&lt;/strong&gt; 因此第二个 palette 的大小便是 0x4e0。为了防止还有其他的待分配的 0x4e0 的块，这里我们可以分配大量的 palette，然后通过 Manager palette 改写后面 palette cEntries 来确定哪个是真正分配在 Manager 后面的块。这样就实现了两个并排的 palette，并且我们知道他们俩个的地址。&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0: kd&amp;gt; ??MgrAddr
-unsigned int64 0xffffa088`c2557000
-0: kd&amp;gt; !pool 0xffffa088`c2557000
-Pool page ffffa088c2557000 region is Paged session pool
-ffffa088c2557000 is not a valid large pool allocation, checking large session pool...
-*ffffa088c2557000 : large page allocation, tag is Gh08, size is 0x1b00 bytes
-		Pooltag Gh08 : GDITAG_HMGR_PAL_TYPE, Binary : win32k.sys
-0: kd&amp;gt; !pool 0xffffa088`c2557000+1b00+20
-Pool page ffffa088c2558b20 region is Paged session pool
-ffffa088c2558000 is not a valid large pool allocation, checking large session pool...
- ffffa088c2558b00 size:   20 previous size:    0  (Allocated)  Frag
-*ffffa088c2558b20 size:  4e0 previous size:   20  (Allocated) *Gh08
-		Pooltag Gh08 : GDITAG_HMGR_PAL_TYPE, Binary : win32k.sys
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;同样我们继续使用 NtGdiSetLinkedUFIs 在 sbtrack 被释放后分配内存，在原始思路中，文章作者使用了 bitmap 来占位刚被释放的 sbtrack，这是因为作者的利用环境为 1709，此时 bitmap 已经开启了 type isolation，数据与 bitmap 头做了分离，因此变相实现了 NtGdiSetLinkedUFIs 的效果。&lt;/p&gt;
-
-&lt;p&gt;虽然使用任意地址减一的方法不需要 sbtrack 的那个 chunk 与之后的 chunk 合并，但是可能是有由于 sbtrack 的 chunk size 太小，导致利用不稳定（之后重新分配的时候经常分配不到 sbtrack 的那个块），因此还是将 chunk 合并为大块（大块数量少）。&lt;/p&gt;
-
-&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0: kd&amp;gt; !dppal 0xffffa088`c1db7000
-EPALOBJ structure at 0xffffa088c1db7000:
---------------------------------------------------
-FLONG      flPal         0x501
-ULONG      cEntries      0xffff069c
-ULONG      ulTime        0x2082
-HDC        hdcHead       0x0000000000000000
-HDEVPPAL   hSelected     0x0000000000000000
-ULONG      cRefhpal      0x0
-ULONG      cRefRegular   0x0
-PTRANSLATE ptransFore    0x0000000000000000
-PTRANSLATE ptransCurrent 0x0000000000000000
-PTRANSLATE ptransOld     0x0000000000000000
-PPALETTE   ppalColor     0xffffa088c1db7088
-PAL_ULONG  apalColor     0x0000000000000000
---------------------------------------------------
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;将 cEntries 高位减一后变为 0xffff，此时 palette 就可以实现越界读写了，然后再改写后面的 palette。&lt;/p&gt;
-
-&lt;p&gt;写到这才想起来 0xffff0000 是一个很大的数，可以越界读写 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;0xffff0000*4&lt;/code&gt;（约3gb） 的内存空间，实际上我们根本不需要让两个 palette 并排放置，只要多申请几个 palette 然后确定两个 palette 之间的距离在这个范围内就可以了。&lt;/p&gt;
-
-&lt;p&gt;之后的流程就是一模一样了，从内核中删除 dc object 的 handle entry 防止二次释放，然后替换进程 token 提权。&lt;/p&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;从刚开始想了解内核漏洞去读《Kernel Attacks through User-Mode Callbacks》到现在完整分析完一个漏洞，已经过去了半年时间。这样的速度是快还是慢呢？类似的疑问我常常会想，但我又知道这样的问题是无所谓回答不回答的。曾经刚入门安全的时候我曾在笔记中留下这样的话，现在回过头看还是会不禁赞叹一下自己，哈哈。&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;有点忙，能学东西的时间不多，有点苦恼于自己什么都不会，但是转念一想才开始学习3个月不到，这也正常。我已经见过不少的例子，只要保持学习，就可以从什么都不会到小有所成&lt;/p&gt;
-&lt;/blockquote&gt;</content><author><name></name></author><category term="pwn" /><summary type="html">上一篇文章中我们在探索漏洞利用的过程中意外发现了一个新的方法，即一个任意地址减一的原语，本文将延续这个方法，通过任意地址减一这个原语实现漏洞的利用。</summary></entry></feed>
+&lt;p&gt;之前读了一篇关于代码分析的论文，名字叫《What You See Is Not What You eXecute》，所以我就也模仿了一下起了这么一个标题。&lt;/p&gt;</content><author><name></name></author><category term="debugging" /><summary type="html">对于每个程序员来说，编程时最依赖也最为可靠的便是官方给的文档以及 sdk 中的种种信息。然而即便是官网文档，其内容也并非完全正确。本文将分享我最近调试的两个bug。</summary></entry></feed>
