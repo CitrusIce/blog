@@ -10,7 +10,7 @@ url: "https://citrusice.github.io"
 # refer to http://shopify.github.io/liquid/filters/date/ if you want to customize this
 sass:
   sass_dir: _sass
-exclude: [makefile,newpost.sh,Gemfile,Gemfile.lock,LICENSE.txt,README.md,screen1.png,screen2.png,texture.gemspec]
+exclude: [makefile,newpost.sh,Gemfile,Gemfile.lock,LICENSE.txt,README.md,screen1.png,screen2.png,texture.gemspec,vendor]
 permalink: /posts/:title/
 texture:
   title: Nqd8VId6
