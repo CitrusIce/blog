@@ -1,8 +1,8 @@
 ---
 layout: post
-title: "Agent控制论哲学"
+title: "Agent Cybernetic Philosophy Part 0"
 date: 2026-06-29 15:31:07 +0800
-categories: 杂
+categories: ai
 ---
 
 我们为什么需要它，问题是什么？
