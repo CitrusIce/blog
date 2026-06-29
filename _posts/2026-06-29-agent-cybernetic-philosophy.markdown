@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Agent Cybernetic Philosophy Part 0"
+title: "Agent Cybernetic Philosophy Part 0 —— What and Why"
 date: 2026-06-29 15:31:07 +0800
 categories: ai
 ---
