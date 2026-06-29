@@ -1,5 +1,33 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2026-05-08T18:16:06+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
-</subtitle><entry><title type="html">AI时代下终端对抗的本质是成本对抗</title><link href="https://citrusice.github.io/posts/ai-terminal-confrontation-is-cost-confrontation/" rel="alternate" type="text/html" title="AI时代下终端对抗的本质是成本对抗" /><published>2026-05-08T18:06:05+08:00</published><updated>2026-05-08T18:06:05+08:00</updated><id>https://citrusice.github.io/posts/ai-terminal-confrontation-is-cost-confrontation</id><content type="html" xml:base="https://citrusice.github.io/posts/ai-terminal-confrontation-is-cost-confrontation/">&lt;p&gt;不得不说最近两年， AI 让各个领域发生了很大的变化。它极大的改变了我们的工作方式，同时也让我们能够穿透那些不重要的东西去接触到问题的本质。比如拿编程举例，一些人可能早早就已经意识到学习编程重要的并非学习各种语言的语法，甚至算法与数据结构都没有那么重要，而是一些更加“工程”的东西。但是这个东西是什么？我说不清楚，也许叫架构，也许叫体系，而在各种code agent出现后，大家又用harness称呼。总而言之，由于 AI 的出现，我们比之前任何时候都能更容易的直面问题的本质。&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.9.0">Jekyll</generator><link href="https://citrusice.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://citrusice.github.io/" rel="alternate" type="text/html" /><updated>2026-06-29T15:31:22+08:00</updated><id>https://citrusice.github.io/feed.xml</id><title type="html">Nqd8VId6</title><subtitle>my blog
+</subtitle><entry><title type="html">Agent控制论哲学</title><link href="https://citrusice.github.io/posts/agent-cybernetic-philosophy/" rel="alternate" type="text/html" title="Agent控制论哲学" /><published>2026-06-29T15:31:07+08:00</published><updated>2026-06-29T15:31:07+08:00</updated><id>https://citrusice.github.io/posts/agent-cybernetic-philosophy</id><content type="html" xml:base="https://citrusice.github.io/posts/agent-cybernetic-philosophy/">&lt;p&gt;我们为什么需要它，问题是什么？&lt;/p&gt;
+
+&lt;p&gt;距离openai发布 Harness engineering 那篇文章已经过去了将近半年，这半年里我看到了不断有关于harness/skill的讨论和文章，研究如何更好的指挥agent。我仍记得去年的这个时候我还在一行一行指导ai去编写代码，或是一个任务一个任务的监控agent完成。而更早之前呢，我一边用着cursor的tab补全，一边在网页上复制粘贴ai给出的代码。未来会有更新更前卫的使用方法吗？谁也预料不到，ai的发展是日新月异的，从这个角度来说，在harness这个词已经被大众普遍所熟知的时间，我再去写一篇教大家如何使用agent的文章似乎已经为时已晚。我自己也这么认为的，所以我没有使用harness这个词。我希望大家明白的是，在”怎么做”这个问题背后还有更深层次的东西，也许这个东西叫”道”，也许这个东西叫方法论，我觉得”道”这个词太故弄玄虚了，所以我更愿意称之为一种哲学。&lt;/p&gt;
+
+&lt;p&gt;Agent控制论哲学。&lt;/p&gt;
+
+&lt;p&gt;我们希望agent无休止的运行，直到达到我们想要的效果，在这个过程中我们不需要监督，不需要做任何事，只需要最后收获就行了。在我编写本文的今天，anthropic已经推出了fable模型，但是我们仍然不能期望告诉agent我要解决某个复杂问题后，这个问题就被agent解决了。通过一句话就解决复杂问题目前仍然是困难的，因为agent目前仍然不完全掌握解决复杂问题的方法，并且agent永远不会知道我们想要的具体是什么，我们也不可能列一张事无巨细的清单给agent去描述清楚，甚至有些时候我们也不清楚我们自己想要什么。这里面有两个问题，一个是解决问题复杂问题的方法，一个是如何搞清楚我们到底想要什么。表面上看，本文要讨论的是”如何指挥agent做事”，但实际上，本文要讨论的正是这两个问题。&lt;/p&gt;
+
+&lt;p&gt;为了指挥agent解决问题，我们开始编写prompt，为agent提供合适的context，为agent编写harness。我们要明确的是，harness工程要解决的问题本质上跟上下文工程要解决的问题没有任何区别，而上下文工程跟prompt工程也没有区别。如果agent具有足够解决目标问题的上下文，那么harness工程就不需要存在，当然上下文工程和prompt工程也是。就像我们问agent 1+1时，我们不需要考虑要喂给agent什么东西。&lt;/p&gt;
+
+&lt;p&gt;那么为什么他们有不同的名字？在于他们解决问题的方式实际上是不一样的。prompt工程在于你让模型从什么角度去切入这个问题，或者说怎么问。上下文工程在于让模型在思考这个问题时能暴露给模型哪些信息。而harness工程解决的是，当这个问题过于复杂，解决这个问题需要的信息太多而远远超过模型的上下文时，需要把问题分解成小问题，并且渐进式地暴露用于解决问题的信息给模型，让模型连续处理一个一个小问题，最终解决复杂问题。究其根源，在于agent的上下文是有限的，当然人也是。因此我们可以思考我们是怎么解决复杂问题，我们用了什么方法去解决复杂问题。&lt;/p&gt;
+
+&lt;p&gt;对于复杂问题，我们通常会说：可以把它拆解成一个个简单问题，再逐一解决。听起来这似乎只是一个”规划—执行”的过程：先制定计划，再按照计划完成任务。&lt;/p&gt;
+
+&lt;p&gt;但现实中的复杂问题往往不是这样。很多时候，我们并不知道问题的全貌，也无法一开始就定义清楚最终目标。我们只是隐约知道自己想要某种结果，却不知道它具体长什么样，也不知道通向它的路径在哪里。于是，解决问题的过程就不再是单纯的规划与执行，而变成了一种半探索、半解决的过程。&lt;/p&gt;
+
+&lt;p&gt;我们只能不断尝试：也许沿着这个方向能找到线索，也许做这件事能让目标更接近一点。每一次尝试都会产生新的结果，而这些结果又需要被观察、记录、分析和判断：它是否推进了目标？它暴露了什么新问题？它是否意味着我们需要调整方向？&lt;/p&gt;
+
+&lt;p&gt;于是，为了解决原本的问题，我们开始引入新的步骤：需要有人负责拆解问题，需要机制来收集反馈，需要标准来判断进展，需要流程来决定下一步，还需要工具来管理越来越多的信息和决策。最初，这些东西只是为了应对某个局部的不确定性而临时增加的；但随着探索继续，它们会不断累积、连接、相互依赖，最终形成一个新的复杂系统。&lt;/p&gt;
+
+&lt;p&gt;也就是说，复杂系统并不是凭空出现的。它是在我们试图解决一个不清晰、不稳定、不断变化的问题时，由一系列临时应对、反馈机制和协调结构逐渐堆叠出来的。结果是，复杂问题还没有被解决，解决复杂问题的系统本身却先变成了新的复杂问题。&lt;/p&gt;
+
+&lt;p&gt;那么，问题就发生了一次转移：我们不再只是问”如何解决最初那个复杂问题”，而是必须进一步追问——如何维持这个为了解决问题而生成的复杂系统，使它不至于失控，并且仍然能够指向最初的目标。&lt;/p&gt;
+
+&lt;p&gt;换句话说，我们已经不只是站在问题面前，而是走进了由问题催生出来的系统之中。我们来到了密林深处。几十年前，已经有人抵达过这里，并在这片密林中留下了一块路标——《控制论》。&lt;/p&gt;
+
+&lt;p&gt;到这里就结束了。诚然本文并没有给出一个”如何更好地使用agent”的确切答案，但是本文完成了一次问题视角的转换。我们不再把复杂问题仅仅理解为一组等待拆解和执行的任务，而是把它理解为一个会不断生成反馈、判断、协调与修正机制的过程。这个过程一旦持续下去，就会形成一个新的系统；而这个系统是否仍然服务于最初的目标，是否能够在不确定性中保持方向，是否会在自我维护中偏离问题本身，才是接下来真正需要讨论的东西。&lt;/p&gt;
+
+&lt;p&gt;也就是说，关于 agent 的问题，最终会变成关于控制系统的问题。接下来我们将从控制论开始，继续深入。&lt;/p&gt;</content><author><name></name></author><category term="杂" /><summary type="html">我们为什么需要它，问题是什么？</summary></entry><entry><title type="html">AI时代下终端对抗的本质是成本对抗</title><link href="https://citrusice.github.io/posts/ai-terminal-confrontation-is-cost-confrontation/" rel="alternate" type="text/html" title="AI时代下终端对抗的本质是成本对抗" /><published>2026-05-08T18:06:05+08:00</published><updated>2026-05-08T18:06:05+08:00</updated><id>https://citrusice.github.io/posts/ai-terminal-confrontation-is-cost-confrontation</id><content type="html" xml:base="https://citrusice.github.io/posts/ai-terminal-confrontation-is-cost-confrontation/">&lt;p&gt;不得不说最近两年， AI 让各个领域发生了很大的变化。它极大的改变了我们的工作方式，同时也让我们能够穿透那些不重要的东西去接触到问题的本质。比如拿编程举例，一些人可能早早就已经意识到学习编程重要的并非学习各种语言的语法，甚至算法与数据结构都没有那么重要，而是一些更加“工程”的东西。但是这个东西是什么？我说不清楚，也许叫架构，也许叫体系，而在各种code agent出现后，大家又用harness称呼。总而言之，由于 AI 的出现，我们比之前任何时候都能更容易的直面问题的本质。&lt;/p&gt;
 
 &lt;p&gt;笔者作为一个仍然十分关注免杀领域的安全研究人员，自然也往往会思考终端对抗的本质这种问题。正如当年接触渗透时看到的名言“渗透的本质是信息搜集”那样，在终端对抗领域深入研究后我也意识到，终端对抗的本质是成本的对抗。 AI 会改写这一判断吗？不会，底色仍是成本博弈；但它急剧重塑了攻防双方在成本上的结构与节奏：同样的目标，双方要付出的人力、时间与试错代价，以及这些代价随迭代变化的方式，都已和几年前不可同日而语。&lt;/p&gt;
 
@@ -899,150 +927,4 @@ All branch targets should be 16-byte aligned.&lt;/p&gt;
 
 &lt;p&gt;搞区块链以后常常会后悔，因为自己抛弃了一个安逸的环境。虽然这些后悔是我早已预料的，但是我还是高估了我对变化的环境的承受能力，我往往感到精疲力尽，并在想如果我当时没有做出这样的选择，我应该沉浸在 ida 和 windows 的世界里，享受轻松无压力的生活。尽管有一些言论是说“让自己走出舒适区”，但我却并不认同。只要这个舒适区是可持续的，那么一直待在里面没有什么不好。不过，虽然我嘴上是不认同这种观点，但是我实际的选择上却是倾向于认同的，也许是因为我还是想做一点事才这样选择。&lt;/p&gt;
 
-&lt;p&gt;博客我还是会尽力写，因为一方面我不想说让我二进制这块的学习就这样停滞，另外我也仍然想在安全这块有所成就，不过写的速度是不会像以前那样一个月一篇了。不过也无所谓，贵在坚持。&lt;/p&gt;</content><author><name></name></author><category term="windows" /><summary type="html">上一篇文章中我介绍了 tls 表以及 ldr，本文将介绍资源表、LdrpHashTable、异常表和 MFC 程序加载时出现的问题等相关内容。</summary></entry><entry><title type="html">From Memory Loading to Everything - Part 1</title><link href="https://citrusice.github.io/posts/from-memory-loading-to-everyting-part-1/" rel="alternate" type="text/html" title="From Memory Loading to Everything - Part 1" /><published>2023-05-20T11:02:16+08:00</published><updated>2023-05-20T11:02:16+08:00</updated><id>https://citrusice.github.io/posts/from-memory-loading-to-everyting-part-1</id><content type="html" xml:base="https://citrusice.github.io/posts/from-memory-loading-to-everyting-part-1/">&lt;p&gt;我接触 Windows 最开始看的两本书是《PE 权威指南》和《Windows 核心编程》，学这两本书的目的也很简单：实现内存加载。我们知道，要实现内存加载，最重要的是处理 PE 中的三个表：导入表，iat 和重定位表。然而跟 pe 装载有关系的表却不仅仅只有这三个，那么剩下的表都有着怎样的内容？在 PE 的装在过程中发挥了什么样的作用？&lt;/p&gt;
-
-&lt;p&gt;毫无疑问，仅仅处理导入表和重定位表的内存加载是不完美的，只能实现部分 pe 的加载。&lt;/p&gt;
-
-&lt;p&gt;这个系列目的在于提供 pe 装载部分细节的&lt;strong&gt;索引&lt;/strong&gt;，希望读者能通过这些索引去更深入的学习，以实现完美的内存加载技术。当然，不会有现成的代码，甚至不会有太多细节。&lt;/p&gt;
-
-&lt;p&gt;对 pe 这些表的了解过程一定程度上也代表了我的二进制学习历程。&lt;/p&gt;
-
-&lt;h1 id=&quot;peb_ldr_data&quot;&gt;PEB_LDR_DATA&lt;/h1&gt;
-
-&lt;p&gt;尽管 PEB_LDR_DATA 并非是 pe 中的一个表，但是它记录了当前进程中到底有哪些模块被装载，如果要实现完美的内存加载，它是少不了的，因为 GetModuleHandle 是依赖于 LdrpCheckForLoadedDll ，而 LdrpCheckForLoadedDll 最终就是检查 PEB_LDR_DATA。&lt;/p&gt;
-
-&lt;p&gt;另外，如果要将内存加载的模块设置为主模块，需要修改 ` (HMODULE)(PVOID)NtCurrentPeb()-&amp;gt;ImageBaseAddress`&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;//0x58 bytes (sizeof)&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_PEB_LDR_DATA&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Length&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                           &lt;span class=&quot;c1&quot;&gt;//0x0&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;UCHAR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Initialized&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                      &lt;span class=&quot;c1&quot;&gt;//0x4&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SsHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                         &lt;span class=&quot;c1&quot;&gt;//0x8&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InLoadOrderModuleList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                               &lt;span class=&quot;c1&quot;&gt;//0x10&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InMemoryOrderModuleList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                             &lt;span class=&quot;c1&quot;&gt;//0x20&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InInitializationOrderModuleList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                     &lt;span class=&quot;c1&quot;&gt;//0x30&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EntryInProgress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                  &lt;span class=&quot;c1&quot;&gt;//0x40&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;UCHAR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ShutdownInProgress&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                               &lt;span class=&quot;c1&quot;&gt;//0x48&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ShutdownThreadId&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                 &lt;span class=&quot;c1&quot;&gt;//0x50&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt; 
-
-&lt;span class=&quot;c1&quot;&gt;//0x120 bytes (sizeof)&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LDR_DATA_TABLE_ENTRY&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InLoadOrderLinks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x0&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InMemoryOrderLinks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                  &lt;span class=&quot;c1&quot;&gt;//0x10&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InInitializationOrderLinks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                          &lt;span class=&quot;c1&quot;&gt;//0x20&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DllBase&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                          &lt;span class=&quot;c1&quot;&gt;//0x30&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EntryPoint&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                       &lt;span class=&quot;c1&quot;&gt;//0x38&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SizeOfImage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                      &lt;span class=&quot;c1&quot;&gt;//0x40&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_UNICODE_STRING&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FullDllName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                     &lt;span class=&quot;c1&quot;&gt;//0x48&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_UNICODE_STRING&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BaseDllName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                     &lt;span class=&quot;c1&quot;&gt;//0x58&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;union&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;UCHAR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FlagGroup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt;                                                 &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                        &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PackagedBinary&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MarkedForRemoval&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                       &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ImageDll&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                               &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadNotificationsSent&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                  &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TelemetryEntryProcessed&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ProcessStaticImport&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InLegacyLists&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                          &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InIndexes&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                              &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ShimDll&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InExceptionTable&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                       &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReservedFlags1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadInProgress&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadConfigProcessed&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EntryProcessed&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ProtectDelayLoad&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                       &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReservedFlags3&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DontCallForThreads&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                     &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ProcessAttachCalled&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ProcessAttachFailed&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CorDeferredValidate&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                    &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CorImage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                               &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DontRelocate&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                           &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CorILOnly&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                              &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ChpeImage&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                              &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReservedFlags5&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Redirected&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                             &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReservedFlags6&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                         &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CompatDatabaseProcessed&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                &lt;span class=&quot;c1&quot;&gt;//0x68&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;USHORT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ObsoleteLoadCount&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                               &lt;span class=&quot;c1&quot;&gt;//0x6c&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;USHORT&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TlsIndex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                        &lt;span class=&quot;c1&quot;&gt;//0x6e&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HashLinks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                           &lt;span class=&quot;c1&quot;&gt;//0x70&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TimeDateStamp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                    &lt;span class=&quot;c1&quot;&gt;//0x80&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_ACTIVATION_CONTEXT&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EntryPointActivationContext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                &lt;span class=&quot;c1&quot;&gt;//0x88&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                             &lt;span class=&quot;c1&quot;&gt;//0x90&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LDR_DDAG_NODE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DdagNode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                        &lt;span class=&quot;c1&quot;&gt;//0x98&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LIST_ENTRY&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NodeModuleLink&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                      &lt;span class=&quot;c1&quot;&gt;//0xa0&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_LDRP_LOAD_CONTEXT&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadContext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                 &lt;span class=&quot;c1&quot;&gt;//0xb0&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ParentDllBase&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                    &lt;span class=&quot;c1&quot;&gt;//0xb8&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;VOID&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SwitchBackContext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                &lt;span class=&quot;c1&quot;&gt;//0xc0&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_RTL_BALANCED_NODE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BaseAddressIndexNode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                         &lt;span class=&quot;c1&quot;&gt;//0xc8&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_RTL_BALANCED_NODE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MappingInfoIndexNode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                         &lt;span class=&quot;c1&quot;&gt;//0xe0&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONGLONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;OriginalBase&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                 &lt;span class=&quot;c1&quot;&gt;//0xf8&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;union&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_LARGE_INTEGER&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadTime&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                          &lt;span class=&quot;c1&quot;&gt;//0x100&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BaseNameHashValue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                &lt;span class=&quot;c1&quot;&gt;//0x108&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;enum&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;_LDR_DLL_LOAD_REASON&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;LoadReason&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                   &lt;span class=&quot;c1&quot;&gt;//0x10c&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ImplicitPathOptions&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                              &lt;span class=&quot;c1&quot;&gt;//0x110&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ReferenceCount&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                   &lt;span class=&quot;c1&quot;&gt;//0x114&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DependentLoadFlags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                               &lt;span class=&quot;c1&quot;&gt;//0x118&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;UCHAR&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SigningLevel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;                                                     &lt;span class=&quot;c1&quot;&gt;//0x11c&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt; 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h1 id=&quot;tls-表&quot;&gt;TLS 表&lt;/h1&gt;
-
-&lt;p&gt;Windows TLS (Thread Local Storage) 机制意在为每个线程提供的独立的存储空间，分为动态 TLS 和静态 TLS，动态 TLS 自然不必多说，通过 Windows Api 实现，而静态 TLS 则关乎 PE 的 TLS 表。&lt;/p&gt;
-
-&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;_IMAGE_TLS_DIRECTORY64&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONGLONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;StartAddressOfRawData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONGLONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EndAddressOfRawData&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONGLONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AddressOfIndex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;         &lt;span class=&quot;c1&quot;&gt;// PDWORD&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ULONGLONG&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;AddressOfCallBacks&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;     &lt;span class=&quot;c1&quot;&gt;// PIMAGE_TLS_CALLBACK *;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SizeOfZeroFill&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;union&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Characteristics&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Reserved0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;20&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Alignment&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;DWORD&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Reserved1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DUMMYSTRUCTNAME&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;DUMMYUNIONNAME&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IMAGE_TLS_DIRECTORY64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;在装载 pe 的时候，ntdll 使用 LdrpAllocateTlsEntry 为每个 image 分配 tls 表项，具体来说就是找到 image 的 tls 表，然后在内存中分配一个 buffer 将表中的数据拷贝到 buffer 中，并调用 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LdrpAcquireTlsIndex&lt;/code&gt; 为这个 tls entry 分配一个 index（也就是 tls index），最后将这块 buffer 加入一个双向链表 &lt;code class=&quot;language-plaintext highlighter-rouge&quot;&gt;LdrpTlsList&lt;/code&gt;。&lt;/p&gt;
-
-&lt;p&gt;在分配完 index 后，对于 LdrpTlsList 中的每个 tls entry，ntdll 将其包含的静态 tls data 写入 teb 中的 ThreadLocalStoragePointer 指向的数组中。&lt;/p&gt;
-
-&lt;p&gt;如果反汇编一段读取静态 tls 数据的代码，我们就可以看到，程序通过 tlsindex 在 ThreadLocalStoragePointer 中读取了数据。&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt; mov eax,108                            
- mov eax,eax                            
- mov ecx,dword ptr ds:[&amp;lt;_tls_index&amp;gt;]    
- mov rdx,qword ptr gs:[58]           
- add rax,qword ptr ds:[rdx+rcx*8]       
- mov r9d,1                              
- xor r8d,r8d                            
- mov rdx,rax               
- xor ecx,ecx                            
- call qword ptr ds:[&amp;lt;&amp;amp;MessageBoxA&amp;gt;]     
-
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;hr /&gt;
-
-&lt;p&gt;最近几个月一直没有写博客，这篇文章写得也很简略，一方面因为脑子里确实没什么东西，另一方面也因为工作换了，精力少了很多，我也不确定这个系列是否能写完。虽然本文技术上的内容没有写多少，但是还有其他话想说正。如我去年所写的，“事情的发展总是凡人难以预料的，通过渗透入门安全的时候我无论如何也不会想到三年后已经早已不再接触渗透”，如今这似乎像预言一样的东西确实兑现了。尽管现在做的东西已经不属于安全行业了，但是我仍然认为它跟安全有着联系，我也仍然认为我是一个搞安全的。&lt;/p&gt;
-
-&lt;p&gt;最后仿写一段本人刚刚接触二进制时看到的一篇大佬的文章末尾写的话，我觉得此时此刻恰如彼时彼刻：&lt;/p&gt;
-
-&lt;p&gt;写这篇文章时笔者不禁想起了几年前刚成为黑客只是想绕过 360 做免杀的自己，如今几年过去了以笔者的能力自认为做到完美的免杀变成易如反掌的事情了，但是笔者却成为了一个送外卖的外卖小哥. 安全路漫漫, 要学的东西还有很多。&lt;/p&gt;</content><author><name></name></author><category term="windows" /><summary type="html">我接触 Windows 最开始看的两本书是《PE 权威指南》和《Windows 核心编程》，学这两本书的目的也很简单：实现内存加载。我们知道，要实现内存加载，最重要的是处理 PE 中的三个表：导入表，iat 和重定位表。然而跟 pe 装载有关系的表却不仅仅只有这三个，那么剩下的表都有着怎样的内容？在 PE 的装在过程中发挥了什么样的作用？</summary></entry></feed>
+&lt;p&gt;博客我还是会尽力写，因为一方面我不想说让我二进制这块的学习就这样停滞，另外我也仍然想在安全这块有所成就，不过写的速度是不会像以前那样一个月一篇了。不过也无所谓，贵在坚持。&lt;/p&gt;</content><author><name></name></author><category term="windows" /><summary type="html">上一篇文章中我介绍了 tls 表以及 ldr，本文将介绍资源表、LdrpHashTable、异常表和 MFC 程序加载时出现的问题等相关内容。</summary></entry></feed>
