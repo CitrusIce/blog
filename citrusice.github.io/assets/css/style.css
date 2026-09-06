@@ -638,19 +638,26 @@ header {
     header .social li {
       color: #fff;
       float: left; }
-      header .social li i {
+      header .social li i, header .social li svg {
         font-size: 26px;
         transition: color .3s; }
-        header .social li i:first-child::before {
+        header .social li i:first-child::before, header .social li svg:first-child::before {
           margin-left: 0; }
         @media screen and (min-width: 320px) {
-          header .social li i {
+          header .social li i, header .social li svg {
             font-size: calc(26px + 8 * ((100vw - 320px) / 960)); } }
         @media screen and (min-width: 1280px) {
-          header .social li i {
+          header .social li i, header .social li svg {
             font-size: 34px; } }
-        header .social li i:hover {
+        header .social li i:hover, header .social li svg:hover {
           color: #999; }
+      header .social li svg {
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        margin-left: 0.2em;
+        vertical-align: -0.1em;
+        fill: currentColor; }
 
 .clearfix {
   clear: both; }

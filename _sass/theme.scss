@@ -89,7 +89,7 @@ header {
             color: #fff;
             float: left;
 
-            i {
+            i, svg {
                 &:first-child::before {
                     margin-left: 0;
                 }
@@ -101,6 +101,15 @@ header {
                 &:hover {
                     color: $gray;
                 }
+            }
+
+            svg {
+                display: inline-block;
+                width: 1em;
+                height: 1em;
+                margin-left: 0.2em;
+                vertical-align: -0.1em;
+                fill: currentColor;
             }
         }
     }
